@@ -31,6 +31,12 @@
 - [x] `DefaultWorkflowContext` 및 `JdbcTaskExecutor` 구현 (상태 저장 및 오케스트레이션)
 - [x] Mustache 기반 모니터링 대시보드 및 타임라인 UI 구현
 
+### 5. 실무 예제 (service-app)
+- [x] H2 기반 단일 DataSource로 SRC_DATA → DEST_DATA 마이그레이션 샘플 구성
+- [x] `@Workflow`/`@Activity(MIGRATION_WRITE)` 구현 및 레지스트리 자동 스캔 연동
+- [x] 앱 기동 시 초기 데이터 적재 및 PENDING 작업 시드(CommandLineRunner)
+- [x] 실패 강제(`Second Data`)로 백오프 재시도 동작 검증(엔진의 `fail()` 로직 활용)
+
 ---
 
 ## 🚀 향후 과제 (Our Homework)
