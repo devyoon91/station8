@@ -1,0 +1,3 @@
+rootProject.name = 'simple-workflow-engine'
+include 'engine-core'
+include 'service-app'
