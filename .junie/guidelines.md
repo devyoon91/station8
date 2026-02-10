@@ -1,0 +1,5 @@
+- 모든 Task는 한국어로 설명한다.
+- AGENTS.md, /docs/workflow-engine-spec.md 반드시 참고하고 개발한다.
+- 반드시 수정한 내용은 worklog.md 기록한다.
+- 작업 중 발생한 문제는 issue.md로 남긴다.
+- 팀 규칙등은 /docs/* 문서들을 참고한다.
