@@ -1,4 +1,4 @@
-package com.example.workflow.engine.util;
+﻿package com.bangrang.workflow.engine.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,3 +32,4 @@ public class JsonUtil {
         }
     }
 }
+

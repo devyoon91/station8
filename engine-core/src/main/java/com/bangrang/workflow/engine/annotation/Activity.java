@@ -1,4 +1,4 @@
-package com.example.workflow.engine.annotation;
+﻿package com.bangrang.workflow.engine.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -12,3 +12,4 @@ public @interface Activity {
     int retryCount() default 3;
     long backoffSeconds() default 5;
 }
+

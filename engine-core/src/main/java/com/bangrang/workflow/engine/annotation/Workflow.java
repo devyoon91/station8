@@ -1,4 +1,4 @@
-package com.example.workflow.engine.annotation;
+﻿package com.bangrang.workflow.engine.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -10,3 +10,4 @@ import java.lang.annotation.Target;
 public @interface Workflow {
     String value() default "";
 }
+

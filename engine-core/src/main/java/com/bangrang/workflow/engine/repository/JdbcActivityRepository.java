@@ -1,8 +1,8 @@
-package com.example.workflow.engine.repository;
+﻿package com.bangrang.workflow.engine.repository;
 
-import com.example.workflow.engine.dialect.DbDialect;
-import com.example.workflow.engine.entity.ActivityExecution;
-import com.example.workflow.engine.entity.WorkflowInstance;
+import com.bangrang.workflow.engine.dialect.DbDialect;
+import com.bangrang.workflow.engine.entity.ActivityExecution;
+import com.bangrang.workflow.engine.entity.WorkflowInstance;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * JdbcTemplate 기반의 ActivityRepository 구현체.
- * Oracle과 MariaDB의 SKIP LOCKED 기능을 활용하여 분산 락 없이 작업 큐를 구현합니다.
+ * JdbcTemplate 湲곕컲??ActivityRepository 援ы쁽泥?
+ * Oracle怨?MariaDB??SKIP LOCKED 湲곕뒫???쒖슜?섏뿬 遺꾩궛 ???놁씠 ?묒뾽 ?먮? 援ы쁽?⑸땲??
  */
 @Repository
 public class JdbcActivityRepository implements ActivityRepository {
@@ -30,13 +30,13 @@ public class JdbcActivityRepository implements ActivityRepository {
     }
 
     /**
-     * PENDING 상태이고 실행 시간이 된 작업을 SKIP LOCKED로 조회하고 즉시 RUNNING으로 업데이트합니다.
+     * PENDING ?곹깭?닿퀬 ?ㅽ뻾 ?쒓컙?????묒뾽??SKIP LOCKED濡?議고쉶?섍퀬 利됱떆 RUNNING?쇰줈 ?낅뜲?댄듃?⑸땲??
      */
     @Override
     @Transactional
     public List<ActivityExecution> findPendingActivitiesWithLock(int limit) {
-        // 1. SKIP LOCKED를 사용하여 잠금된 레코드 조회
-        // Oracle & MariaDB 10.6+ 공통 문법
+        // 1. SKIP LOCKED瑜??ъ슜?섏뿬 ?좉툑???덉퐫??議고쉶
+        // Oracle & MariaDB 10.6+ 怨듯넻 臾몃쾿
         String selectSql = String.format("""
             SELECT * FROM H_WF_ACTIVITY_EXECUTION
             WHERE STATUS_ST = 'PENDING'
@@ -54,7 +54,7 @@ public class JdbcActivityRepository implements ActivityRepository {
             return activities;
         }
 
-        // 2. 조회된 작업들의 상태를 RUNNING으로 즉시 업데이트 (다른 워커가 가로채지 못하도록)
+        // 2. 議고쉶???묒뾽?ㅼ쓽 ?곹깭瑜?RUNNING?쇰줈 利됱떆 ?낅뜲?댄듃 (?ㅻⅨ ?뚯빱媛 媛濡쒖콈吏 紐삵븯?꾨줉)
         for (ActivityExecution activity : activities) {
             jdbcTemplate.update(
                 String.format("UPDATE H_WF_ACTIVITY_EXECUTION SET STATUS_ST = 'RUNNING', START_DT = %s, EDIT_DT = %s WHERE ID = ?",
@@ -137,6 +137,21 @@ public class JdbcActivityRepository implements ActivityRepository {
         return jdbcTemplate.query(sql, new ActivityExecutionRowMapper(), instanceId);
     }
 
+    @Override
+    @Transactional
+    public void resetToPending(String executionId) {
+        String sql = String.format("""
+            UPDATE H_WF_ACTIVITY_EXECUTION
+            SET STATUS_ST = 'PENDING',
+                NEXT_RETRY_DT = NULL,
+                START_DT = NULL,
+                END_DT = NULL,
+                EDIT_DT = %s
+            WHERE ID = ?
+            """, dbDialect.currentTimestamp());
+        jdbcTemplate.update(sql, executionId);
+    }
+
     private static class WorkflowInstanceRowMapper implements RowMapper<WorkflowInstance> {
         @Override
         public WorkflowInstance mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -187,3 +202,4 @@ public class JdbcActivityRepository implements ActivityRepository {
         }
     }
 }
+

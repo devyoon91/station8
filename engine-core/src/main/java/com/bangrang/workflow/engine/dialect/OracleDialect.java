@@ -1,9 +1,9 @@
-package com.example.workflow.engine.dialect;
+﻿package com.bangrang.workflow.engine.dialect;
 
-public class MariaDbDialect implements DbDialect {
+public class OracleDialect implements DbDialect {
     @Override
     public String limit(int limit) {
-        return "LIMIT " + limit;
+        return "FETCH FIRST " + limit + " ROWS ONLY";
     }
 
     @Override
@@ -11,3 +11,4 @@ public class MariaDbDialect implements DbDialect {
         return "CURRENT_TIMESTAMP";
     }
 }
+

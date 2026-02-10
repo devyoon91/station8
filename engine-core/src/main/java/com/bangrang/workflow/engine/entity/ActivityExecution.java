@@ -1,12 +1,12 @@
-package com.example.workflow.engine.entity;
+﻿package com.bangrang.workflow.engine.entity;
 
 import java.time.LocalDateTime;
 
 /**
- * H_WF_ACTIVITY_EXECUTION 테이블에 대응하는 엔티티 (Record 활용)
+ * H_WF_ACTIVITY_EXECUTION ?뚯씠釉붿뿉 ??묓븯???뷀떚??(Record ?쒖슜)
  * 
- * Oracle의 CLOB과 MariaDB의 LONGTEXT는 Java String으로 매핑됩니다.
- * 공통 컬럼 규칙(DATABASE_RULE.md)을 준수합니다.
+ * Oracle??CLOB怨?MariaDB??LONGTEXT??Java String?쇰줈 留ㅽ븨?⑸땲??
+ * 怨듯넻 而щ읆 洹쒖튃(DATABASE_RULE.md)??以?섑빀?덈떎.
  */
 public record ActivityExecution(
     String id,                // ID (PK)
@@ -22,7 +22,7 @@ public record ActivityExecution(
     LocalDateTime startDt,    // START_DT
     LocalDateTime endDt,      // END_DT
 
-    // 공통 컬럼
+    // 怨듯넻 而щ읆
     String useFl,             // USE_FL
     String viewFl,            // VIEW_FL
     String delFl,             // DEL_FL
@@ -32,3 +32,4 @@ public record ActivityExecution(
     String editId             // EDIT_ID
 ) {
 }
+

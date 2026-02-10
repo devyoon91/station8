@@ -1,7 +1,7 @@
-package com.example.workflow.engine.core;
+﻿package com.bangrang.workflow.engine.core;
 
-import com.example.workflow.engine.annotation.Activity;
-import com.example.workflow.engine.annotation.Workflow;
+import com.bangrang.workflow.engine.annotation.Activity;
+import com.bangrang.workflow.engine.annotation.Workflow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -17,8 +17,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * @Workflow 및 @Activity가 붙은 빈과 메서드를 스캔하여 관리하는 레지스트리.
- * Spring 컨텍스트 로딩이 완료된 후 빈들을 탐색합니다.
+ * @Workflow 諛?@Activity媛 遺숈? 鍮덇낵 硫붿꽌?쒕? ?ㅼ틪?섏뿬 愿由ы븯???덉??ㅽ듃由?
+ * Spring 而⑦뀓?ㅽ듃 濡쒕뵫???꾨즺????鍮덈뱾???먯깋?⑸땲??
  */
 @Component
 public class WorkflowRegistry implements ApplicationListener<ContextRefreshedEvent> {
@@ -54,7 +54,7 @@ public class WorkflowRegistry implements ApplicationListener<ContextRefreshedEve
         String[] beanNames = context.getBeanDefinitionNames();
         for (String beanName : beanNames) {
             Object bean = context.getBean(beanName);
-            // 프록시 객체일 경우 원본 클래스를 가져옴
+            // ?꾨줉??媛앹껜??寃쎌슦 ?먮낯 ?대옒?ㅻ? 媛?몄샂
             Class<?> targetClass = bean.getClass();
             
             ReflectionUtils.doWithMethods(targetClass, method -> {
@@ -77,8 +77,9 @@ public class WorkflowRegistry implements ApplicationListener<ContextRefreshedEve
     }
 
     /**
-     * 액티비티 실행에 필요한 메타데이터 (대상 빈, 실행 메서드, 어노테이션 정보)
+     * ?≫떚鍮꾪떚 ?ㅽ뻾???꾩슂??硫뷀??곗씠??(???鍮? ?ㅽ뻾 硫붿꽌?? ?대끂?뚯씠???뺣낫)
      */
     public record ActivityMetadata(Object bean, Method method, Activity annotation) {
     }
 }
+
