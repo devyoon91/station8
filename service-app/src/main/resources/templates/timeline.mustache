@@ -37,9 +37,18 @@
                 </div>
                 <div class="col-md-4">
                     <p class="mb-1 text-muted">Current Status</p>
-                    <span class="badge {{#instance.statusSt}}bg-{{#equals . 'COMPLETED'}}success{{/equals}}{{#equals . 'RUNNING'}}warning{{/equals}}{{#equals . 'FAILED'}}danger{{/equals}}{{/instance.statusSt}}">
-                        {{instance.statusSt}}
-                    </span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge {{#instance.statusSt}}bg-{{#equals . 'COMPLETED'}}success{{/equals}}{{#equals . 'RUNNING'}}warning{{/equals}}{{#equals . 'FAILED'}}danger{{/equals}}{{/instance.statusSt}}">
+                            {{instance.statusSt}}
+                        </span>
+                        {{#instance.statusSt}}
+                        {{#equals . 'FAILED'}}
+                        <form action="/workflow/instance/{{instance.id}}/resume" method="post" class="m-0">
+                            <button type="submit" class="btn btn-sm btn-primary">Resume</button>
+                        </form>
+                        {{/equals}}
+                        {{/instance.statusSt}}
+                    </div>
                 </div>
             </div>
             <div class="row mt-3">
