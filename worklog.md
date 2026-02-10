@@ -305,3 +305,21 @@
 
 ### 다음 단계
 *   `tasks.md`의 "향후 과제" 중 최우선 순위인 **지수 백오프 실구현** 및 **워크플로우 재개 로직** 착수.
+
+
+## [2026-02-11] 문서 허브(Hub)-Spoke 체계 연결 보완
+
+### 작업 내용
+*   `AGENTS.md`에 중앙 허브(Hub) 선언 추가 및 Spoke 인덱스/사용 순서/동기화 규칙 명문화.
+*   `README.md`의 Documentation 섹션에서 AGENTS.md를 시작점으로 안내하도록 문구 보강.
+*   `docs/workflow-engine-spec.md` 말미에 허브 복귀 링크 추가.
+*   `docs/OPERATIONS.md` 중복 내용을 정리하고 허브 복귀 링크를 유지.
+*   `tasks.md` 상단에 허브 안내 문구 추가, 하단 중복 섹션 제거.
+
+### 결정 사항
+*   문서 간 중복 서술은 허브(Hub) 문서의 링크 체계로 관리하며, 각 Spoke는 말미에 허브 복귀 링크를 유지한다.
+*   `// TODO:` 주석과 `tasks.md`의 "향후 과제"는 반드시 동기화한다.
+
+### TODO
+*   CONTRIBUTING/DATABASE_RULE의 기존 허브 복귀 링크 유지 모니터링.
+*   신규 Spoke 문서가 생길 경우 AGENTS.md 인덱스에 즉시 반영.
