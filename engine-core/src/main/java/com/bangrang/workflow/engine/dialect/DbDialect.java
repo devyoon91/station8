@@ -2,12 +2,12 @@
 
 public interface DbDialect {
     /**
-     * SKIP LOCKED? ?④퍡 ?ъ슜??LIMIT 荑쇰━ 議곌컖??諛섑솚?⑸땲??
+     * SKIP LOCKED와 함께 사용할 LIMIT 쿼리 조각을 반환합니다.
      */
     String limit(int limit);
 
     /**
-     * ?꾩옱 ?쒓컙 ?⑥닔瑜?諛섑솚?⑸땲??
+     * 현재 시간 함수를 반환합니다.
      */
     String currentTimestamp();
 }

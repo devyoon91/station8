@@ -3,38 +3,38 @@
 import java.time.Duration;
 
 /**
- * 吏??諛깆삤??湲곕컲???ъ떆??吏???쒓컙??怨꾩궛?섎뒗 ?대옒??
+ * 지수 백오프 기반의 재시도 지연 시간을 계산하는 클래스.
  */
 public class ExponentialBackoffRetryPolicy {
 
     /**
-     * ?쒕룄 ?잛닔???곕Ⅸ ?ㅼ쓬 吏???쒓컙??怨꾩궛?⑸땲??
-     * 怨듭떇: baseBackoffSeconds * (2 ^ (attempt - 1))
+     * 시도 횟수에 따른 다음 지연 시간을 계산합니다.
+     * 공식: baseBackoffSeconds * (2 ^ (attempt - 1))
      *
-     * @param attempt ?꾩옱 ?쒕룄 ?잛닔 (1遺???쒖옉)
-     * @param baseBackoffSeconds 湲곕낯 諛깆삤??珥??⑥쐞
-     * @return 怨꾩궛??吏???쒓컙
+     * @param attempt 현재 시도 횟수 (1부터 시작)
+     * @param baseBackoffSeconds 기본 백오프 초 단위
+     * @return 계산된 지연 시간
      */
     public Duration calculateNextBackoff(int attempt, long baseBackoffSeconds) {
         if (attempt <= 1) {
             return Duration.ofSeconds(baseBackoffSeconds);
         }
         
-        // 吏??怨꾩궛 (2??n?쒓낢)
+        // 지수 계산 (2의 n제곱)
         long exponentialFactor = (long) Math.pow(2, attempt - 1);
         long delaySeconds = baseBackoffSeconds * exponentialFactor;
         
-        // 理쒕? 吏???쒓컙 ?쒗븳 (?? 1?쒓컙) - ?꾩슂 ???뚮씪誘명꽣??媛??
+        // 최대 지연 시간 제한 (예: 1시간) - 필요 시 파라미터화 가능
         long maxDelaySeconds = 3600;
         return Duration.ofSeconds(Math.min(delaySeconds, maxDelaySeconds));
     }
 
     /**
-     * 理쒕? ?ъ떆???잛닔瑜?珥덇낵?덈뒗吏 ?뺤씤?⑸땲??
+     * 최대 재시도 횟수를 초과했는지 확인합니다.
      *
-     * @param attempt ?꾩옱 ?쒕룄 ?잛닔
-     * @param maxRetryCount 理쒕? ?덉슜 ?ъ떆???잛닔
-     * @return 珥덇낵 ?щ?
+     * @param attempt 현재 시도 횟수
+     * @param maxRetryCount 최대 허용 재시도 횟수
+     * @return 초과 여부
      */
     public boolean isExceeded(int attempt, int maxRetryCount) {
         return attempt > maxRetryCount;

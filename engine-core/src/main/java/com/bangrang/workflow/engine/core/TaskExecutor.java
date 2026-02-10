@@ -3,46 +3,46 @@
 import java.time.Duration;
 
 /**
- * ?≫떚鍮꾪떚 ?ㅽ뻾 諛??ㅼ쓬 ?④퀎 ?꾩씠瑜??대떦?섎뒗 異붿긽 ?ㅽ뻾湲??명꽣?섏씠??
+ * 액티비티 실행 및 다음 단계 전이를 담당하는 추상 실행기 인터페이스.
  *
- * - ?뱀젙 ?곸냽 湲곗닠(JPA, MyBatis ???대굹 ?ㅼ?以꾨윭 援ы쁽???섏〈?섏? ?딅뒗??
- * - ?붿쭊 ?고??꾩? 蹂??명꽣?섏씠?ㅼ쓽 援ы쁽泥대? ?듯빐 ?ㅼ젣 ?ㅽ뻾/?꾩씠/泥댄겕?ъ씤?몃? 泥섎━?쒕떎.
+ * - 특정 영속 기술(JPA, MyBatis 등)이나 스케줄러 구현에 의존하지 않는다.
+ * - 엔진 코어는 본 인터페이스의 구현체를 통해 실제 실행/전이/체크포인트를 처리한다.
  */
 public interface TaskExecutor {
 
     /**
-     * 而⑦뀓?ㅽ듃???꾩옱 ?≫떚鍮꾪떚瑜??ㅽ뻾?쒕떎. 援ы쁽泥대뒗 @Activity 硫뷀??곗씠???ъ떆????瑜??댁꽍?????덈떎.
+     * 컨텍스트의 현재 액티비티를 실행한다. 구현체는 @Activity 메타데이터나 재시도 룰을 해석할 수 있다.
      */
     void executeCurrent(WorkflowContext context);
 
     /**
-     * ?ㅼ쓬 ?≫떚鍮꾪떚瑜??ㅼ?以꾨쭅?쒕떎. 蹂댄넻 ?꾩옱 ?몃옖??뀡 而ㅻ컠 ?댄썑 鍮꾨룞湲곕줈 ?ㅽ뻾?섎룄濡??먯엵?쒕떎.
+     * 다음 액티비티를 스케줄링한다. 보통 현재 트랜잭션 커밋 이후 비동기로 실행되도록 위임된다.
      *
-     * @param context ?꾩옱 ?ㅽ뻾 而⑦뀓?ㅽ듃
-     * @param nextActivityName ?ㅼ쓬 ?≫떚鍮꾪떚 ?대쫫
-     * @param input ?ㅼ쓬 ?≫떚鍮꾪떚 ?낅젰
+     * @param context 현재 실행 컨텍스트
+     * @param nextActivityName 다음 액티비티 이름
+     * @param input 다음 액티비티 입력
      */
     void scheduleNext(WorkflowContext context, String nextActivityName, Object input);
 
     /**
-     * ?꾩옱 ?≫떚鍮꾪떚瑜??깃났 泥섎━?섍퀬 寃곌낵瑜?而⑦뀓?ㅽ듃/?ㅽ넗由ъ???諛섏쁺?쒕떎.
+     * 현재 액티비티를 성공 처리하고 결과를 컨텍스트/히스토리에 반영한다.
      *
-     * @param context ?ㅽ뻾 而⑦뀓?ㅽ듃
-     * @param output 異쒕젰 寃곌낵(吏곷젹??媛??
+     * @param context 실행 컨텍스트
+     * @param output 출력 결과(직렬화 가능)
      */
     void complete(WorkflowContext context, Object output);
 
     /**
-     * ?꾩옱 ?≫떚鍮꾪떚瑜??ㅽ뙣 泥섎━?섍퀬, ?ъ떆?꾧? ?꾩슂??寃쎌슦 backoff 吏?곗쓣 諛섏쁺?쒕떎.
+     * 현재 액티비티를 실패 처리하고, 재시도가 필요한 경우 backoff 지연을 반영한다.
      *
-     * @param context ?ㅽ뻾 而⑦뀓?ㅽ듃
-     * @param error ?ㅽ뙣 ?먯씤
-     * @param nextBackoff ?ъ떆???湲??쒓컙(?놁쑝硫?利됱떆 ?먮뒗 ?뺤콉 湲곕낯媛??곸슜)
+     * @param context 실행 컨텍스트
+     * @param error 실패 원인
+     * @param nextBackoff 재시도 대기 시간(없으면 즉시 또는 정책 기본값 적용)
      */
     void fail(WorkflowContext context, Throwable error, Duration nextBackoff);
 
     /**
-     * 泥댄겕?ъ씤???ㅻ깄?룹쓣 ?곸냽 ??ν븳?? 援ы쁽泥대뒗 JSON 吏곷젹????援ъ껜 諛⑹떇???먯쑀濡?쾶 ?좏깮?쒕떎.
+     * 체크포인트 스냅샷을 영속 저장한다. 구현체는 JSON 직렬화 등 구체 방식은 자유롭게 선택한다.
      */
     void checkpoint(WorkflowContext context, Object stateSnapshot);
 }

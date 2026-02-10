@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * WorkflowContext??湲곕낯 援ы쁽泥?
+ * WorkflowContext의 기본 구현체.
  */
 public class DefaultWorkflowContext implements WorkflowContext {
 
@@ -98,16 +98,16 @@ public class DefaultWorkflowContext implements WorkflowContext {
 
     @Override
     public Optional<Object> loadState() {
-        // ?ㅼ젣 援ы쁽?먯꽌??DB?먯꽌 ?쎌뼱??JSON????쭅?ы솕?댁빞 ?섏?留? 
-        // ?ш린?쒕뒗 ?꾩옱 硫붾え由ъ뿉 ??λ맂 snapshot??諛섑솚?섍굅??
-        // ?앹꽦 ??二쇱엯諛쏆? snapshot??愿由ы븯?꾨줉 ?ㅺ퀎?쒕떎.
-        // ?꾩옱 ?명꽣?섏씠??援ъ“???뱀젙 ??낆쑝濡???쭅?ы솕?섎뒗 ?뺣낫媛 遺議깊븯誘濡?
-        // ?쇰떒 String ?먮뒗 Raw Map ?뺥깭瑜?怨좊젮?쒕떎.
+        // 실제 구현에서는 DB에서 읽어온 JSON을 역직렬화해야 하지만,
+        // 여기서는 현재 메모리에 저장된 snapshot을 반환하거나
+        // 생성 시 주입받은 snapshot을 관리하도록 설계한다.
+        // 현재 인터페이스 구조상 특정 타입으로 역직렬화하는 정보가 부족하므로
+        // 일단 String 또는 Raw Map 형태를 고려한다.
         return Optional.ofNullable(stateSnapshotJson);
     }
 
     /**
-     * 珥덇린 ?곹깭 ?곗씠?곕? 二쇱엯?섍린 ?꾪븳 硫붿꽌??
+     * 초기 상태 데이터를 주입하기 위한 메서드.
      */
     public void setStateData(String stateDataJson) {
         this.stateSnapshotJson = stateDataJson;

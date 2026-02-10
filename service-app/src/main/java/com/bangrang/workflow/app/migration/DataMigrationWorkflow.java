@@ -25,10 +25,10 @@ public class DataMigrationWorkflow {
     }
 
     /**
-     * SRC_DATA????嫄댁쓣 ???DB ?뚯씠釉??ш린?쒕뒗 ?숈씪 DataSource??DEST_DATA)???곸옱?섍퀬 留덉씠洹몃젅?댁뀡 ?꾨즺濡?留덊궧?쒕떎.
-     * ?낅젰? JSON 臾몄옄??{"id":"...", "content":"..."} ?뺤떇?대떎.
+     * SRC_DATA에서 건을 읽어 대상 DB 테이블(여기서는 동일 DataSource의 DEST_DATA)에 적재하고 마이그레이션 완료로 마킹한다.
+     * 입력은 JSON 문자열 {"id":"...", "content":"..."} 형식이다.
      *
-     * 媛뺤젣 ?ㅻ쪟 ?좊컻: content??"Second"媛 ?ы븿?섎㈃ RuntimeException???섏졇 ?ъ떆??諛깆삤???숈옉??寃利앺븳??
+     * 강제 오류 유발: content에 "Second"가 포함되면 RuntimeException을 던져 재시도 백오프 동작을 검증한다.
      */
     @Activity(value = "MIGRATION_WRITE", retryCount = 5, backoffSeconds = 5)
     public String migrateItem(String inputJson) {
@@ -40,15 +40,15 @@ public class DataMigrationWorkflow {
         String id = String.valueOf(payload.get("id"));
         String content = String.valueOf(payload.get("content"));
 
-        // 媛뺤젣 ?먮윭 ?좊컻 (諛깆삤???ъ떆??寃利앹슜)
+        // 강제 에러 유발 (백오프 재시도 검증용)
         if (content != null && content.contains("Second")) {
             log.warn("Forcing failure for content contains 'Second' (id={})", id);
             throw new RuntimeException("Forced failure for testing backoff");
         }
 
-        // ????곸옱
+        // 타겟 적재
         int inserted = jdbcTemplate.update("INSERT INTO DEST_DATA (ID, CONTENT) VALUES (?, ?)", id, content);
-        // ?먮낯 留덊궧
+        // 원본 마킹
         int updated = jdbcTemplate.update("UPDATE SRC_DATA SET MIGRATED_FL = 'Y' WHERE ID = ?", id);
 
         log.info("Migrated item id={}, inserted={}, markedUpdated={}", id, inserted, updated);

@@ -37,8 +37,8 @@ public class WorkflowAspect {
         Object[] args = pjp.getArgs();
         String inputJson = (args.length > 0) ? jsonUtil.toJson(args[0]) : null;
 
-        // 1. ?뚰겕?뚮줈???쒖옉 濡쒓렇 (U_WF_INSTANCE 湲곕줉)
-        // TODO: 以묐떒???뚰겕?뚮줈???ш컻(resume) ?쒕굹由ъ삤 ??묒쓣 ?꾪븳 ?대? 議댁옱?섎뒗 ?몄뒪?댁뒪 泥댄겕 濡쒖쭅 ?꾩슂
+        // 1. 워크플로우 시작 로그 (U_WF_INSTANCE 기록)
+        // TODO: 중단된 워크플로우 재개(resume) 시나리오 대응을 위한 이미 존재하는 인스턴스 체크 로직 필요
         log.info("Starting workflow: {} (ID: {})", workflowName, instanceId);
         jdbcTemplate.update("""
             INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
@@ -48,7 +48,7 @@ public class WorkflowAspect {
         try {
             Object result = pjp.proceed();
             
-            // 2. ?뚰겕?뚮줈???깃났 醫낅즺 濡쒓렇
+            // 2. 워크플로우 성공 종료 로그
             String outputJson = jsonUtil.toJson(result);
             jdbcTemplate.update("""
                 UPDATE U_WF_INSTANCE 
@@ -58,8 +58,8 @@ public class WorkflowAspect {
             
             return result;
         } catch (Exception e) {
-            // 3. ?뚰겕?뚮줈???ㅽ뙣 濡쒓렇
-            // TODO: ?ㅽ뙣 ???곸꽭 ?먮윭 硫붿떆吏 諛??ㅽ깮?몃젅?댁뒪 ????꾨뱶(U_WF_INSTANCE??異붽? ?꾩슂) 湲곕줉 濡쒖쭅 蹂댁셿
+            // 3. 워크플로우 실패 로그
+            // TODO: 실패 시 상세 에러 메시지 및 스택트레이스 저장 필드(U_WF_INSTANCE에 추가 필요) 기록 로직 보완
             jdbcTemplate.update("""
                 UPDATE U_WF_INSTANCE 
                 SET STATUS_ST = 'FAILED', END_DT = CURRENT_TIMESTAMP, EDIT_DT = CURRENT_TIMESTAMP

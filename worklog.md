@@ -353,3 +353,23 @@
 
 ### 결정 사항
 *   사용자 브랜드(`bangrang`)를 프로젝트 전반에 적용하여 소속감 및 아이덴티티 강화.
+
+
+## [2026-02-11] 인코딩(UTF-8) 주석 깨짐 복구
+
+### 작업 내용
+* 패키지 네임스페이스 일괄 치환 과정에서 PowerShell `Set-Content -Encoding UTF8` 사용으로 한글 주석이 모지바케 형태로 훼손된 것을 확인하고 복구.
+* 주요 파일의 주석을 정정하고 설명을 보강:
+  - engine-core: `ActivityExecution.java`, `WorkflowInstance.java`, `JdbcActivityRepository.java`, `WorkflowWorker.java`, `JdbcTaskExecutor.java`, `WorkflowAspect.java`, `ActivityAspect.java`, `WorkflowEngineConfig.java`, `DefaultWorkflowContext.java`, `ExponentialBackoffRetryPolicy.java`, `JdbcWorkflowExecutor.java`, `WorkflowRegistry.java`, `DbDialect.java`, `ActivityRepository.java`, `WorkflowContext.java`, `WorkflowExecutor.java`
+  - service-app: `Application.java`, `WorkflowMonitoringController.java`, `DataMigrationWorkflow.java`, `MigrationInitializer.java`
+* SQL/Mustache/Markdown 파일은 이상 없음 확인.
+
+### 원인/대응
+* 원인: Windows PowerShell 환경에서 텍스트 파이프라인과 `Set-Content -Encoding UTF8` 재저장 과정이 원문 멀티바이트 한글을 손상.
+* 대응: 손상된 주석 블록을 정상 한글로 교체하고, 파일 저장을 UTF-8(BOM 없음)로 유지.
+
+### 재발 방지
+* 에디터/IDE 저장 인코딩을 UTF-8(무 BOM) 고정.
+* PowerShell 대량 치환 시 `Set-Content` 대신 `.NET` API(`[System.IO.File]::WriteAllText(utf8 no BOM)`) 사용 권고.
+* Gradle 컴파일 옵션(UTF-8) 유지: 루트 `build.gradle` `JavaCompile.options.encoding = 'UTF-8'` 확인.
+

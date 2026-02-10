@@ -8,14 +8,14 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * ?뚰겕?뚮줈???붿쭊???꾪븳 ?ㅼ?以꾨쭅 諛??ㅻ젅??? ?ㅼ젙.
+ * 워크플로우 엔진을 위한 스케줄링 및 스레드 풀 설정.
  */
 @Configuration
 @EnableScheduling
 public class WorkflowEngineConfig {
 
     /**
-     * ?≫떚鍮꾪떚 ?ㅽ뻾???대떦?섎뒗 ?ㅻ젅??? ?ㅼ젙.
+     * 액티비티 실행을 담당하는 스레드 풀 설정.
      */
     @Bean
     public ThreadPoolTaskExecutor workflowTaskExecutor() {

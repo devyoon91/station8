@@ -13,8 +13,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * DB?먯꽌 ?ㅽ뻾 ?湲?以묒씤 ?묒뾽??媛?몄? ?ㅻ젅????먯꽌 ?ㅽ뻾?섎뒗 ?뚯빱 ?대옒??
- * Spring??@Scheduled瑜??댁슜??二쇨린?곸쑝濡??대쭅?섎ŉ, ThreadPoolTaskExecutor瑜??듯빐 ?숈떆?깆쓣 ?쒖뼱?⑸땲??
+ * DB에서 실행 대기 중인 작업을 가져와 스레드 풀에서 실행하는 워커 클래스.
+ * Spring의 @Scheduled를 이용해 주기적으로 폴링하며, ThreadPoolTaskExecutor를 통해 동시성을 제어합니다.
  */
 @Component
 public class WorkflowWorker {
@@ -40,30 +40,30 @@ public class WorkflowWorker {
     }
 
     /**
-     * 二쇨린?곸쑝濡?DB瑜??대쭅?섏뿬 泥섎━ 媛?ν븳 ?묒뾽??媛?몄샃?덈떎.
-     * (?? 1珥덈쭏???ㅽ뻾)
+     * 주기적으로 DB를 폴링하여 처리 가능한 작업을 가져옵니다.
+     * (예: 1초마다 실행)
      */
     @Scheduled(fixedDelayString = "${workflow.polling.interval-ms:1000}")
     public void pollActivities() {
         log.trace("Polling pending activities...");
         
-        // ??踰덉쓽 ?대쭅?먯꽌 媛?몄삱 理쒕? ?묒뾽 ??
+        // 한 번의 폴링에서 가져올 최대 작업 수
         int limit = 10; 
         List<ActivityExecution> pendingActivities = activityRepository.findPendingActivitiesWithLock(limit);
 
         for (ActivityExecution activity : pendingActivities) {
             log.info("Dispatching activity: {} (Instance ID: {})", activity.activityName(), activity.instanceId());
             
-            // 蹂꾨룄???ㅻ젅????먯꽌 鍮꾨룞湲??ㅽ뻾
+            // 별도의 스레드 풀에서 비동기 실행
             workflowTaskExecutor.execute(() -> processActivity(activity));
         }
     }
 
     /**
-     * 媛쒕퀎 ?≫떚鍮꾪떚瑜??ㅽ뻾?섍퀬 寃곌낵瑜??낅뜲?댄듃?섎뒗 ?ㅼ젣 濡쒖쭅.
+     * 개별 액티비티를 실행하고 결과를 업데이트하는 실제 로직.
      */
     private void processActivity(ActivityExecution activity) {
-        // 1. ?덉??ㅽ듃由ъ뿉???≫떚鍮꾪떚 硫뷀??곗씠??議고쉶
+        // 1. 레지스트리에서 액티비티 메타데이터 조회
         WorkflowRegistry.ActivityMetadata metadata = workflowRegistry.getActivity(activity.activityName());
         if (metadata == null) {
             log.error("No registered activity found for name: {}", activity.activityName());
@@ -71,12 +71,12 @@ public class WorkflowWorker {
             return;
         }
 
-        // 2. 而⑦뀓?ㅽ듃 ?앹꽦
-        // TODO: ActivityExecution ?곗씠?곕? 湲곕컲?쇰줈 ?ㅺ뎄??WorkflowContext瑜??앹꽦?섎뒗 ContextFactory ?곕룞 ?꾩슂
-        // ?꾩옱???섎룞?쇰줈 ?앹꽦 (?ν썑 由ы뙥?좊쭅 ???
+        // 2. 컨텍스트 생성
+        // TODO: ActivityExecution 데이터를 기반으로 정교한 WorkflowContext를 생성하는 ContextFactory 연동 필요
+        // 현재는 수동으로 생성 (향후 리팩토링 대상)
         DefaultWorkflowContext context = new DefaultWorkflowContext(
             activity.instanceId(),
-            "UNKNOWN", // WorkflowName? Instance ?뚯씠釉?議고쉶媛 ?꾩슂?????덉쓬
+            "UNKNOWN", // WorkflowName은 Instance 테이블 조회가 필요할 수 있음
             activity.activityName(),
             activity.retryCnt() + 1,
             activity.inputData()
@@ -86,13 +86,13 @@ public class WorkflowWorker {
         try {
             log.info("Executing activity: {} (Execution ID: {})", activity.activityName(), activity.id());
             
-            // 3. 由ы뵆?됱뀡???듯븳 硫붿꽌???몄텧
-            // ?낅젰 ?뚮씪誘명꽣媛 ?덉쓣 寃쎌슦 JSON ??쭅?ы솕 諛????留ㅼ묶 濡쒖쭅 蹂댁셿
+            // 3. 리플렉션을 통한 메서드 호출
+            // 입력 파라미터가 있을 경우 JSON 역직렬화 및 타입 매칭 로직 보완
             Object[] args = resolveArguments(metadata, activity.inputData());
             
             Object result = metadata.method().invoke(metadata.bean(), args);
             
-            // 4. ?깃났 ??寃곌낵 ?낅뜲?댄듃 諛??ㅼ쓬 ?④퀎 泥섎━
+            // 4. 성공 시 결과 업데이트 및 다음 단계 처리
             taskExecutor.complete(context, result);
             log.info("Activity completed: {} (Execution ID: {})", activity.activityName(), activity.id());
             
@@ -100,14 +100,14 @@ public class WorkflowWorker {
             Throwable cause = (e instanceof java.lang.reflect.InvocationTargetException) ? e.getCause() : e;
             log.error("Failed to execute activity: " + activity.id(), cause);
             
-            // 5. ?ㅽ뙣 ???ъ떆???뺤콉 ?곸슜
+            // 5. 실패 시 재시도 정책 적용
             int attempt = context.attempt();
             int maxRetry = metadata.annotation().retryCount();
             long baseBackoff = metadata.annotation().backoffSeconds();
             
             if (retryPolicy.isExceeded(attempt, maxRetry)) {
                 log.error("Max retry count exceeded for activity: {}. Mark as FAILED.", activity.id());
-                taskExecutor.fail(context, cause, null); // ???댁긽 ?ъ떆???놁쓬
+                taskExecutor.fail(context, cause, null); // 더 이상 재시도 없음
             } else {
                 Duration nextBackoff = retryPolicy.calculateNextBackoff(attempt, baseBackoff);
                 log.info("Scheduling retry #{} for activity: {} with delay: {}s", attempt, activity.id(), nextBackoff.getSeconds());
@@ -117,8 +117,8 @@ public class WorkflowWorker {
     }
 
     /**
-     * 由ы뵆?됱뀡 ?몄텧???꾪븳 ?뚮씪誘명꽣 諛붿씤??濡쒖쭅.
-     * JSON ?낅젰 ?곗씠?곕? 硫붿꽌???뚮씪誘명꽣 ??낆뿉 留욊쾶 ??쭅?ы솕?⑸땲??
+     * 리플렉션 호출을 위한 파라미터 바인딩 로직.
+     * JSON 입력 데이터를 메서드 파라미터 타입에 맞게 역직렬화합니다.
      */
     private Object[] resolveArguments(WorkflowRegistry.ActivityMetadata metadata, String inputData) {
         Class<?>[] parameterTypes = metadata.method().getParameterTypes();
@@ -126,17 +126,17 @@ public class WorkflowWorker {
             return new Object[0];
         }
         
-        // ?꾩옱??泥?踰덉㎏ ?뚮씪誘명꽣???낅젰??二쇱엯?섎뒗 寃껋쓣 湲곕낯?쇰줈 ??
+        // 현재는 첫 번째 파라미터에 입력을 주입하는 것을 기본으로 함
         Object arg;
         Class<?> firstParamType = parameterTypes[0];
         
         if (firstParamType == String.class) {
             arg = inputData;
         } else {
-            // engine-core??JsonUtil???ъ슜?섏뿬 ??쭅?ы솕 (WorkflowWorker???대? JsonUtil??媛꾩젒?곸쑝濡??쒖슜?섍굅??二쇱엯諛쏆쓣 ???덉쓬)
-            // ?꾩옱 援ъ“?먯꽌??WorkflowWorker??JsonUtil 二쇱엯???꾨씫?섏뼱 ?덉쑝誘濡? ?꾩슂??寃쎌슦 異붽? 二쇱엯 ?꾩슂
-            // ?ш린?쒕뒗 ?⑥닚?⑥쓣 ?꾪빐 String???꾨땲硫?null 泥섎━?섍굅???덉쇅瑜??섏쭏 ???덉쓬
-            // TODO: WorkflowWorker??JsonUtil 二쇱엯 ???뺢탳????쭅?ы솕 援ы쁽
+            // engine-core의 JsonUtil을 사용하여 역직렬화 (WorkflowWorker가 이미 JsonUtil을 간접적으로 사용하거나 주입받을 수 있음)
+            // 현재 구조에서는 WorkflowWorker에 JsonUtil 주입이 누락되어 있으므로, 필요한 경우 추가 주입 필요
+            // 여기서는 단순함을 위해 String이 아니면 null 처리하거나 예외를 던질 수 있음
+            // TODO: WorkflowWorker에 JsonUtil 주입 및 정교한 역직렬화 구현
             arg = inputData; 
         }
         
@@ -156,9 +156,9 @@ public class WorkflowWorker {
     }
 
     private void updateActivityAsFailed(ActivityExecution activity, Exception e) {
-        // ?ㅼ젣濡쒕뒗 @Activity???ъ떆???뺤콉???쎌뼱 ?ㅼ쓬 ?ъ떆???쒓컙??怨꾩궛?댁빞 ??
+        // 실제로는 @Activity의 재시도 정책을 읽어 다음 재시도 시간을 계산해야 함
         int nextRetryCnt = activity.retryCnt() + 1;
-        LocalDateTime nextRetryDt = LocalDateTime.now().plus(Duration.ofSeconds(30)); // 30珥????ъ떆???덉떆
+        LocalDateTime nextRetryDt = LocalDateTime.now().plus(Duration.ofSeconds(30)); // 30초 후 재시도 예시
 
         ActivityExecution failed = new ActivityExecution(
             activity.id(), activity.instanceId(), activity.activityName(),

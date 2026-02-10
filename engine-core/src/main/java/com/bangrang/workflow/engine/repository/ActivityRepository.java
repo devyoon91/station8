@@ -5,52 +5,52 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * DB 湲곕컲 ?묒뾽 ???대쭅???꾪븳 由ы룷吏?좊━ ?명꽣?섏씠??
+ * DB 기반 작업 큐 폴링을 위한 리포지토리 인터페이스
  */
 public interface ActivityRepository {
     
     /**
-     * Oracle/MariaDB??SKIP LOCKED瑜??ъ슜?섏뿬 泥섎━ 媛?ν븳 ?묒뾽??議고쉶?섍퀬 ?좉툑?⑸땲??
+     * Oracle/MariaDB의 SKIP LOCKED를 사용하여 처리 가능한 작업을 조회하고 잠금합니다.
      *
-     * @param limit 議고쉶??理쒕? ?묒뾽 ??
-     * @return ?좉툑??Activity ?ㅽ뻾 紐⑸줉
+     * @param limit 조회할 최대 작업 수
+     * @return 잠금된 Activity 실행 목록
      */
     List<ActivityExecution> findPendingActivitiesWithLock(int limit);
     
     /**
-     * ?ㅽ뻾 ?곹깭 諛?寃곌낵瑜??낅뜲?댄듃?⑸땲??
+     * 실행 상태 및 결과를 업데이트합니다.
      *
-     * @param activityExecution ?낅뜲?댄듃???ㅽ뻾 ?뺣낫
+     * @param activityExecution 업데이트할 실행 정보
      */
     void updateStatus(ActivityExecution activityExecution);
 
     /**
-     * ?ㅼ쓬 ?④퀎 ?먮뒗 ?ъ떆???묒뾽??PENDING ?곹깭濡??앹꽦?⑸땲??
+     * 다음 단계 또는 재시도 작업을 PENDING 상태로 생성합니다.
      *
-     * @param instanceId ?뚰겕?뚮줈???몄뒪?댁뒪 ID
-     * @param activityName ?≫떚鍮꾪떚 ?대쫫
-     * @param inputData ?낅젰 JSON 臾몄옄??
-     * @param nextRetryDt ?ㅼ쓬 ?ㅽ뻾(?ъ떆?? ?덉젙 ?쒓컖 (?놁쑝硫?利됱떆 ?ㅽ뻾 ??곸쑝濡?媛꾩＜)
+     * @param instanceId 워크플로우 인스턴스 ID
+     * @param activityName 액티비티 이름
+     * @param inputData 입력 JSON 문자열
+     * @param nextRetryDt 다음 실행(재시도) 예정 시각 (없으면 즉시 실행 대상으로 간주)
      */
     void createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt);
 
     /**
-     * ?뚰겕?뚮줈???몄뒪?댁뒪 紐⑸줉??議고쉶?⑸땲??
+     * 워크플로우 인스턴스 목록을 조회합니다.
      */
     List<com.bangrang.workflow.engine.entity.WorkflowInstance> findAllInstances();
 
     /**
-     * ?뱀젙 ?몄뒪?댁뒪???곸꽭 ?뺣낫瑜?議고쉶?⑸땲??
+     * 특정 인스턴스의 상세 정보를 조회합니다.
      */
     com.bangrang.workflow.engine.entity.WorkflowInstance findInstanceById(String instanceId);
 
     /**
-     * ?뱀젙 ?몄뒪?댁뒪???랁븳 ?≫떚鍮꾪떚 ?ㅽ뻾 ?대젰??議고쉶?⑸땲??
+     * 특정 인스턴스에 속한 액티비티 실행 이력을 조회합니다.
      */
     List<ActivityExecution> findActivitiesByInstanceId(String instanceId);
 
     /**
-     * ?ㅽ뙣?섍굅??以묐떒???묒뾽???ㅼ떆 PENDING ?곹깭濡?蹂듦뎄?⑸땲??
+     * 실패하거나 중단된 작업을 다시 PENDING 상태로 복구합니다.
      */
     void resetToPending(String executionId);
 }

@@ -27,14 +27,14 @@ public class WorkflowMonitoringController {
     }
 
     /**
-     * ?꾩껜 ?뚰겕?뚮줈???몄뒪?댁뒪 紐⑸줉 ??쒕낫??
+     * 전체 워크플로우 인스턴스 목록 대시보드
      */
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
         List<WorkflowInstance> instances = activityRepository.findAllInstances();
         model.addAttribute("instances", instances);
         
-        // 媛꾨떒???듦퀎 怨꾩궛
+        // 간단한 통계 계산
         long runningCount = instances.stream().filter(i -> "RUNNING".equals(i.statusSt())).count();
         long completedCount = instances.stream().filter(i -> "COMPLETED".equals(i.statusSt())).count();
         long failedCount = instances.stream().filter(i -> "FAILED".equals(i.statusSt())).count();
@@ -48,7 +48,7 @@ public class WorkflowMonitoringController {
     }
 
     /**
-     * ?뱀젙 ?몄뒪?댁뒪???곸꽭 ?ㅽ뻾 ??꾨씪??
+     * 특정 인스턴스의 상세 실행 타임라인
      */
     @GetMapping("/instance/{id}")
     public String timeline(@PathVariable("id") String instanceId, Model model) {
@@ -62,7 +62,7 @@ public class WorkflowMonitoringController {
     }
 
     /**
-     * ?ㅽ뙣???뚰겕?뚮줈???ш컻
+     * 실패한 워크플로우 재개
      */
     @PostMapping("/instance/{id}/resume")
     public String resume(@PathVariable("id") String instanceId) {

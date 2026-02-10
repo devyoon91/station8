@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * WorkflowExecutor ?명꽣?섏씠?ㅼ쓽 ?ㅺ뎄?꾩껜.
+ * WorkflowExecutor 인터페이스의 실구현체.
  */
 @Service
 public class JdbcWorkflowExecutor implements WorkflowExecutor {
@@ -40,15 +40,15 @@ public class JdbcWorkflowExecutor implements WorkflowExecutor {
 
         log.info("Starting workflow: {} (Instance ID: {})", workflowName, instanceId);
 
-        // U_WF_INSTANCE 湲곕줉 (Aspect?먯꽌??湲곕줉?섏?留? 紐낆떆???몄텧 ???
+        // U_WF_INSTANCE 기록 (Aspect에서도 기록되지만, 명시적 호출 대응)
         jdbcTemplate.update("""
             INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
             VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, instanceId, workflowName, inputJson);
 
-        // 泥?踰덉㎏ ?≫떚鍮꾪떚瑜?李얜뒗 濡쒖쭅???꾩슂?????덉쑝?? 
-        // ?꾩옱 ?붿쭊? 媛쒕컻?먭? Workflow 濡쒖쭅 ?댁뿉??泥?Activity瑜??몄텧?섍굅??
-        // ?몃??먯꽌 泥?Activity PENDING???ｌ뼱二쇰뒗 諛⑹떇?쇰줈 ?숈옉??
+        // 첫 번째 액티비티를 찾는 로직이 필요할 수 있으나, 
+        // 현재 엔진은 개발자가 Workflow 로직 내에서 첫 Activity를 호출하거나
+        // 외부에서 첫 Activity PENDING을 넣어주는 방식으로 동작함.
         
         return instanceId;
     }
@@ -58,14 +58,14 @@ public class JdbcWorkflowExecutor implements WorkflowExecutor {
     public void resumeWorkflow(String instanceId) {
         log.info("Resuming workflow instance: {}", instanceId);
 
-        // 1. ?몄뒪?댁뒪 ?곹깭瑜?RUNNING?쇰줈 蹂듦뎄 (FAILED??寃쎌슦 ?鍮?
+        // 1. 인스턴스 상태를 RUNNING으로 복구 (FAILED인 경우 대비)
         jdbcTemplate.update("""
             UPDATE U_WF_INSTANCE 
             SET STATUS_ST = 'RUNNING', EDIT_DT = CURRENT_TIMESTAMP 
             WHERE ID = ?
             """, instanceId);
 
-        // 2. FAILED ?곹깭?닿굅??以묐떒??PENDING?대㈃??NEXT_RETRY_DT媛 癒?誘몃옒???? ?쒕룞??李얠븘 PENDING?쇰줈 蹂듦뎄
+        // 2. FAILED 상태이거나 중단된 PENDING이면서 NEXT_RETRY_DT가 먼 미래인 활동을 찾아 PENDING으로 복구
         List<ActivityExecution> activities = activityRepository.findActivitiesByInstanceId(instanceId);
         
         boolean resumed = false;
@@ -74,7 +74,7 @@ public class JdbcWorkflowExecutor implements WorkflowExecutor {
                 log.info("Reseting failed activity to PENDING: {} (ID: {})", activity.activityName(), activity.id());
                 activityRepository.resetToPending(activity.id());
                 resumed = true;
-                // ??踰덉뿉 ?섎굹???ш컻?섍굅???꾩껜瑜??ш컻?????덉쑝?? ?ш린?쒕뒗 FAILED??紐⑤뱺 寃껋쓣 ?ш컻 ??곸쑝濡???
+                // 한 번에 하나만 재개하거나 전체를 재개할 수 있으나, 여기서는 FAILED된 모든 것을 재개 대상으로 함.
             }
         }
 

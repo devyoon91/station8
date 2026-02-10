@@ -12,16 +12,16 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * TaskExecutor??JDBC 湲곕컲 湲곕낯 援ы쁽泥?
- * - ?꾩옱 ?≫떚鍮꾪떚???깃났/?ㅽ뙣 寃곌낵瑜?DB(H_WF_ACTIVITY_EXECUTION)??諛섏쁺
- * - 而⑦뀓?ㅽ듃??吏?뺣맂 ?ㅼ쓬 ?≫떚鍮꾪떚媛 ?덉쑝硫?PENDING?쇰줈 ?앹꽦?섏뿬 ?ㅼ?以꾨쭅
+ * TaskExecutor의 JDBC 기반 기본 구현체.
+ * - 현재 액티비티의 성공/실패 결과를 DB(H_WF_ACTIVITY_EXECUTION)에 반영
+ * - 컨텍스트에 지정된 다음 액티비티가 있으면 PENDING으로 생성하여 오케스트레이션
  */
 public class JdbcTaskExecutor implements TaskExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(JdbcTaskExecutor.class);
 
-    private static final String CTX_KEY_EXECUTION_ID = "executionId"; // WorkflowWorker媛 而⑦뀓?ㅽ듃??二쇱엯?댁빞 ??
-    private static final String CTX_KEY_INSTANCE_ID = "instanceId";   // ?꾩슂 ??二쇱엯(?놁쑝硫?context.instanceId()) ?ъ슜
+    private static final String CTX_KEY_EXECUTION_ID = "executionId"; // WorkflowWorker가 컨텍스트에 주입해야 함
+    private static final String CTX_KEY_INSTANCE_ID = "instanceId";   // 필요 시 주입(없으면 context.instanceId() 사용)
 
     private final ActivityRepository activityRepository;
     private final JsonUtil jsonUtil;
@@ -33,8 +33,8 @@ public class JdbcTaskExecutor implements TaskExecutor {
 
     @Override
     public void executeCurrent(WorkflowContext context) {
-        // ?ㅼ젣 鍮꾩쫰?덉뒪 硫붿꽌???몄텧? WorkflowWorker/Invoker ?덉씠?댁뿉???섑뻾.
-        // 蹂?援ы쁽泥대뒗 ?ㅽ뻾 寃곌낵瑜?諛섏쁺?섍퀬 ?ㅼ쓬 ?④퀎 ?ㅼ?以꾨쭅???대떦?섎?濡? ?ш린?쒕뒗 蹂꾨룄 ?숈옉 ?놁쓬.
+        // 실제 비즈니스 메서드 호출은 WorkflowWorker/Invoker 레이어에서 수행.
+        // 본 구현체는 실행 결과를 반영하고 다음 단계 오케스트레이션에 해당하므로, 여기서는 별도 동작 없음.
         log.debug("executeCurrent called for activity: {}", context.currentActivityName());
     }
 
@@ -72,7 +72,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
         );
         activityRepository.updateStatus(updated);
 
-        // 而⑦뀓?ㅽ듃??next ?뚰듃媛 議댁옱?섎㈃ ?ㅼ?以꾨쭅
+        // 컨텍스트에 next 힌트가 존재하면 오케스트레이션
         context.nextActivityName().ifPresent(name -> {
             Object nextInput = context.nextActivityInput().orElse(null);
             scheduleNext(context, name, nextInput);
@@ -108,9 +108,9 @@ public class JdbcTaskExecutor implements TaskExecutor {
         );
         activityRepository.updateStatus(updated);
 
-        // ?ъ떆???뺤콉???ш린??吏곸젒 ?앹꽦?섏????딆쓬(?뺤콉 ?댁꽍? ?곸쐞 ?덉씠?댁뿉??.
-        // TODO: ?뺤콉???곕Ⅸ 理쒕? ?ъ떆???잛닔 ?꾨떖 ??理쒖쥌 FAILED 泥섎━ 諛??뚮┝ 諛쒖넚 濡쒖쭅 寃??
-        // ?꾩슂 ???ㅼ쓬怨?媛숈씠 ?숈씪 ?≫떚鍮꾪떚 ?ъ떆???덉퐫?쒕? ?앹꽦?????덉쓬:
+        // 재시도 정책은 여기서 직접 생성하지 않음(정책 해석은 상위 레이어에서).
+        // TODO: 정책에 따른 최대 재시도 횟수 전달 및 최종 FAILED 처리 및 알림 발송 로직 검토
+        // 필요 시 다음과 같이 동일 액티비티 재시도 레코드를 생성할 수 있음:
         if (nextRetry != null) {
             activityRepository.createPending(context.instanceId(), context.currentActivityName(), jsonUtil.toJson(context.input()), nextRetry);
         }
@@ -118,8 +118,8 @@ public class JdbcTaskExecutor implements TaskExecutor {
 
     @Override
     public void checkpoint(WorkflowContext context, Object stateSnapshot) {
-        // 泥댄겕?ъ씤?몃뒗 ?몄뒪?댁뒪 ?덈꺼( U_WF_INSTANCE.STATE_DATA )????λ릺硫?
-        // 蹂?援ы쁽?먯꽌??而⑦뀓?ㅽ듃媛 蹂댁쑀???ㅻ깄??吏곷젹??湲곕뒫(saveState)???쒖슜?쒕떎.
+        // 체크포인트는 인스턴스 레벨( U_WF_INSTANCE.STATE_DATA )에 저장되며,
+        // 본 구현에서는 컨텍스트가 보유한 스냅샷 직렬화 기능(saveState)을 사용한다.
         context.saveState(stateSnapshot);
     }
 

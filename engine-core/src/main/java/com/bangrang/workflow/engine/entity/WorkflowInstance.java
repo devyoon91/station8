@@ -3,10 +3,10 @@
 import java.time.LocalDateTime;
 
 /**
- * U_WF_INSTANCE ?뚯씠釉붿뿉 ??묓븯???뷀떚??(Record ?쒖슜)
+ * U_WF_INSTANCE 테이블에 대응하는 엔티티 (Record 사용)
  * 
- * Oracle??CLOB怨?MariaDB??LONGTEXT??Java String?쇰줈 留ㅽ븨?⑸땲??
- * 怨듯넻 而щ읆 洹쒖튃(DATABASE_RULE.md)??以?섑빀?덈떎.
+ * Oracle의 CLOB과 MariaDB의 LONGTEXT를 Java String으로 매핑합니다.
+ * 공통 컬럼 규칙(DATABASE_RULE.md)을 준수합니다.
  */
 public record WorkflowInstance(
     String id,                // ID (PK)
@@ -18,7 +18,7 @@ public record WorkflowInstance(
     LocalDateTime startDt,    // START_DT
     LocalDateTime endDt,      // END_DT
     
-    // 怨듯넻 而щ읆
+    // 공통 컬럼
     String useFl,             // USE_FL
     String viewFl,            // VIEW_FL
     String delFl,             // DEL_FL
