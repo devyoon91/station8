@@ -36,9 +36,9 @@
 ## 🚀 향후 과제 (Our Homework)
 
 ### 1. 엔진 기능 고도화
-- [ ] **지수 백오프(Exponential Backoff) 수식 실구현**: 현재 TODO로 남아있는 재시도 간격 계산 로직 완성
-- [ ] **워크플로우 재개(Resume) 로직**: 중단된 지점부터 정확히 다시 시작하는 `WorkflowExecutor.resumeWorkflow()` 실구현
-- [ ] **ActivityInvoker 정교화**: 리플렉션 호출 시 파라미터 타입 매칭 및 JSON 역직렬화 로직 보완
+- [x] **지수 백오프(Exponential Backoff) 수식 실구현**: 현재 TODO로 남아있는 재시도 간격 계산 로직 완성
+- [x] **워크플로우 재개(Resume) 로직**: 중단된 지점부터 정확히 다시 시작하는 `WorkflowExecutor.resumeWorkflow()` 실구현
+- [x] **ActivityInvoker 정교화**: 리플렉션 호출 시 파라미터 타입 매칭 및 JSON 역직렬화 로직 보완
 - [ ] **최종 실패 처리**: 최대 재시도 횟수 초과 시 알림 발송 또는 DLQ(Dead Letter Queue) 처리
 
 ### 2. 안정성 및 테스트

@@ -323,3 +323,23 @@
 ### TODO
 *   CONTRIBUTING/DATABASE_RULE의 기존 허브 복귀 링크 유지 모니터링.
 *   신규 Spoke 문서가 생길 경우 AGENTS.md 인덱스에 즉시 반영.
+
+## [2026-02-11] 엔진 기능 고도화 (지수 백오프, 재개 로직)
+
+### 작업 내용
+*   **지수 백오프(Exponential Backoff) 구현**:
+    - `ExponentialBackoffRetryPolicy` 클래스를 추가하여 시도 횟수에 따른 지연 시간 계산 로직(base * 2^(n-1)) 반영.
+    - `WorkflowWorker`에서 `@Activity` 설정을 읽어 최대 재시도 횟수 체크 및 지수 백오프 기반 재시도 예약 연동.
+*   **워크플로우 재개(Resume) 로직 구현**:
+    - `JdbcWorkflowExecutor`를 통해 `resumeWorkflow()` 실구현.
+    - `ActivityRepository`에 `resetToPending()` 메서드를 추가하여 실패한 활동을 수동으로 재시작할 수 있도록 함.
+*   **UI 연동**:
+    - `WorkflowMonitoringController`에 재개(`resume`) API 추가.
+    - `timeline.mustache`에 실패한 인스턴스에 대한 'Resume' 버튼 추가.
+*   **리플렉션 보완**:
+    - `WorkflowWorker`에서 메서드 파라미터 타입을 체크하여 인자 바인딩 로직 기초 강화.
+
+### 결정 사항
+*   최대 재시도 횟수 초과 시 더 이상 자동 재시도를 생성하지 않고 `FAILED` 상태로 고정하여 수동 재개(Resume)를 유도함.
+*   지수 백오프의 최대 지연 시간은 시스템 안정성을 위해 1시간으로 제한함.
+
