@@ -1,0 +1,1 @@
+def v = org.gradle.api.JavaVersion.values().collect { it.majorVersion }; println v.subList(Math.max(0, v.size()-10), v.size())

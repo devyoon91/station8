@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.engine.core;
+package com.bangrang.workflow.engine.core;
 
 /**
  * 워크플로우 실행을 담당하는 상위 인터페이스.

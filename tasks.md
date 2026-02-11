@@ -49,16 +49,23 @@
     - [x] H_WF_DLQ 스키마 설계 및 DDL 작성 (Oracle/MariaDB/H2)
     - [x] 엔진 코어 최종 실패 처리 로직 구현 (FAILED_FINAL + DLQ 적재)
     - [x] 웹훅 알림 기능 구현 (WebhookDlqNotifier SPI)
+- [x] **DLQ 관리 기능**: DLQ 목록 조회, 재처리(Requeue), 폐기(Discard) 로직 및 UI 구현
 
 ### 2. 안정성 및 테스트
-- [ ] **핵심 로직 단위 테스트**: `WorkflowWorker`, `TaskExecutor` 등에 대한 JUnit 테스트 코드 작성
-- [ ] **통합 테스트**: Testcontainers 등을 활용한 Oracle/MariaDB 실제 연동 테스트
-- [ ] **Backpressure 정교화**: 스레드 풀 큐 가득 참 현상에 대한 모니터링 및 설정 최적화
+- [x] **핵심 로직 단위 테스트**: `ExponentialBackoffRetryPolicy`, `DefaultWorkflowContext`, `JdbcTaskExecutor` JUnit 테스트 코드 작성
+- [ ] **통합 테스트**: Testcontainers 등을 활용한 MariaDB 실제 연동 테스트 (로컬 H2 병행) *
+- [ ] **Docker-compose 기반 테스트 환경**: 로컬 통합 테스트용 데이터베이스 컨테이너 구성 *
+    - [x] docker/docker-compose.yml (MariaDB) *
+    - [x] 초기화 SQL(스키마/샘플데이터) 마운트 *
+    - [x] Gradle 태스크 composeUp/composeDown 추가 *
+    - [x] service-app: MariaDB JDBC 드라이버 및 application-docker.properties 추가 *
+    - [x] CI 연동 및 간단 연결 검증 스크립트 준비
+- [x] **Backpressure 정교화**: 스레드 풀 큐 가득 참 현상에 대한 모니터링 및 설정 최적화 (CallerRunsPolicy 적용)
 
 ### 3. 모니터링 UI 강화
-- [ ] **실시간 상태 업데이트**: WebSocket 또는 폴링을 통한 대시보드 실시간 갱신
+- [x] **실시간 상태 업데이트**: 폴링을 통한 대시보드 실시간 갱신 (Auto Refresh)
 - [x] **작업 수동 조작**: 대시보드에서 실패한 작업을 강제로 재시도하거나 중단하는 기능 추가
-- [ ] **검색 및 필터링**: 인스턴스 ID, 워크플로우 명, 기간별 검색 기능 보완
+- [x] **검색 및 필터링**: 인스턴스 ID, 워크플로우 명, 상태별 검색 기능 보완
 
 ### 4. 문서화 및 표준화
 - [ ] **사용자 가이드 작성**: 개발자가 엔진을 사용하여 워크플로우를 정의하는 방법(How-to) 문서화

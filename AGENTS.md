@@ -12,10 +12,11 @@
 
 ## 2. 작업 워크플로우 (Task Workflow)
 
-1.  **명세 및 진척도 숙지:** 작업을 시작하기 전 `docs/workflow-engine-spec.md`, `docs/DATABASE_RULE.md` 및 `tasks.md`를 반드시 읽고 현재 상태를 파악합니다.
-2.  **설계 제안 및 작업 계획:** 대규모 변경 시 인터페이스와 스키마를 먼저 제안하고 승인을 받습니다. 작업 시작 시 관련 내용을 `tasks.md`에 추가합니다.
-3.  **테스트 코드 작성:** 핵심 로직에 대해서는 가능한 한 테스트 코드를 동반합니다.
-4.  **문서화 및 상태 업데이트:** README.md와 관련 문서를 최신 상태로 유지하며, 작업 완료 시 `tasks.md`와 `worklog.md`를 업데이트합니다.
+1.  **명세 및 진척도 숙지:** 작업을 시작하기 전 `AGENTS.md`, `docs/workflow-engine-spec.md`, `docs/DATABASE_RULE.md` 및 `tasks.md`를 반드시 읽고 현재 상태를 파악합니다.
+2.  **팀 규칙 준수:** `/docs/*` 에 정의된 팀 규칙과 가이드라인을 반드시 참고하여 개발합니다.
+3.  **설계 제안 및 작업 계획:** 대규모 변경 시 인터페이스와 스키마를 먼저 제안하고 승인을 받습니다. 작업 시작 시 관련 내용을 `tasks.md`에 추가합니다.
+4.  **테스트 코드 작성:** 핵심 로직에 대해서는 가능한 한 테스트 코드를 동반합니다.
+5.  **문서화 및 상태 업데이트:** README.md와 관련 문서를 최신 상태로 유지하며, 작업 완료 시 `tasks.md`와 `worklog.md`를 업데이트합니다. 수정한 내용은 반드시 `worklog.md`에 기록합니다.
 
 ## 3. 기술 스택 가이드
 
@@ -38,6 +39,7 @@
 - 프로젝트 개요/빠른 시작: [README.md](README.md)
 - 기능 명세/아키텍처: [docs/workflow-engine-spec.md](docs/workflow-engine-spec.md)
 - 데이터베이스 규칙: [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md)
+- 사용자 가이드(정의/사용법): [docs/HOWTO.md](docs/HOWTO.md)
 - 운영 가이드(배포/운영/장애): [docs/OPERATIONS.md](docs/OPERATIONS.md)
 - 협업 규정(브랜치/커밋/PR): [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
 - 작업 현황/우선순위: [tasks.md](tasks.md)

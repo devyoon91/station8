@@ -1,7 +1,7 @@
-﻿plugins {
+plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.2.2' apply false
-    id 'io.spring.dependency-management' version '1.1.4' apply false
+    id 'org.springframework.boot' version '3.4.2' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
 }
 
 allprojects {
@@ -17,21 +17,45 @@ subprojects {
     apply plugin: 'java'
     apply plugin: 'io.spring.dependency-management'
 
-    sourceCompatibility = '25'
+    java {
+        sourceCompatibility = JavaVersion.VERSION_25
+        targetCompatibility = JavaVersion.VERSION_25
+    }
 
     dependencyManagement {
         imports {
-            mavenBom "org.springframework.boot:spring-boot-dependencies:3.2.2"
+            mavenBom "org.springframework.boot:spring-boot-dependencies:3.4.2"
         }
     }
 
     dependencies {
         implementation 'org.slf4j:slf4j-api'
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
     tasks.withType(JavaCompile) {
         options.encoding = 'UTF-8'
     }
+
+    tasks.withType(Test) {
+        useJUnitPlatform()
+        jvmArgs '-XX:+EnableDynamicAgentLoading'
+    }
 }
 
+
+// --- Docker Compose helper tasks ---
+tasks.register('composeUp', Exec) {
+    group = 'docker'
+    description = 'Start test databases via docker-compose'
+    workingDir = file('docker')
+    commandLine 'docker', 'compose', 'up', '-d'
+}
+
+tasks.register('composeDown', Exec) {
+    group = 'docker'
+    description = 'Stop test databases and remove containers'
+    workingDir = file('docker')
+    commandLine 'docker', 'compose', 'down', '-v'
+}

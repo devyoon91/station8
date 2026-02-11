@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.engine.entity;
+package com.bangrang.workflow.engine.entity;
 
 import java.time.LocalDateTime;
 

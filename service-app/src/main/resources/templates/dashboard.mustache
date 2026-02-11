@@ -7,7 +7,13 @@
 </head>
 <body class="bg-light">
 <div class="container mt-5">
-    <h1 class="mb-4">Workflow Monitoring Dashboard</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Workflow Monitoring Dashboard</h1>
+        <div>
+            <button onclick="location.reload()" class="btn btn-outline-secondary me-2">🔄 Refresh</button>
+            <a href="/workflow/dlq" class="btn btn-outline-danger">DLQ ☠️</a>
+        </div>
+    </div>
     
     <div class="row mb-4">
         <div class="col-md-3">
@@ -44,9 +50,43 @@
         </div>
     </div>
 
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form action="/workflow/dashboard" method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="instanceId" class="form-label">Instance ID</label>
+                    <input type="text" class="form-control" id="instanceId" name="instanceId" value="{{#instanceId}}{{instanceId}}{{/instanceId}}" placeholder="ID Substring">
+                </div>
+                <div class="col-md-4">
+                    <label for="workflowName" class="form-label">Workflow Name</label>
+                    <input type="text" class="form-control" id="workflowName" name="workflowName" value="{{#workflowName}}{{workflowName}}{{/workflowName}}" placeholder="Name Substring">
+                </div>
+                <div class="col-md-3">
+                    <label for="statusSt" class="form-label">Status</label>
+                    <select class="form-select" id="statusSt" name="statusSt">
+                        <option value="">All Status</option>
+                        <option value="RUNNING" {{#statusSt}}{{#equals . 'RUNNING'}}selected{{/equals}}{{/statusSt}}>RUNNING</option>
+                        <option value="COMPLETED" {{#statusSt}}{{#equals . 'COMPLETED'}}selected{{/equals}}{{/statusSt}}>COMPLETED</option>
+                        <option value="FAILED" {{#statusSt}}{{#equals . 'FAILED'}}selected{{/equals}}{{/statusSt}}>FAILED</option>
+                        <option value="TERMINATED" {{#statusSt}}{{#equals . 'TERMINATED'}}selected{{/equals}}{{/statusSt}}>TERMINATED</option>
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="card shadow-sm">
         <div class="card-body">
-            <h5 class="card-title mb-4">Workflow Instances</h5>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="card-title mb-0">Workflow Instances</h5>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoRefreshCheck">
+                    <label class="form-check-label" for="autoRefreshCheck">Auto Refresh (5s)</label>
+                </div>
+            </div>
             <table class="table table-hover">
                 <thead class="table-light">
                 <tr>
@@ -85,5 +125,35 @@
         </div>
     </div>
 </div>
+<script>
+    const autoRefreshCheck = document.getElementById('autoRefreshCheck');
+    let refreshInterval;
+
+    // Load state from localStorage
+    if (localStorage.getItem('autoRefresh') === 'true') {
+        autoRefreshCheck.checked = true;
+        startRefresh();
+    }
+
+    autoRefreshCheck.addEventListener('change', function() {
+        if (this.checked) {
+            localStorage.setItem('autoRefresh', 'true');
+            startRefresh();
+        } else {
+            localStorage.setItem('autoRefresh', 'false');
+            stopRefresh();
+        }
+    });
+
+    function startRefresh() {
+        refreshInterval = setInterval(() => {
+            location.reload();
+        }, 5000);
+    }
+
+    function stopRefresh() {
+        clearInterval(refreshInterval);
+    }
+</script>
 </body>
 </html>

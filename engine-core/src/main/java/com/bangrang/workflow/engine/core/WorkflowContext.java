@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.engine.core;
+package com.bangrang.workflow.engine.core;
 
 import java.time.Instant;
 import java.util.Map;

@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.engine.core;
+package com.bangrang.workflow.engine.core;
 
 import com.bangrang.workflow.engine.entity.ActivityExecution;
 import com.bangrang.workflow.engine.repository.ActivityRepository;

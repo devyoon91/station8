@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.app.migration;
+package com.bangrang.workflow.app.migration;
 
 import com.bangrang.workflow.engine.repository.ActivityRepository;
 import com.bangrang.workflow.engine.util.JsonUtil;

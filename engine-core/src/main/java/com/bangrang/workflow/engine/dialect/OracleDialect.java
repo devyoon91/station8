@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.engine.dialect;
+package com.bangrang.workflow.engine.dialect;
 
 public class OracleDialect implements DbDialect {
     @Override

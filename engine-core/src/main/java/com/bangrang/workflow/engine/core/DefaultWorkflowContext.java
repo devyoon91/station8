@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.engine.core;
+package com.bangrang.workflow.engine.core;
 
 import com.bangrang.workflow.engine.util.JsonUtil;
 import java.time.Instant;

@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: swe-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpw
+      MARIADB_DATABASE: workflow
+      MARIADB_USER: wfuser
+      MARIADB_PASSWORD: wfpw
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./init/mariadb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpw"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+# Optional: Oracle Free (commented by default due to image size and license constraints)
+#  oracle:
+#    image: gvenzl/oracle-free:23-slim
+#    container_name: swe-oracle
+#    environment:
+#      ORACLE_PASSWORD: oracle
+#      APP_USER: WFUSER
+#      APP_USER_PASSWORD: WFPW
+#    ports:
+#      - "1522:1521"
+#    volumes:
+#      - ./init/oracle:/container-entrypoint-initdb.d:ro
+#    healthcheck:
+#      test: ["CMD-SHELL", "echo 'select 1 from dual;' | sqlplus -s system/oracle@localhost:1521/FREE | grep 1"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 30
+#    restart: unless-stopped

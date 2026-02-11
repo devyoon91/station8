@@ -3,7 +3,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-}
 
-bootJar { enabled = false }
-jar { enabled = true }
+    testImplementation 'org.testcontainers:mariadb'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'com.h2database:h2'
+}

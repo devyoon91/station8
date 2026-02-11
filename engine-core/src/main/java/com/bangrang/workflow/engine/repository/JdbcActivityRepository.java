@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.engine.repository;
+package com.bangrang.workflow.engine.repository;
 
 import com.bangrang.workflow.engine.dialect.DbDialect;
 import com.bangrang.workflow.engine.entity.ActivityExecution;

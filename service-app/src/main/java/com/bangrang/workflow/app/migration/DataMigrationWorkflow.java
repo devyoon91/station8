@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.app.migration;
+package com.bangrang.workflow.app.migration;
 
 import com.bangrang.workflow.engine.annotation.Activity;
 import com.bangrang.workflow.engine.annotation.Workflow;

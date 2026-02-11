@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.app;
+package com.bangrang.workflow.app;
 
 import com.bangrang.workflow.engine.dialect.DbDialect;
 import com.bangrang.workflow.engine.dialect.MariaDbDialect;

@@ -6,9 +6,10 @@ dependencies {
     implementation project(':engine-core')
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-mustache'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     
     // DB Drivers (Runtime)
     runtimeOnly 'com.h2database:h2' // 로컬 테스트용
     // runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
-    // runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 }

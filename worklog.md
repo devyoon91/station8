@@ -355,7 +355,23 @@
 *   사용자 브랜드(`bangrang`)를 프로젝트 전반에 적용하여 소속감 및 아이덴티티 강화.
 
 
-## [2026-02-11] 인코딩(UTF-8) 주석 깨짐 복구
+## [2026-02-11] 에이전트 가이드라인 통합 및 정리
+
+### 작업 내용
+*   `.junie/guidelines.md`의 내용을 `AGENTS.md`로 통합.
+*   `AGENTS.md`의 **2. 작업 워크플로우** 섹션에 다음 내용 명시:
+    - 작업을 시작하기 전 `AGENTS.md`를 필수로 숙지하도록 업데이트.
+    - `/docs/*` 에 정의된 팀 규칙 준수 사항 추가.
+    - 수정 사항 발생 시 `worklog.md` 기록 의무 명시.
+*   기존 중복되거나 산재해 있던 가이드라인 항목들을 체계적으로 정리하여 가독성 향상.
+*   `.junie/guidelines.md` 파일 삭제 (통합 완료 후).
+
+### 결정 사항
+*   AI 에이전트가 참고해야 할 모든 가이드라인의 최상위 허브를 `AGENTS.md`로 단일화하여 정보 파편화 방지.
+*   `worklog.md` 기록과 팀 규칙 준수를 워크플로우의 명시적 단계로 설정하여 작업 품질 유지.
+
+
+## [2026-02-11] DLQ 스키마 초안(M1) 추가
 
 ### 작업 내용
 * `H_WF_DLQ` 테이블 DDL 추가 (Oracle/MariaDB)
@@ -369,6 +385,8 @@
 * FAILED_FINAL 상태 전이 명세 및 엔진 설정(`engine.dlq.enabled`, `engine.dlq.notifier=webhook`) 초안 문서화
 * H2용 테스트 스키마 검토(선택)
 
+
+## [2026-02-11] M2: 엔진 코어 DLQ 로직 구현 및 빌드 환경 정비
 
 ### 작업 내용
 * **DLQ 엔티티/리포지토리 구현:**
@@ -399,12 +417,70 @@
 ### 다음 단계
 * 테스트 코드 강화: 핵심 로직 단위 테스트 및 H2/Testcontainers 통합 테스트
 
-### 원인/대응
-* 원인: Windows PowerShell 환경에서 텍스트 파이프라인과 `Set-Content -Encoding UTF8` 재저장 과정이 원문 멀티바이트 한글을 손상.
-* 대응: 손상된 주석 블록을 정상 한글로 교체하고, 파일 저장을 UTF-8(BOM 없음)로 유지.
 
-### 재발 방지
-* 에디터/IDE 저장 인코딩을 UTF-8(무 BOM) 고정.
-* PowerShell 대량 치환 시 `Set-Content` 대신 `.NET` API(`[System.IO.File]::WriteAllText(utf8 no BOM)`) 사용 권고.
-* Gradle 컴파일 옵션(UTF-8) 유지: 루트 `build.gradle` `JavaCompile.options.encoding = 'UTF-8'` 확인.
+## [2026-02-11] M3: DLQ 관리 기능(API + UI) 구현
 
+### 작업 내용
+* **DLQ 컨트롤러 확장 (WorkflowMonitoringController):**
+  - DLQ 목록 조회(`/workflow/dlq`): 상태별 통계(NEW/REQUEUED/DISCARDED) 포함
+  - DLQ 상세 조회(`/workflow/dlq/{id}`)
+  - 재처리(`POST /workflow/dlq/{id}/requeue`): 동일 액티비티를 새 PENDING으로 생성 + DLQ 상태 REQUEUED 업데이트
+  - 폐기(`POST /workflow/dlq/{id}/discard`): DLQ 레코드 상태만 DISCARDED로 업데이트
+* **Mustache 템플릿 작성:**
+  - `dlq.mustache`: DLQ 목록 화면 (상태 카드 + 테이블 + Requeue/Discard 버튼)
+  - `dlq-detail.mustache`: DLQ 상세 화면 (에러 메시지, 스택 트레이스, 인스턴스 링크)
+* **대시보드 연동:**
+  - `dashboard.mustache`에 DLQ 네비게이션 버튼 추가
+* **엔티티 보완:**
+  - `DlqEntry`에 `isNew()` 헬퍼 메서드 추가 (Mustache 조건부 렌더링용)
+* **tasks.md 업데이트:**
+  - "최종 실패 처리(DLQ)" 및 "DLQ 관리 기능" 체크박스 완료 처리
+
+### 빌드/검증
+* `gradlew compileJava` BUILD SUCCESSFUL
+
+
+## [2026-02-11] M4: 핵심 로직 단위 테스트 작성 및 빌드 환경 보완
+
+### 작업 내용
+* **빌드 환경 수정:**
+  - `build.gradle`의 `sourceCompatibility`/`targetCompatibility`를 `JavaVersion.VERSION_24` → `JavaVersion.VERSION_25`로 수정
+  - `useJUnitPlatform()` 설정 추가 (JUnit 5 테스트 디스커버리 활성화)
+  - `testRuntimeOnly 'org.junit.platform:junit-platform-launcher'` 의존성 추가
+  - `-XX:+EnableDynamicAgentLoading` JVM 인자 추가 (Java 25 호환)
+* **단위 테스트 작성 (engine-core):**
+  - `ExponentialBackoffRetryPolicyTest`: 지수 백오프 계산, 최대 지연 제한, 초과 판정 등 7개 테스트
+  - `DefaultWorkflowContextTest`: 기본 속성, setNext/nextActivity, saveState/loadState 등 7개 테스트
+  - `JdbcTaskExecutorTest`: scheduleNext, complete, fail, checkpoint 등 7개 테스트 (수동 Stub 방식)
+* **Mockito 호환성 이슈 대응:**
+  - Java 25에서 Mockito ByteBuddy가 클래스 파일 버전 미지원(OpenedClassReader 오류)
+  - Mockito 대신 수동 Stub(`StubActivityRepository`) 방식으로 JdbcTaskExecutor 테스트 작성
+
+### 빌드/검증
+* `gradlew :engine-core:test` BUILD SUCCESSFUL (전체 테스트 통과)
+
+### 참고
+* Java 25 환경에서 Mockito 사용 시 ByteBuddy 호환성 문제 존재 — 향후 Mockito/ByteBuddy 업데이트 시 재검토 필요
+
+
+
+## [2026-02-11] Docker-compose 기반 로컬 테스트 환경 추가 (MariaDB)
+
+### 작업 내용
+* docker/docker-compose.yml 생성 (MariaDB 11.4, 포트 3307 노출, Healthcheck 포함)
+* 초기화 SQL 제공: docker/init/mariadb/01-schema.sql (엔진 스키마 + 샘플 테이블/데이터)
+* 루트 build.gradle에 Gradle 태스크 추가: composeUp/composeDown
+* service-app에 MariaDB 드라이버 활성화 및 application-docker.properties 추가
+* H2 테스트 호환성 수정: JdbcActivityRepositoryTest의 LIMIT → FETCH FIRST 교체(테스트 전용 Dialect)
+
+### 사용 방법
+1) Docker 데몬 실행 후, 데이터베이스 기동
+   - Windows PowerShell: `./gradlew composeUp`
+2) 애플리케이션 실행 (docker 프로파일)
+   - `./gradlew :service-app:bootRun --args='--spring.profiles.active=docker'`
+3) 종료/정리
+   - `./gradlew composeDown`
+
+### 비고
+* Oracle Free 컨테이너는 용량/라이선스 이슈로 compose 파일에 주석으로 남겼습니다. 필요 시 주석 해제 후 사용 가능합니다.
+* CI 연동 및 자동 검증 스크립트는 후속 작업으로 진행합니다.

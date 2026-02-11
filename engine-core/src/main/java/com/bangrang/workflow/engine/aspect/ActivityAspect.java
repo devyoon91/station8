@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.engine.aspect;
+package com.bangrang.workflow.engine.aspect;
 
 import com.bangrang.workflow.engine.annotation.Activity;
 import com.bangrang.workflow.engine.core.WorkflowContext;

@@ -1,4 +1,4 @@
-﻿package com.bangrang.workflow.engine.aspect;
+package com.bangrang.workflow.engine.aspect;
 
 import com.bangrang.workflow.engine.annotation.Workflow;
 import com.bangrang.workflow.engine.util.JsonUtil;
