@@ -53,8 +53,11 @@
 
 ### 2. 안정성 및 테스트
 - [x] **핵심 로직 단위 테스트**: `ExponentialBackoffRetryPolicy`, `DefaultWorkflowContext`, `JdbcTaskExecutor` JUnit 테스트 코드 작성
-- [ ] **통합 테스트**: Testcontainers 등을 활용한 MariaDB 실제 연동 테스트 (로컬 H2 병행) *
-- [ ] **Docker-compose 기반 테스트 환경**: 로컬 통합 테스트용 데이터베이스 컨테이너 구성 *
+- [x] **통합 테스트**: H2 기반 E2E 통합 테스트(서비스 레벨) 작성 및 검증 완료
+    - [x] H2 메모리 DB + schema-h2.sql + 샘플 데이터 로딩
+    - [x] TaskExecutor.complete/fail 오케스트레이션, 지수 백오프(nextRetryDt) 검증
+    - [ ] Testcontainers로 MariaDB 실연동 테스트 (Docker 필요) — CI/개발환경에서 Docker 가용 시 활성화
+- [x] **Docker-compose 기반 테스트 환경**: 로컬 통합 테스트용 데이터베이스 컨테이너 구성 *
     - [x] docker/docker-compose.yml (MariaDB) *
     - [x] 초기화 SQL(스키마/샘플데이터) 마운트 *
     - [x] Gradle 태스크 composeUp/composeDown 추가 *
