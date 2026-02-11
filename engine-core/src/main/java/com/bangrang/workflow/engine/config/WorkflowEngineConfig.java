@@ -1,5 +1,13 @@
-﻿package com.bangrang.workflow.engine.config;
+package com.bangrang.workflow.engine.config;
 
+import com.bangrang.workflow.engine.core.DlqNotifier;
+import com.bangrang.workflow.engine.core.ExponentialBackoffRetryPolicy;
+import com.bangrang.workflow.engine.core.JdbcTaskExecutor;
+import com.bangrang.workflow.engine.core.TaskExecutor;
+import com.bangrang.workflow.engine.core.WebhookDlqNotifier;
+import com.bangrang.workflow.engine.repository.ActivityRepository;
+import com.bangrang.workflow.engine.util.JsonUtil;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -37,6 +45,15 @@ public class WorkflowEngineConfig {
     @Bean
     public TaskExecutor taskExecutor(ActivityRepository activityRepository, JsonUtil jsonUtil) {
         return new JdbcTaskExecutor(activityRepository, jsonUtil);
+    }
+
+    /**
+     * DLQ 웹훅 알림 발송기. engine.dlq.webhook-url 프로퍼티로 URL을 설정합니다.
+     * URL이 비어있으면 콘솔 로그로 대체됩니다.
+     */
+    @Bean
+    public DlqNotifier dlqNotifier(@Value("${engine.dlq.webhook-url:}") String webhookUrl, JsonUtil jsonUtil) {
+        return new WebhookDlqNotifier(webhookUrl, jsonUtil);
     }
 }
 

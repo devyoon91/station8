@@ -1,7 +1,10 @@
-﻿package com.bangrang.workflow.engine.core;
+package com.bangrang.workflow.engine.core;
 
 import com.bangrang.workflow.engine.entity.ActivityExecution;
+import com.bangrang.workflow.engine.entity.DlqEntry;
 import com.bangrang.workflow.engine.repository.ActivityRepository;
+import com.bangrang.workflow.engine.repository.DlqRepository;
+import com.bangrang.workflow.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,17 +29,26 @@ public class WorkflowWorker {
     private final ThreadPoolTaskExecutor workflowTaskExecutor;
     private final WorkflowRegistry workflowRegistry;
     private final ExponentialBackoffRetryPolicy retryPolicy;
+    private final DlqRepository dlqRepository;
+    private final DlqNotifier dlqNotifier;
+    private final JsonUtil jsonUtil;
 
     public WorkflowWorker(ActivityRepository activityRepository, 
                           TaskExecutor taskExecutor,
                           ThreadPoolTaskExecutor workflowTaskExecutor,
                           WorkflowRegistry workflowRegistry,
-                          ExponentialBackoffRetryPolicy retryPolicy) {
+                          ExponentialBackoffRetryPolicy retryPolicy,
+                          DlqRepository dlqRepository,
+                          DlqNotifier dlqNotifier,
+                          JsonUtil jsonUtil) {
         this.activityRepository = activityRepository;
         this.taskExecutor = taskExecutor;
         this.workflowTaskExecutor = workflowTaskExecutor;
         this.workflowRegistry = workflowRegistry;
         this.retryPolicy = retryPolicy;
+        this.dlqRepository = dlqRepository;
+        this.dlqNotifier = dlqNotifier;
+        this.jsonUtil = jsonUtil;
     }
 
     /**
@@ -79,7 +91,9 @@ public class WorkflowWorker {
             "UNKNOWN", // WorkflowName은 Instance 테이블 조회가 필요할 수 있음
             activity.activityName(),
             activity.retryCnt() + 1,
-            activity.inputData()
+            activity.inputData(),
+            null, // previousOutput
+            jsonUtil
         );
         context.attributes().put("executionId", activity.id());
 
@@ -106,8 +120,10 @@ public class WorkflowWorker {
             long baseBackoff = metadata.annotation().backoffSeconds();
             
             if (retryPolicy.isExceeded(attempt, maxRetry)) {
-                log.error("Max retry count exceeded for activity: {}. Mark as FAILED.", activity.id());
+                log.error("Max retry count exceeded for activity: {}. Mark as FAILED_FINAL.", activity.id());
                 taskExecutor.fail(context, cause, null); // 더 이상 재시도 없음
+                // FAILED_FINAL 상태로 인스턴스 업데이트 및 DLQ 적재
+                moveToDlq(activity, context, cause, maxRetry);
             } else {
                 Duration nextBackoff = retryPolicy.calculateNextBackoff(attempt, baseBackoff);
                 log.info("Scheduling retry #{} for activity: {} with delay: {}s", attempt, activity.id(), nextBackoff.getSeconds());
@@ -169,6 +185,45 @@ public class WorkflowWorker {
             activity.regDt(), activity.regId(), LocalDateTime.now(), "worker"
         );
         activityRepository.updateStatus(failed);
+    }
+
+    /**
+     * 최대 재시도 초과 시 DLQ에 적재하고 웹훅 알림을 발송합니다.
+     */
+    private void moveToDlq(ActivityExecution activity, DefaultWorkflowContext context, Throwable cause, int maxRetry) {
+        try {
+            String stackTrace = buildStackTraceString(cause);
+            DlqEntry entry = new DlqEntry(
+                null, // ID는 Repository에서 UUID 자동 생성
+                activity.instanceId(),
+                activity.id(),
+                context.workflowName(),
+                activity.activityName(),
+                "NEW",
+                cause.getMessage(),
+                stackTrace,
+                context.attempt(),
+                maxRetry,
+                LocalDateTime.now(),
+                null, null, null, null, null, null, null
+            );
+            dlqRepository.insert(entry);
+            log.info("[DLQ] 적재 완료. Activity={}, Instance={}", activity.activityName(), activity.instanceId());
+
+            // 웹훅 알림 발송 (비동기 아님 — 실패해도 DLQ 적재는 보장됨)
+            dlqNotifier.notify(entry);
+        } catch (Exception dlqEx) {
+            log.error("[DLQ] 적재 중 오류 발생. Activity={}", activity.id(), dlqEx);
+        }
+    }
+
+    private String buildStackTraceString(Throwable t) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(t.toString()).append("\n");
+        for (StackTraceElement element : t.getStackTrace()) {
+            sb.append("\tat ").append(element).append("\n");
+        }
+        return sb.toString();
     }
 
     private String stackTraceToString(Exception e) {

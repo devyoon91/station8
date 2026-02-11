@@ -1,8 +1,10 @@
-﻿package com.bangrang.workflow.engine.core;
+package com.bangrang.workflow.engine.core;
 
 import com.bangrang.workflow.engine.entity.ActivityExecution;
 import com.bangrang.workflow.engine.repository.ActivityRepository;
 import com.bangrang.workflow.engine.util.JsonUtil;
+import com.bangrang.workflow.engine.exception.ErrorCodes;
+import com.bangrang.workflow.engine.exception.WorkflowEngineException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,20 +57,17 @@ public class JdbcTaskExecutor implements TaskExecutor {
             context.instanceId(),
             context.currentActivityName(),
             "COMPLETED",
-            null,
+            null, // inputData
             outputJson,
-            null,
-            null,
+            null, // errorMessage
+            null, // stackTrace
             0,
-            null,
-            null,
-            LocalDateTime.now(),
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
+            null, // nextRetryDt
+            null, // startDt
+            LocalDateTime.now(), // endDt
+            null, null, null, // useFl, viewFl, delFl
+            null, null, // regDt, regId
+            LocalDateTime.now(), "engine" // editDt, editId
         );
         activityRepository.updateStatus(updated);
 
@@ -91,20 +90,17 @@ public class JdbcTaskExecutor implements TaskExecutor {
             context.instanceId(),
             context.currentActivityName(),
             "FAILED",
-            null,
-            null,
+            null, // inputData
+            null, // outputData
             errorMessage,
             stackTrace,
             context.attempt(),
             nextRetry,
-            null,
-            LocalDateTime.now(),
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
+            null, // startDt
+            LocalDateTime.now(), // endDt
+            null, null, null, // useFl, viewFl, delFl
+            null, null, // regDt, regId
+            LocalDateTime.now(), "engine" // editDt, editId
         );
         activityRepository.updateStatus(updated);
 
@@ -126,7 +122,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
     private String resolveExecutionId(WorkflowContext context) {
         return Optional.ofNullable(context.attributes().get(CTX_KEY_EXECUTION_ID))
                 .map(Object::toString)
-                .orElseThrow(() -> new IllegalStateException("Missing executionId in WorkflowContext.attributes"));
+                .orElseThrow(() -> new WorkflowEngineException(ErrorCodes.CONTEXT_ATTRIBUTE_MISSING, "Missing executionId in WorkflowContext.attributes"));
     }
 
     private String resolveInstanceId(WorkflowContext context) {

@@ -45,7 +45,10 @@
 - [x] **지수 백오프(Exponential Backoff) 수식 실구현**: 현재 TODO로 남아있는 재시도 간격 계산 로직 완성
 - [x] **워크플로우 재개(Resume) 로직**: 중단된 지점부터 정확히 다시 시작하는 `WorkflowExecutor.resumeWorkflow()` 실구현
 - [x] **ActivityInvoker 정교화**: 리플렉션 호출 시 파라미터 타입 매칭 및 JSON 역직렬화 로직 보완
-- [ ] **최종 실패 처리**: 최대 재시도 횟수 초과 시 알림 발송 또는 DLQ(Dead Letter Queue) 처리
+- [x] **최종 실패 처리 (DLQ)**: 최대 재시도 횟수 초과 시 `FAILED_FINAL` 상태 전환 및 `H_WF_DLQ` 테이블 적재
+    - [x] H_WF_DLQ 스키마 설계 및 DDL 작성 (Oracle/MariaDB/H2)
+    - [x] 엔진 코어 최종 실패 처리 로직 구현 (FAILED_FINAL + DLQ 적재)
+    - [x] 웹훅 알림 기능 구현 (WebhookDlqNotifier SPI)
 
 ### 2. 안정성 및 테스트
 - [ ] **핵심 로직 단위 테스트**: `WorkflowWorker`, `TaskExecutor` 등에 대한 JUnit 테스트 코드 작성

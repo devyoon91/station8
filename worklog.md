@@ -358,11 +358,46 @@
 ## [2026-02-11] 인코딩(UTF-8) 주석 깨짐 복구
 
 ### 작업 내용
-* 패키지 네임스페이스 일괄 치환 과정에서 PowerShell `Set-Content -Encoding UTF8` 사용으로 한글 주석이 모지바케 형태로 훼손된 것을 확인하고 복구.
-* 주요 파일의 주석을 정정하고 설명을 보강:
-  - engine-core: `ActivityExecution.java`, `WorkflowInstance.java`, `JdbcActivityRepository.java`, `WorkflowWorker.java`, `JdbcTaskExecutor.java`, `WorkflowAspect.java`, `ActivityAspect.java`, `WorkflowEngineConfig.java`, `DefaultWorkflowContext.java`, `ExponentialBackoffRetryPolicy.java`, `JdbcWorkflowExecutor.java`, `WorkflowRegistry.java`, `DbDialect.java`, `ActivityRepository.java`, `WorkflowContext.java`, `WorkflowExecutor.java`
-  - service-app: `Application.java`, `WorkflowMonitoringController.java`, `DataMigrationWorkflow.java`, `MigrationInitializer.java`
-* SQL/Mustache/Markdown 파일은 이상 없음 확인.
+* `H_WF_DLQ` 테이블 DDL 추가 (Oracle/MariaDB)
+  - 공통 컬럼(DATABASE_RULE) 준수: USE_FL/VIEW_FL/DEL_FL/REG_DT/REG_ID/EDIT_DT/EDIT_ID
+  - 제약조건: `H_WF_DLQ_PK`, `H_WF_DLQ_FK01(U_WF_INSTANCE)`, `H_WF_DLQ_FK02(H_WF_ACTIVITY_EXECUTION)`
+  - 인덱스: `H_WF_DLQ_IDX01(DLQ_STATUS_ST, REG_DT)`, `H_WF_DLQ_IDX02(INSTANCE_ID)`
+* DLQ 상태 모델 정의(초안): `DLQ_STATUS_ST` = NEW, REQUEUED, DISCARDED
+* 최종 실패 시나리오 설계 반영: `FAILED_FINAL`로 고정 후 DLQ 적재(워크플로우명/액티비티명 포함)
+
+### 다음 단계(M1 계속)
+* FAILED_FINAL 상태 전이 명세 및 엔진 설정(`engine.dlq.enabled`, `engine.dlq.notifier=webhook`) 초안 문서화
+* H2용 테스트 스키마 검토(선택)
+
+
+### 작업 내용
+* **DLQ 엔티티/리포지토리 구현:**
+  - `DlqEntry` Java Record 엔티티 생성 (H_WF_DLQ 테이블 대응)
+  - `DlqRepository` 인터페이스 정의 (insert, findAll, findById, updateStatus)
+  - `JdbcDlqRepository` JDBC 구현체 작성 (@Repository, RowMapper 포함)
+* **DLQ 알림 SPI 구현:**
+  - `DlqNotifier` 인터페이스 정의 (SPI)
+  - `WebhookDlqNotifier` 기본 구현체 작성 (java.net.http.HttpClient 기반 POST 발송, URL 미설정 시 콘솔 로그 대체)
+* **WorkflowWorker DLQ 연동:**
+  - 최대 재시도 초과 시 `moveToDlq()` 메서드로 DLQ 적재 + 웹훅 알림 발송
+  - DlqRepository, DlqNotifier, JsonUtil 의존성 주입 추가
+  - DefaultWorkflowContext 생성자 7개 파라미터 정합성 수정
+* **WorkflowEngineConfig 업데이트:**
+  - `DlqNotifier` 빈 등록 (`engine.dlq.webhook-url` 프로퍼티 연동)
+* **H2 테스트 스키마 추가:**
+  - `schema-h2.sql` 신규 작성 (U_WF_INSTANCE, H_WF_ACTIVITY_EXECUTION, H_WF_DLQ)
+* **빌드 환경 정비:**
+  - Spring Boot 3.2.2 → 3.4.2, dependency-management 1.1.4 → 1.1.7 업그레이드 (Gradle 9.1.0 호환)
+  - Gradle 9에서 `sourceCompatibility` 직접 설정 불가 → `java {}` 블록으로 변경
+  - 전체 Java 파일 UTF-8 BOM 일괄 제거
+  - engine-core `bootJar` 제거 (spring-boot 플러그인 미적용 라이브러리 모듈)
+  - service-app에 `spring-boot-starter-jdbc` 의존성 추가
+
+### 빌드/검증
+* `gradlew compileJava` BUILD SUCCESSFUL
+
+### 다음 단계
+* 테스트 코드 강화: 핵심 로직 단위 테스트 및 H2/Testcontainers 통합 테스트
 
 ### 원인/대응
 * 원인: Windows PowerShell 환경에서 텍스트 파이프라인과 `Set-Content -Encoding UTF8` 재저장 과정이 원문 멀티바이트 한글을 손상.
