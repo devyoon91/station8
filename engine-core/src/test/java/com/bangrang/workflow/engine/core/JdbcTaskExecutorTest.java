@@ -157,8 +157,28 @@ class JdbcTaskExecutorTest {
         }
 
         @Override
-        public void createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt) {
+        public String createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt) {
             pendingCalls.add(new PendingCall(instanceId, activityName, inputData, nextRetryDt));
+            return "stub-id-" + pendingCalls.size();
+        }
+
+        @Override
+        public String createForNode(String instanceId, String nodeId, String activityName, String statusSt, String inputData) {
+            return "stub-node-id";
+        }
+
+        @Override
+        public ActivityExecution findById(String executionId) {
+            return null;
+        }
+
+        @Override
+        public ActivityExecution findByInstanceAndNode(String instanceId, String nodeId) {
+            return null;
+        }
+
+        @Override
+        public void promoteToPending(String executionId) {
         }
 
         @Override
