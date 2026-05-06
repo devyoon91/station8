@@ -26,4 +26,28 @@ public interface WorkflowDefinitionRepository {
 
     /** 시작 노드(들): incoming edge가 0개인 노드. */
     List<WorkflowNode> findStartNodes(String definitionId);
+
+    /** 정의 INSERT. */
+    void insertDefinition(WorkflowDefinition definition);
+
+    /** 정의 메타(DESC/ACTIVE_FL) 업데이트. */
+    void updateDefinitionMeta(String definitionId, String description, String activeFl);
+
+    /** 정의 소프트 삭제 (DEL_FL='Y'). */
+    void softDeleteDefinition(String definitionId);
+
+    /** 노드 INSERT. */
+    void insertNode(WorkflowNode node);
+
+    /** 정의 소속 노드 일괄 소프트 삭제. */
+    void softDeleteNodesByDefinition(String definitionId);
+
+    /** 엣지 INSERT. */
+    void insertEdge(WorkflowEdge edge);
+
+    /** 정의 소속 엣지 일괄 소프트 삭제. */
+    void softDeleteEdgesByDefinition(String definitionId);
+
+    /** 같은 이름의 활성 정의 중 최대 VERSION_NO. 없으면 0. */
+    int findMaxVersionByName(String definitionNm);
 }
