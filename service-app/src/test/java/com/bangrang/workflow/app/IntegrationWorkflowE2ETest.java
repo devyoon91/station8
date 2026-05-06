@@ -51,6 +51,12 @@ public class IntegrationWorkflowE2ETest {
         populator.setContinueOnError(true);
         populator.execute(jdbcTemplate.getDataSource());
 
+        // 테스트 격리: MigrationInitializer가 부팅 시 만든 인스턴스/액티비티 정리
+        // (FK 순서: DLQ → ACTIVITY → INSTANCE)
+        jdbcTemplate.execute("DELETE FROM H_WF_DLQ");
+        jdbcTemplate.execute("DELETE FROM H_WF_ACTIVITY_EXECUTION");
+        jdbcTemplate.execute("DELETE FROM U_WF_INSTANCE");
+
         // Fresh instance
         instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
