@@ -32,15 +32,17 @@ public class WorkflowWorker {
     private final DlqRepository dlqRepository;
     private final DlqNotifier dlqNotifier;
     private final JsonUtil jsonUtil;
+    private final DagInterpreter dagInterpreter;
 
-    public WorkflowWorker(ActivityRepository activityRepository, 
+    public WorkflowWorker(ActivityRepository activityRepository,
                           TaskExecutor taskExecutor,
                           ThreadPoolTaskExecutor workflowTaskExecutor,
                           WorkflowRegistry workflowRegistry,
                           ExponentialBackoffRetryPolicy retryPolicy,
                           DlqRepository dlqRepository,
                           DlqNotifier dlqNotifier,
-                          JsonUtil jsonUtil) {
+                          JsonUtil jsonUtil,
+                          DagInterpreter dagInterpreter) {
         this.activityRepository = activityRepository;
         this.taskExecutor = taskExecutor;
         this.workflowTaskExecutor = workflowTaskExecutor;
@@ -49,6 +51,7 @@ public class WorkflowWorker {
         this.dlqRepository = dlqRepository;
         this.dlqNotifier = dlqNotifier;
         this.jsonUtil = jsonUtil;
+        this.dagInterpreter = dagInterpreter;
     }
 
     /**
@@ -109,6 +112,11 @@ public class WorkflowWorker {
             // 4. 성공 시 결과 업데이트 및 다음 단계 처리
             taskExecutor.complete(context, result);
             log.info("Activity completed: {} (Execution ID: {})", activity.activityName(), activity.id());
+
+            // 4-1. DAG 모드(NODE_ID 보유)면 인터프리터에 후행 노드 활성화 위임
+            if (activity.nodeId() != null) {
+                dagInterpreter.onNodeCompleted(activity.instanceId(), activity.nodeId());
+            }
             
         } catch (Exception e) {
             Throwable cause = (e instanceof java.lang.reflect.InvocationTargetException) ? e.getCause() : e;
@@ -161,7 +169,7 @@ public class WorkflowWorker {
 
     private void updateActivityAsCompleted(ActivityExecution activity, Object output) {
         ActivityExecution completed = new ActivityExecution(
-            activity.id(), activity.instanceId(), activity.activityName(),
+            activity.id(), activity.instanceId(), activity.nodeId(), activity.activityName(),
             "COMPLETED", activity.inputData(), String.valueOf(output),
             null, null, activity.retryCnt(), null,
             activity.startDt(), LocalDateTime.now(),
@@ -177,7 +185,7 @@ public class WorkflowWorker {
         LocalDateTime nextRetryDt = LocalDateTime.now().plus(Duration.ofSeconds(30)); // 30초 후 재시도 예시
 
         ActivityExecution failed = new ActivityExecution(
-            activity.id(), activity.instanceId(), activity.activityName(),
+            activity.id(), activity.instanceId(), activity.nodeId(), activity.activityName(),
             "FAILED", activity.inputData(), null,
             e.getMessage(), stackTraceToString(e), nextRetryCnt, nextRetryDt,
             activity.startDt(), LocalDateTime.now(),

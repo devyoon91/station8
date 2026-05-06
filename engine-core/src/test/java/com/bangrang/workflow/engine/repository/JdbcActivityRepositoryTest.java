@@ -37,7 +37,8 @@ public class JdbcActivityRepositoryTest {
                 "PRIMARY KEY (ID))");
 
         jdbcTemplate.execute("CREATE TABLE H_WF_ACTIVITY_EXECUTION (" +
-                "ID VARCHAR(50), INSTANCE_ID VARCHAR(50), ACTIVITY_NAME VARCHAR(100), STATUS_ST VARCHAR(20), " +
+                "ID VARCHAR(50), INSTANCE_ID VARCHAR(50), NODE_ID VARCHAR(50), " +
+                "ACTIVITY_NAME VARCHAR(100), STATUS_ST VARCHAR(30), " +
                 "INPUT_DATA CLOB, OUTPUT_DATA CLOB, ERROR_MESSAGE CLOB, STACK_TRACE CLOB, " +
                 "RETRY_CNT INT, NEXT_RETRY_DT TIMESTAMP, START_DT TIMESTAMP, END_DT TIMESTAMP, " +
                 "USE_FL VARCHAR(1), VIEW_FL VARCHAR(1), DEL_FL VARCHAR(1), REG_DT TIMESTAMP, REG_ID VARCHAR(32), " +
@@ -81,7 +82,7 @@ public class JdbcActivityRepositoryTest {
                 executionId, instanceId, "Activity1", "RUNNING", LocalDateTime.now());
 
         ActivityExecution update = new ActivityExecution(
-                executionId, instanceId, "Activity1", "COMPLETED", 
+                executionId, instanceId, null, "Activity1", "COMPLETED",
                 null, "{\"result\":\"ok\"}", null, null, 0, null, null, LocalDateTime.now(),
                 "Y", "Y", "N", LocalDateTime.now(), "system", LocalDateTime.now(), "engine"
         );

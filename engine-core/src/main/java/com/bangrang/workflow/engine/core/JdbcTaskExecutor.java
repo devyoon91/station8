@@ -55,6 +55,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
         ActivityExecution updated = new ActivityExecution(
             executionId,
             context.instanceId(),
+            null, // nodeId: updateStatus는 NODE_ID를 변경하지 않음 (PK 기준 SET 항목만 갱신)
             context.currentActivityName(),
             "COMPLETED",
             null, // inputData
@@ -71,7 +72,8 @@ public class JdbcTaskExecutor implements TaskExecutor {
         );
         activityRepository.updateStatus(updated);
 
-        // 컨텍스트에 next 힌트가 존재하면 오케스트레이션
+        // 컨텍스트에 next 힌트가 존재하면 레거시(선형) 오케스트레이션
+        // DAG 모드에서는 WorkflowWorker가 인터프리터에 onNodeCompleted를 위임함
         context.nextActivityName().ifPresent(name -> {
             Object nextInput = context.nextActivityInput().orElse(null);
             scheduleNext(context, name, nextInput);
@@ -88,6 +90,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
         ActivityExecution updated = new ActivityExecution(
             executionId,
             context.instanceId(),
+            null, // nodeId: updateStatus는 NODE_ID를 변경하지 않음
             context.currentActivityName(),
             "FAILED",
             null, // inputData

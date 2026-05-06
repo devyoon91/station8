@@ -11,8 +11,9 @@ import java.time.LocalDateTime;
 public record ActivityExecution(
     String id,                // ID (PK)
     String instanceId,        // INSTANCE_ID (FK)
+    String nodeId,            // NODE_ID (FK to U_WF_NODE, nullable: 레거시 모드는 null)
     String activityName,      // ACTIVITY_NAME
-    String statusSt,          // STATUS_ST (PENDING, RUNNING, COMPLETED, FAILED)
+    String statusSt,          // STATUS_ST (WAITING_DEPENDENCIES, PENDING, RUNNING, COMPLETED, FAILED)
     String inputData,         // INPUT_DATA (CLOB/LONGTEXT - JSON)
     String outputData,        // OUTPUT_DATA (CLOB/LONGTEXT - JSON)
     String errorMessage,      // ERROR_MESSAGE (CLOB/LONGTEXT)
@@ -31,5 +32,14 @@ public record ActivityExecution(
     LocalDateTime editDt,     // EDIT_DT
     String editId             // EDIT_ID
 ) {
+    /** 상태만 바꾼 새 인스턴스를 반환합니다 (record는 불변이므로 재구성). */
+    public ActivityExecution withStatus(String newStatus) {
+        return new ActivityExecution(
+            id, instanceId, nodeId, activityName, newStatus,
+            inputData, outputData, errorMessage, stackTrace,
+            retryCnt, nextRetryDt, startDt, endDt,
+            useFl, viewFl, delFl, regDt, regId, editDt, editId
+        );
+    }
 }
 
