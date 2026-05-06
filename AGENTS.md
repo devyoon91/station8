@@ -1,61 +1,64 @@
 # 🤖 AGENTS.md
 
-이 파일은 `simple-workflow-engine` 프로젝트에서 활동하는 AI 에이전트들을 위한 가이드라인 및 역할 정의를 담고 있습니다.
+이 파일은 `simple-workflow-engine` 프로젝트에서 활동하는 AI 에이전트 및 개발자를 위한 협업 가이드라인입니다.
 
-## 1. 에이전트 원칙 (Agent Principles)
+## 1. 프로젝트 노선 (Direction)
 
-*   **Durable Execution 우선:** 모든 설계는 장애 발생 시에도 중단 지점부터 재개 가능한 내구성 있는 실행을 최우선으로 합니다.
-*   **DB 중심 설계:** 외부 메시지 큐 없이 Oracle/MariaDB의 `SKIP LOCKED` 기능을 활용한 경량 오케스트레이션을 지향합니다.
-*   **일관성 유지:** 기존 코드 스타일과 명세서(`workflow-engine-spec.md`)를 엄격히 준수합니다.
-*   **기록의 의무:** 모든 변경 사항은 `worklog.md`에 상세히 기록하고, 작업 진척도는 `tasks.md`의 체크박스를 업데이트하여 관리합니다. 이슈 발생 시 `issue.md`에 남깁니다.
-*   **미구현 사항 표기:** 향후 작업이 필요하거나 리팩토링이 필요한 위치에는 반드시 `// TODO: 내용` 주석을 남기고, 해당 내용을 `tasks.md`의 "향후 과제" 섹션에도 반영합니다.
+* **Temporal 스타일 코어** + **Airflow/Azkaban 스타일 운영 웹**의 하이브리드.
+* 액티비티(노드)는 Java 코드(`@Activity`), 워크플로우(DAG)는 데이터(웹 빌더에서 정의).
+* 상세는 [docs/workflow-engine-spec.md](docs/workflow-engine-spec.md) 참조.
 
-## 2. 작업 워크플로우 (Task Workflow)
+## 2. 작업 원칙
 
-1.  **명세 및 진척도 숙지:** 작업을 시작하기 전 `AGENTS.md`, `docs/workflow-engine-spec.md`, `docs/DATABASE_RULE.md` 및 `tasks.md`를 반드시 읽고 현재 상태를 파악합니다.
-2.  **팀 규칙 준수:** `/docs/*` 에 정의된 팀 규칙과 가이드라인을 반드시 참고하여 개발합니다.
-3.  **설계 제안 및 작업 계획:** 대규모 변경 시 인터페이스와 스키마를 먼저 제안하고 승인을 받습니다. 작업 시작 시 관련 내용을 `tasks.md`에 추가합니다.
-4.  **테스트 코드 작성:** 핵심 로직에 대해서는 가능한 한 테스트 코드를 동반합니다.
-5.  **문서화 및 상태 업데이트:** README.md와 관련 문서를 최신 상태로 유지하며, 작업 완료 시 `tasks.md`와 `worklog.md`를 업데이트합니다. 수정한 내용은 반드시 `worklog.md`에 기록합니다.
+* **Durable Execution 우선:** 모든 설계는 장애 발생 시에도 중단 지점부터 재개 가능한 내구성을 최우선으로 한다.
+* **DB 중심 설계:** 외부 메시지 큐 없이 Oracle/MariaDB의 `SKIP LOCKED`를 활용한 경량 오케스트레이션.
+* **명세 우선:** 인터페이스/스키마 변경은 [docs/workflow-engine-spec.md](docs/workflow-engine-spec.md)와 [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md) 갱신과 함께 진행한다.
+* **테스트 동반:** 핵심 로직에는 가능한 한 단위/통합 테스트를 동반한다.
+* **한국어:** 커밋 메시지, 주석, PR 본문은 기본적으로 한국어로 작성한다.
 
-## 3. 기술 스택 가이드
+## 3. 작업 워크플로우 (GitHub 기반)
 
-*   **Java:** 25 버전 이상의 기능을 적극 활용하되, 가독성을 해치지 않습니다.
-*   **Spring Boot:** 3.x 기반의 설정 및 관례를 따릅니다.
-*   **Database:** Oracle과 MariaDB에서 공통으로 동작할 수 있는 표준 SQL 또는 추상화 레이어를 사용합니다.
+본 저장소는 **모든 작업을 GitHub Issue로 추적**합니다. 별도 `tasks.md`/`worklog.md`/`issue.md`는 사용하지 않습니다.
 
-## 4. 커뮤니케이션 규칙
+1. **이슈 확인/생성** — 작업 시작 전 [Issues](https://github.com/devyoon91/simple-workflow-engine/issues) 탭에서 관련 이슈를 찾거나 새로 만든다. 큰 단위는 `epic` 라벨로 묶고, 실제 작업 단위는 `task` 라벨을 붙인다.
+2. **마일스톤 매핑** — 이슈에 적절한 [Milestone](https://github.com/devyoon91/simple-workflow-engine/milestones)(M1~M5)을 설정한다.
+3. **명세/규칙 숙지** — [docs/workflow-engine-spec.md](docs/workflow-engine-spec.md), [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md)를 반드시 읽고 작업한다.
+4. **브랜치/PR** — `claude/<short-name>` 또는 `feature/#<issue>-<short-name>` 컨벤션. PR 본문에 `Closes #N`을 명시한다.
+5. **테스트/문서** — 변경에 영향받는 테스트와 문서(README, spec, HOWTO)를 함께 갱신한다.
+6. **이슈 종료** — PR 머지 시 자동 종료. 머지 후 추가로 발견된 후속 작업은 새 이슈로 분리한다.
 
-*   모든 Task 설명 및 주석은 **한국어**를 기본으로 합니다.
-*   에러 발생 시 스택 트레이스와 함께 발생 원인 및 해결 방안을 명확히 제시합니다.
+## 4. TODO 주석 ↔ Issue 동기화
 
----
+* 코드에 `// TODO:` 주석을 추가했다면, **반드시 대응되는 GitHub Issue를 만들고 주석에 이슈 번호를 적는다**.
+  * 예: `// TODO(#42): WorkflowWorker에 JsonUtil 주입 및 정교한 역직렬화 구현`
+* 이슈 없는 떠도는 TODO는 PR 리뷰에서 거절한다.
 
-## 5. 중앙 허브(Hub)와 Spoke 문서
+## 5. 라벨 체계
 
-이 문서는 저장소의 모든 규칙과 맥락을 연결하는 **중앙 허브(Hub)** 입니다. 작업 성격에 맞는 **세부 가이드(Spoke)** 를 선택적으로 참조하여 효율적으로 작업을 수행하십시오.
+* **종류**: `epic`, `task`, `bug`, `docs`
+* **영역**: `area:engine-core`, `area:service-app`, `area:docs`
+* **우선순위**: `priority:high`, `priority:medium`, `priority:low`
 
-### Spoke 인덱스
-- 프로젝트 개요/빠른 시작: [README.md](README.md)
-- 기능 명세/아키텍처: [docs/workflow-engine-spec.md](docs/workflow-engine-spec.md)
-- 데이터베이스 규칙: [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md)
-- 사용자 가이드(정의/사용법): [docs/HOWTO.md](docs/HOWTO.md)
-- 운영 가이드(배포/운영/장애): [docs/OPERATIONS.md](docs/OPERATIONS.md)
-- 협업 규정(브랜치/커밋/PR): [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
-- 작업 현황/우선순위: [tasks.md](tasks.md)
-- 작업 이력/결정 사항: [worklog.md](worklog.md)
+## 6. 마일스톤
 
-### 사용 순서 가이드
-1) 본 문서(AGENTS.md)에서 원칙과 워크플로우를 숙지합니다.
-2) 현재 할 일/우선순위를 [tasks.md](tasks.md)에서 확인합니다.
-3) 구현/수정 시 관련 Spoke를 선택해 참조합니다(예: DB 작업 → DATABASE_RULE, 엔진 변경 → workflow-engine-spec).
-4) 작업 완료 후 [worklog.md](worklog.md)에 기록하고, [tasks.md](tasks.md) 체크박스를 갱신합니다.
-5) 협업 절차는 [CONTRIBUTING.md](docs/CONTRIBUTING.md)를 따릅니다.
+* `M1 — DAG 정의 모델`: 스키마 + 인터프리터(분기/병렬) + `WAITING_DEPENDENCIES` 상태
+* `M2 — Cron 스케줄러`: `U_WF_SCHEDULE` + 트리거 폴러 + UI
+* `M3 — 그래프 빌더 UI`: 노드 팔레트 + 캔버스 + DAG 검증
+* `M4 — 액티비티 카탈로그`: `WorkflowRegistry` 메타데이터 노출
+* `M5 (선택) — 외부 jar 폴더 스캔`: `plugins/*.jar` 동적 로딩
 
-### 동기화 규칙
-- 코드 내 `// TODO:` 주석을 추가했다면, 동일 항목을 [tasks.md](tasks.md)의 "향후 과제"에도 반영합니다.
-- 문서 간 중복 서술은 본 문서(Hub)의 링크 체계를 우선 적용하여 관리합니다.
+## 7. 기술 스택 가이드
 
----
+* **Java 25+** 기능을 적극 활용하되 가독성을 해치지 않는다.
+* **Spring Boot 3.x** 관례를 따른다.
+* **Database**: Oracle/MariaDB에서 공통 동작하는 표준 SQL 또는 `DbDialect` 추상화 레이어를 사용한다.
 
-[→ Spoke 인덱스: tasks.md](tasks.md) | [→ 프로젝트 개요: README.md](README.md)
+## 8. Spoke 인덱스 (참조 문서)
+
+* 빠른 시작: [README.md](README.md)
+* 기능 명세/아키텍처: [docs/workflow-engine-spec.md](docs/workflow-engine-spec.md)
+* 데이터베이스 규칙: [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md)
+* 사용자 가이드: [docs/HOWTO.md](docs/HOWTO.md)
+* 운영 가이드: [docs/OPERATIONS.md](docs/OPERATIONS.md)
+* 협업 규정(브랜치/커밋/PR): [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
+* 작업 추적: [GitHub Issues](https://github.com/devyoon91/simple-workflow-engine/issues) · [Milestones](https://github.com/devyoon91/simple-workflow-engine/milestones) · [Projects](https://github.com/devyoon91/simple-workflow-engine/projects)

@@ -55,3 +55,6 @@ gradle-app.setting
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
 
+# Local test output
+test_output.txt
+
