@@ -13,6 +13,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -49,7 +50,13 @@ class DagInterpreterTest {
         jdbcTemplate = new JdbcTemplate(dataSource);
         activityRepo = new JdbcActivityRepository(jdbcTemplate, H2_DIALECT);
         defRepo = new JdbcWorkflowDefinitionRepository(jdbcTemplate);
-        interpreter = new DagInterpreter(defRepo, activityRepo);
+
+        DagValidator validator = new DagValidator();
+        // 본 인터프리터 테스트는 검증을 우회 (모든 activity 이름이 등록된 것으로 가정)
+        WorkflowRegistry stubRegistry = new WorkflowRegistry() {
+            @Override public Set<String> getActivityNames() { return Set.of("A", "B", "C", "D"); }
+        };
+        interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry);
     }
 
     @BeforeEach
