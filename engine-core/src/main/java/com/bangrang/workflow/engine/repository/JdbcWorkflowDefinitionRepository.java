@@ -71,6 +71,92 @@ public class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepos
         return jdbcTemplate.query(sql, new NodeMapper(), definitionId);
     }
 
+    @Override
+    @Transactional
+    public void insertDefinition(WorkflowDefinition definition) {
+        jdbcTemplate.update("""
+                INSERT INTO U_WF_DEFINITION
+                  (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
+                VALUES (?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                """,
+                definition.id(), definition.definitionNm(), definition.description(),
+                definition.versionNo(), definition.activeFl() != null ? definition.activeFl() : "Y",
+                definition.regId());
+    }
+
+    @Override
+    @Transactional
+    public void updateDefinitionMeta(String definitionId, String description, String activeFl) {
+        jdbcTemplate.update("""
+                UPDATE U_WF_DEFINITION
+                SET DESCRIPTION = ?, ACTIVE_FL = COALESCE(?, ACTIVE_FL), EDIT_DT = CURRENT_TIMESTAMP
+                WHERE ID = ?
+                """, description, activeFl, definitionId);
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteDefinition(String definitionId) {
+        jdbcTemplate.update("""
+                UPDATE U_WF_DEFINITION
+                SET DEL_FL = 'Y', ACTIVE_FL = 'N', EDIT_DT = CURRENT_TIMESTAMP
+                WHERE ID = ?
+                """, definitionId);
+    }
+
+    @Override
+    @Transactional
+    public void insertNode(WorkflowNode node) {
+        jdbcTemplate.update("""
+                INSERT INTO U_WF_NODE
+                  (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO,
+                   USE_FL, VIEW_FL, DEL_FL, REG_DT)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+                """,
+                node.id(), node.definitionId(), node.nodeNm(), node.activityNm(),
+                node.inputParams(), node.posXNo(), node.posYNo());
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteNodesByDefinition(String definitionId) {
+        jdbcTemplate.update("""
+                UPDATE U_WF_NODE SET DEL_FL = 'Y', EDIT_DT = CURRENT_TIMESTAMP
+                WHERE DEFINITION_ID = ?
+                """, definitionId);
+    }
+
+    @Override
+    @Transactional
+    public void insertEdge(WorkflowEdge edge) {
+        jdbcTemplate.update("""
+                INSERT INTO U_WF_EDGE
+                  (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, CONDITION_EXPR,
+                   USE_FL, VIEW_FL, DEL_FL, REG_DT)
+                VALUES (?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+                """,
+                edge.id(), edge.definitionId(), edge.fromNodeId(), edge.toNodeId(),
+                edge.conditionExpr());
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteEdgesByDefinition(String definitionId) {
+        jdbcTemplate.update("""
+                UPDATE U_WF_EDGE SET DEL_FL = 'Y', EDIT_DT = CURRENT_TIMESTAMP
+                WHERE DEFINITION_ID = ?
+                """, definitionId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public int findMaxVersionByName(String definitionNm) {
+        Integer max = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(MAX(VERSION_NO), 0) FROM U_WF_DEFINITION WHERE DEFINITION_NM = ? AND DEL_FL = 'N'",
+                Integer.class, definitionNm);
+        return max != null ? max : 0;
+    }
+
     private static class DefinitionMapper implements RowMapper<WorkflowDefinition> {
         @Override
         public WorkflowDefinition mapRow(ResultSet rs, int rowNum) throws SQLException {
