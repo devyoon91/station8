@@ -18,8 +18,11 @@ subprojects {
     apply plugin: 'io.spring.dependency-management'
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_25
-        targetCompatibility = JavaVersion.VERSION_25
+        // Spring Boot 3.4.2의 ASM 9.7이 Java 25 클래스 파일(major 69)을 인식하지 못해 #28 발생.
+        // 단기 해결: Java 21(LTS, Spring Boot 3.4.x 공식 지원)로 다운그레이드.
+        // 장기: Spring Boot 4.0 + Java 25 업그레이드는 별도 마일스톤으로 진행.
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     dependencyManagement {
