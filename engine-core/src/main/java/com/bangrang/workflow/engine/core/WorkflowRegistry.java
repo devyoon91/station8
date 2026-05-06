@@ -76,6 +76,16 @@ public class WorkflowRegistry implements ApplicationListener<ContextRefreshedEve
         return activityMap.get(name);
     }
 
+    /** 등록된 액티비티 이름 전체 (DAG 검증/카탈로그용 읽기 전용 뷰). */
+    public java.util.Set<String> getActivityNames() {
+        return java.util.Collections.unmodifiableSet(activityMap.keySet());
+    }
+
+    /** 등록된 액티비티 메타데이터 전체 (카탈로그 API용 읽기 전용 뷰). */
+    public java.util.Map<String, ActivityMetadata> getActivities() {
+        return java.util.Collections.unmodifiableMap(activityMap);
+    }
+
     /**
      * 액티비티 실행에 필요한 메타데이터 (대상 빈, 실행 메서드, 어노테이션 정보)
      */

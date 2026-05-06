@@ -39,11 +39,17 @@ public class DagInterpreter {
 
     private final WorkflowDefinitionRepository definitionRepository;
     private final ActivityRepository activityRepository;
+    private final DagValidator dagValidator;
+    private final WorkflowRegistry workflowRegistry;
 
     public DagInterpreter(WorkflowDefinitionRepository definitionRepository,
-                          ActivityRepository activityRepository) {
+                          ActivityRepository activityRepository,
+                          DagValidator dagValidator,
+                          WorkflowRegistry workflowRegistry) {
         this.definitionRepository = definitionRepository;
         this.activityRepository = activityRepository;
+        this.dagValidator = dagValidator;
+        this.workflowRegistry = workflowRegistry;
     }
 
     /**
@@ -57,11 +63,14 @@ public class DagInterpreter {
     @Transactional
     public void startInstance(String definitionId, String instanceId, String inputData) {
         List<WorkflowNode> nodes = definitionRepository.findNodesByDefinition(definitionId);
-        if (nodes.isEmpty()) {
-            throw new IllegalStateException("DAG 정의에 노드가 없습니다: definitionId=" + definitionId);
-        }
+        List<WorkflowEdge> edges = definitionRepository.findEdgesByDefinition(definitionId);
+
+        // 실행 직전 안전망 검증 (정의 저장 시점에 이미 검증되어야 하지만 이중 방어)
+        dagValidator.validate(nodes, edges, workflowRegistry.getActivityNames());
+
         List<WorkflowNode> startNodes = definitionRepository.findStartNodes(definitionId);
         if (startNodes.isEmpty()) {
+            // dagValidator.validate에서 DAG_NO_START_NODE를 이미 잡지만, 정의/엣지 데이터 정합성 비상 가드
             throw new IllegalStateException("DAG 정의에 시작 노드(incoming edge 0개)가 없습니다: definitionId=" + definitionId);
         }
 
