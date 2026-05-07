@@ -9,6 +9,10 @@ COPY gradlew gradlew.bat settings.gradle build.gradle check.gradle ./
 COPY gradle gradle
 COPY engine-core/build.gradle engine-core/build.gradle
 COPY service-app/build.gradle service-app/build.gradle
+# e2e-tests 모듈은 settings.gradle에 include되어 있으므로 디렉토리/build.gradle이 없으면
+# Gradle 구성 단계에서 실패한다. bootJar 빌드 자체는 e2e-tests를 컴파일하지 않으므로
+# build.gradle만 두어 프로젝트 구조만 만족시킨다.
+COPY e2e-tests/build.gradle e2e-tests/build.gradle
 
 # 2) 의존성 다운로드만 미리 (실패해도 캐시 일부는 생성됨)
 RUN chmod +x gradlew && ./gradlew --no-daemon dependencies > /dev/null 2>&1 || true
