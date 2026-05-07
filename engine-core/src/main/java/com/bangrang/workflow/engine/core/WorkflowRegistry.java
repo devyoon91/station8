@@ -68,6 +68,18 @@ public class WorkflowRegistry implements ApplicationListener<ContextRefreshedEve
         }
     }
 
+    /**
+     * 외부 플러그인 로더가 동적으로 액티비티를 등록할 때 사용.
+     * 이미 동일 이름이 존재하면 경고 로그 후 무시 (코어 빈 우선).
+     */
+    public void registerActivity(String name, Object bean, Method method, Activity annotation) {
+        if (activityMap.containsKey(name)) {
+            log.warn("Activity name conflict: {} already registered → 플러그인 등록 스킵", name);
+            return;
+        }
+        activityMap.put(name, new ActivityMetadata(bean, method, annotation));
+    }
+
     public Object getWorkflowBean(String name) {
         return workflowBeans.get(name);
     }

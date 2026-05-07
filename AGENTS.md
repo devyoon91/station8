@@ -60,6 +60,7 @@
 * 데이터베이스 규칙: [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md)
 * 사용자 가이드: [docs/HOWTO.md](docs/HOWTO.md)
 * 운영 가이드: [docs/OPERATIONS.md](docs/OPERATIONS.md)
+* 플러그인 가이드(M5): [docs/PLUGINS.md](docs/PLUGINS.md)
 * **에러 코드 카탈로그: [docs/ERROR_CODES.md](docs/ERROR_CODES.md)**
 * 협업 규정(브랜치/커밋/PR): [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
 * 작업 추적: [GitHub Issues](https://github.com/devyoon91/simple-workflow-engine/issues) · [Milestones](https://github.com/devyoon91/simple-workflow-engine/milestones) · [Projects](https://github.com/devyoon91/simple-workflow-engine/projects)
