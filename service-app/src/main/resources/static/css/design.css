@@ -436,6 +436,59 @@ code, pre {
 }
 
 /* ============================================================================
+   Hero stripe band (M8-6) — DESIGN.md "hero-stripe-band"
+   페이지당 1회만 사용. Welcome / 대시보드 빈 상태 등에 한 번.
+   ============================================================================ */
+.swe-hero {
+  position: relative;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+  padding: var(--space-section) var(--space-xxl);
+  overflow: hidden;
+  margin-bottom: var(--space-xl);
+}
+.swe-hero:before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 220px;
+  background:
+    repeating-linear-gradient(
+      225deg,
+      var(--hero-stripe-start) 0px, var(--hero-stripe-start) 60px,
+      var(--hero-stripe-end) 60px, var(--hero-stripe-end) 80px,
+      transparent 80px, transparent 120px
+    );
+  opacity: 0.85;
+  mask-image: linear-gradient(180deg, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, black 0%, transparent 100%);
+  pointer-events: none;
+}
+.swe-hero-content {
+  position: relative;
+  z-index: 1;
+}
+.swe-hero h1 {
+  margin: 0 0 var(--space-md);
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+}
+.swe-hero p {
+  margin: 0 0 var(--space-xl);
+  color: var(--body);
+  font-size: 18px;
+  max-width: 520px;
+}
+@media (max-width: 768px) {
+  .swe-hero { padding: 64px var(--space-lg); }
+  .swe-hero h1 { font-size: 36px; }
+  .swe-hero p { font-size: 16px; }
+}
+
+/* ============================================================================
    Helpers
    ============================================================================ */
 .swe-stack { display: flex; flex-direction: column; gap: var(--space-md); }
