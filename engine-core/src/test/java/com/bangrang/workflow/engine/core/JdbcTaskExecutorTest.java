@@ -116,6 +116,61 @@ class JdbcTaskExecutorTest {
     }
 
     @Test
+    @DisplayName("#49 fix: fail이 String input을 다시 직렬화하지 않는다 (escape 누적 방지)")
+    void fail_doesNotReSerializeStringInput() {
+        // 이미 직렬화된 JSON String을 input으로 받은 케이스 — 워커가 PENDING activity의 inputData를 그대로 넘긴 상황
+        String alreadySerialized = "{\"id\":\"2\",\"content\":\"Second Data\"}";
+        var context = createContext("inst-001", "step1", 1, alreadySerialized);
+        RuntimeException error = new RuntimeException("forced failure");
+
+        taskExecutor.fail(context, error, Duration.ofSeconds(5));
+
+        assertEquals(1, activityRepository.pendingCalls.size());
+        var call = activityRepository.pendingCalls.getFirst();
+        // 핵심: 원본 JSON 문자열이 그대로 보존되어야 함 (또 한 번 직렬화되어 \" → \\\" 가 되면 누적의 시작)
+        assertEquals(alreadySerialized, call.inputData,
+                "이미 String JSON인 input은 그대로 보존되어야 함 (이중 직렬화 금지)");
+    }
+
+    @Test
+    @DisplayName("#49 fix: fail이 비-String input은 직렬화한다")
+    void fail_serializesNonStringInput() {
+        Map<String, String> input = Map.of("id", "1", "content", "First");
+        var context = createContext("inst-001", "step1", 1, input);
+        RuntimeException error = new RuntimeException("err");
+
+        taskExecutor.fail(context, error, Duration.ofSeconds(5));
+
+        assertEquals(1, activityRepository.pendingCalls.size());
+        var call = activityRepository.pendingCalls.getFirst();
+        assertNotNull(call.inputData);
+        assertTrue(call.inputData.contains("\"id\""), "Map은 JSON으로 직렬화되어야 함");
+        assertTrue(call.inputData.contains("\"First\""));
+        // String이 아닌 Map이라 toJson을 거쳐야 하므로 결과는 valid JSON object
+        assertTrue(call.inputData.startsWith("{"));
+    }
+
+    @Test
+    @DisplayName("#49 fix: 동일 input으로 여러 번 fail 호출해도 escape가 누적되지 않는다")
+    void fail_repeatedRetryDoesNotAccumulateEscape() {
+        String original = "{\"k\":\"v\"}";
+        var context = createContext("inst-001", "step1", 1, original);
+        RuntimeException error = new RuntimeException("err");
+
+        // 5번 fail 호출 (5회 재시도 시뮬레이션)
+        for (int i = 0; i < 5; i++) {
+            taskExecutor.fail(context, error, Duration.ofSeconds(5));
+        }
+
+        assertEquals(5, activityRepository.pendingCalls.size());
+        // 모든 호출에서 inputData가 원본 그대로 (escape 누적 0)
+        for (var call : activityRepository.pendingCalls) {
+            assertEquals(original, call.inputData,
+                    "매 retry마다 input이 원본 그대로여야 함 (escape 누적 금지)");
+        }
+    }
+
+    @Test
     @DisplayName("fail: nextBackoff가 null이면 재시도 레코드를 생성하지 않는다")
     void fail_noRetryWhenBackoffNull() {
         var context = createContext("inst-001", "step1", 3, "myInput");
