@@ -56,8 +56,19 @@ SWE_E2E_HOST=localhost:8080 ./gradlew :e2e-tests:test
 
 `E2EBaseTest.@BeforeAll`에서 `/actuator/health`를 30초간 폴링합니다. service-app이 부팅되지 않은 경우 `ConditionTimeoutException`으로 빠르게 실패합니다.
 
+## 부하 테스트 (k6)
+
+본 모듈은 **기능 회귀** 검증용. **부하/처리량/backpressure** 측정은 [k6/](k6/) 디렉토리의 JS 스크립트 사용.
+
+```bash
+k6 run k6/smoke.js     # 핵심 경로 1회
+k6 run k6/load.js      # 100 VU × 30s
+k6 run k6/stress.js    # ramp 50→200 VU
+```
+
 ## 관련 문서
 
 - [docs/QUICKSTART.md](../docs/QUICKSTART.md) — docker compose 셋업
 - [scripts/scenarios/](../scripts/scenarios/) — bash 회귀 스크립트
 - [docs/HOWTO.md](../docs/HOWTO.md) — 워크플로우 정의 가이드
+- [k6/README.md](k6/README.md) — 부하 테스트 시나리오
