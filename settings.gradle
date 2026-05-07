@@ -1,3 +1,4 @@
 rootProject.name = 'simple-workflow-engine'
 include 'engine-core'
 include 'service-app'
+include 'e2e-tests'

@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+}
+
+description = 'REST Assured + JUnit5 기반 e2e 회귀 테스트 모듈. dockerHost 프로퍼티 또는 SWE_E2E_HOST 환경변수가 있을 때만 활성화.'
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testImplementation 'io.rest-assured:rest-assured:5.5.0'
+    testImplementation 'io.rest-assured:json-path:5.5.0'
+    testImplementation 'org.awaitility:awaitility:4.2.2'
+    testImplementation 'org.assertj:assertj-core:3.26.3'
+    testImplementation 'org.slf4j:slf4j-api'
+    testRuntimeOnly 'org.slf4j:slf4j-simple:2.0.16'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// 기본은 비활성화. compose가 떠 있는 환경에서만 실행:
+//   ./gradlew :e2e-tests:test -PdockerHost=localhost:8080
+//   SWE_E2E_HOST=localhost:8080 ./gradlew :e2e-tests:test
+def hostFromProp = project.findProperty('dockerHost') as String
+def hostFromEnv = System.getenv('SWE_E2E_HOST')
+def resolvedHost = hostFromProp ?: hostFromEnv
+
+tasks.named('test') {
+    useJUnitPlatform()
+    onlyIf {
+        if (resolvedHost == null || resolvedHost.isBlank()) {
+            logger.lifecycle("[e2e-tests] dockerHost/SWE_E2E_HOST 미지정 — 테스트 스킵")
+            return false
+        }
+        return true
+    }
+    if (resolvedHost) {
+        systemProperty 'swe.e2e.host', resolvedHost
+    }
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+        exceptionFormat 'full'
+        showStandardStreams = true
+    }
+    // CI 친화적: 실패해도 다른 모듈 빌드 영향 없도록 격리
+    ignoreFailures = false
+}
