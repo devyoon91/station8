@@ -30,7 +30,7 @@ export function setup() {
     definitionNm: `k6-stress-${Date.now()}`,
     description: 'k6 stress shared definition',
     nodes: [
-      { nodeId: 's-n', nodeNm: 'Only', activityNm: 'MIGRATION_WRITE', inputParams: '{}', posX: 0, posY: 0 },
+      { nodeId: 's-n', nodeNm: 'Only', activityNm: 'NOOP', inputParams: '{}', posX: 0, posY: 0 },
     ],
     edges: [],
   });

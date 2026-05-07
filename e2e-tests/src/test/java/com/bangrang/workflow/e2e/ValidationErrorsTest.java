@@ -21,8 +21,8 @@ class ValidationErrorsTest extends E2EBaseTest {
         Map<String, Object> payload = Map.of(
                 "definitionNm", "CycleFlow-" + System.currentTimeMillis(),
                 "nodes", List.of(
-                        Map.of("nodeId", "ca", "nodeNm", "A", "activityNm", "MIGRATION_WRITE", "posX", 0, "posY", 0),
-                        Map.of("nodeId", "cb", "nodeNm", "B", "activityNm", "MIGRATION_WRITE", "posX", 0, "posY", 0)
+                        Map.of("nodeId", "ca", "nodeNm", "A", "activityNm", "NOOP", "posX", 0, "posY", 0),
+                        Map.of("nodeId", "cb", "nodeNm", "B", "activityNm", "NOOP", "posX", 0, "posY", 0)
                 ),
                 "edges", List.of(
                         Map.of("edgeId", "ce1", "fromNodeId", "ca", "toNodeId", "cb"),
@@ -66,7 +66,7 @@ class ValidationErrorsTest extends E2EBaseTest {
                 "definitionNm", "OK-" + System.currentTimeMillis(),
                 "nodes", List.of(Map.of(
                         "nodeId", "ok1", "nodeNm", "A",
-                        "activityNm", "MIGRATION_WRITE",
+                        "activityNm", "NOOP",
                         "posX", 0, "posY", 0
                 )),
                 "edges", List.of()

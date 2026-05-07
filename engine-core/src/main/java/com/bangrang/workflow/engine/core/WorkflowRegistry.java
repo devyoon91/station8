@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Component;
@@ -54,13 +55,19 @@ public class WorkflowRegistry implements ApplicationListener<ContextRefreshedEve
         String[] beanNames = context.getBeanDefinitionNames();
         for (String beanName : beanNames) {
             Object bean = context.getBean(beanName);
-            // 프록시 객체인 경우 원본 클래스를 가져옴
-            Class<?> targetClass = bean.getClass();
-            
+            // CGLIB 프록시는 사용자 클래스를 상속하므로 ReflectionUtils.doWithMethods가
+            // (1) 프록시 자체에 합성된 메서드와 (2) 부모(원본) 클래스의 메서드를 모두 방문해
+            // 동일 @Activity가 두 번 등록되는 결함이 발생한다.
+            // → AopUtils.getTargetClass()로 원본 클래스만 직접 스캔.
+            Class<?> targetClass = AopUtils.getTargetClass(bean);
+
             ReflectionUtils.doWithMethods(targetClass, method -> {
                 Activity activity = AnnotationUtils.findAnnotation(method, Activity.class);
                 if (activity != null) {
                     String name = activity.value().isEmpty() ? method.getName() : activity.value();
+                    if (activityMap.containsKey(name)) {
+                        return; // 같은 이름은 한 번만 등록 (멱등)
+                    }
                     activityMap.put(name, new ActivityMetadata(bean, method, activity));
                     log.info("Registered Activity: {} -> {}.{}", name, targetClass.getSimpleName(), method.getName());
                 }

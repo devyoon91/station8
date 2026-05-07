@@ -139,7 +139,9 @@ public class PluginLoader {
                     try {
                         instance = clazz.getDeclaredConstructor().newInstance();
                     } catch (Throwable t) {
-                        log.warn("Plugin class {} has @Activity but no public no-arg constructor — skipping", className);
+                        // 운영 트러블슈팅을 위해 cause 포함
+                        log.warn("Plugin class {} has @Activity but cannot be instantiated ({}: {}) — skipping",
+                                className, t.getClass().getSimpleName(), t.getMessage());
                         break;
                     }
                 }

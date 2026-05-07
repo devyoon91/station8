@@ -13,8 +13,8 @@ PAYLOAD=$(cat <<EOF
 {
   "definitionNm": "$NM",
   "nodes": [
-    {"nodeId": "ca", "nodeNm": "A", "activityNm": "MIGRATION_WRITE", "posX": 0, "posY": 0},
-    {"nodeId": "cb", "nodeNm": "B", "activityNm": "MIGRATION_WRITE", "posX": 0, "posY": 0}
+    {"nodeId": "ca", "nodeNm": "A", "activityNm": "NOOP", "posX": 0, "posY": 0},
+    {"nodeId": "cb", "nodeNm": "B", "activityNm": "NOOP", "posX": 0, "posY": 0}
   ],
   "edges": [
     {"edgeId": "ce1", "fromNodeId": "ca", "toNodeId": "cb"},
@@ -53,7 +53,7 @@ fi
 
 step "Case 3: 정상 DAG는 통과"
 NM3="OK-$(date +%s)"
-PAYLOAD3="{\"definitionNm\":\"$NM3\",\"nodes\":[{\"nodeId\":\"ok1\",\"nodeNm\":\"A\",\"activityNm\":\"MIGRATION_WRITE\",\"posX\":0,\"posY\":0}],\"edges\":[]}"
+PAYLOAD3="{\"definitionNm\":\"$NM3\",\"nodes\":[{\"nodeId\":\"ok1\",\"nodeNm\":\"A\",\"activityNm\":\"NOOP\",\"posX\":0,\"posY\":0}],\"edges\":[]}"
 out=$(http POST "/api/workflow/definitions" "$PAYLOAD3")
 status=$(echo "$out" | head -1)
 [[ "$status" == "201" ]] && pass "Valid DAG accepted (201)" || { fail "Valid DAG rejected: $status"; exit 1; }

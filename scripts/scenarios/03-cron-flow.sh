@@ -9,7 +9,7 @@ ensure_app_up
 
 step "신규 정의 등록 (cron 등록 대상)"
 NM="CronFlow-$(date +%s)"
-PAYLOAD="{\"definitionNm\":\"$NM\",\"nodes\":[{\"nodeId\":\"c-n\",\"nodeNm\":\"Only\",\"activityNm\":\"MIGRATION_WRITE\",\"posX\":0,\"posY\":0}],\"edges\":[]}"
+PAYLOAD="{\"definitionNm\":\"$NM\",\"nodes\":[{\"nodeId\":\"c-n\",\"nodeNm\":\"Only\",\"activityNm\":\"NOOP\",\"posX\":0,\"posY\":0}],\"edges\":[]}"
 out=$(http POST "/api/workflow/definitions" "$PAYLOAD")
 status=$(echo "$out" | head -1)
 [[ "$status" != "201" ]] && { fail "Definition create status $status"; exit 1; }

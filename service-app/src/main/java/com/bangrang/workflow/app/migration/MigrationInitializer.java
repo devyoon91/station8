@@ -39,14 +39,16 @@ public class MigrationInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // 1) 테스트 스키마/데이터 로드
+        // 1) 마이그레이션 테스트용 시드 데이터만 적용
+        // (코어 스키마는 Spring Boot의 spring.sql.init이 DataSource bean 직후에 적용한다 —
+        //  이전엔 여기서 schema-mariadb.sql을 적용했지만 @Scheduled가 그보다 먼저 시작되어
+        //  ~30초 동안 "Table doesn't exist" 에러 스팸이 발생했음.)
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator(
-                new ClassPathResource("sql/schema-mariadb.sql"),
                 new ClassPathResource("sql/migration-test-data.sql")
         );
         populator.setContinueOnError(true);
         populator.execute(jdbcTemplate.getDataSource());
-        log.info("Loaded core schema and migration test seed data");
+        log.info("Loaded migration test seed data (core schema is applied by spring.sql.init)");
 
         // 2) 워크플로우 인스턴스 생성
         String instanceId = UUID.randomUUID().toString();
@@ -57,7 +59,7 @@ public class MigrationInitializer implements CommandLineRunner {
 
         // 3) SRC_DATA에서 아직 마이그레이션 안 된 데이터 조회 후, 각 건에 대해 PENDING 생성
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT ID, CONTENT FROM SRC_DATA WHERE MIGRATED_FL = 'N' ORDER BY REG_DT ASC");
-        LocalDateTime nextRetry = null; // 利됱떆 ?ㅽ뻾
+        LocalDateTime nextRetry = null; // 즉시 실행
         for (Map<String, Object> row : rows) {
             String id = String.valueOf(row.get("ID"));
             String content = String.valueOf(row.get("CONTENT"));

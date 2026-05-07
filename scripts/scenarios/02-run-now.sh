@@ -14,7 +14,7 @@ if [[ -f /tmp/swe_last_def.txt ]]; then
 else
   step "No prior definition — creating one"
   NM="RunNowFlow-$(date +%s)"
-  PAYLOAD="{\"definitionNm\":\"$NM\",\"nodes\":[{\"nodeId\":\"r-n\",\"nodeNm\":\"Only\",\"activityNm\":\"MIGRATION_WRITE\",\"posX\":0,\"posY\":0}],\"edges\":[]}"
+  PAYLOAD="{\"definitionNm\":\"$NM\",\"nodes\":[{\"nodeId\":\"r-n\",\"nodeNm\":\"Only\",\"activityNm\":\"NOOP\",\"posX\":0,\"posY\":0}],\"edges\":[]}"
   out=$(http POST "/api/workflow/definitions" "$PAYLOAD")
   DEF_ID=$(echo "$out" | tail -n +2 | jq -r '.definitionId')
 fi

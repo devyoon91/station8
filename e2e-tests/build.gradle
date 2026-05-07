@@ -11,6 +11,9 @@ dependencies {
     testImplementation 'org.awaitility:awaitility:4.2.2'
     testImplementation 'org.assertj:assertj-core:3.26.3'
     testImplementation 'org.slf4j:slf4j-api'
+    // REST Assured 5.x는 객체→JSON 직렬화에 Jackson/Gson 중 하나를 classpath에서 자동 탐지.
+    // 누락 시 IllegalStateException("no JSON serializer found in classpath") 발생.
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     testRuntimeOnly 'org.slf4j:slf4j-simple:2.0.16'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
