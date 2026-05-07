@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Activities — Workflow Engine</title>
+    <link rel="stylesheet" href="/css/design.css">
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <h1 class="swe-display-lg" style="margin: 0;">Activity Catalog</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">
+                등록된 <code>@Activity</code> 메타데이터 — DAG 노드의 <code>activityNm</code>으로 사용
+            </p>
+        </div>
+        <a href="/api/workflow/activities" class="swe-btn-tertiary" target="_blank">JSON API</a>
+    </div>
+
+    <div class="swe-grid swe-grid-3 swe-mb-xl">
+        <div class="swe-stat-card">
+            <div class="swe-stat-label">Total</div>
+            <div class="swe-stat-value">{{totalCount}}</div>
+        </div>
+    </div>
+
+    {{#entries}}
+    <div class="swe-card swe-mb-xl">
+        <div class="swe-flex-between">
+            <div>
+                <div class="swe-heading-md" style="margin: 0;">
+                    <code style="background: var(--surface-card); padding: 2px 8px; border-radius: var(--radius-xs); font-size: 18px;">{{activityName}}</code>
+                </div>
+                <div class="swe-caption swe-mute" style="margin-top: var(--space-xs);">
+                    {{beanClass}}.<strong style="color: var(--body);">{{methodName}}</strong>()
+                </div>
+            </div>
+            <div class="swe-row">
+                <span class="swe-keycap">retry: {{retryCount}}</span>
+                <span class="swe-keycap">backoff: {{backoffSeconds}}s</span>
+            </div>
+        </div>
+        <div style="margin-top: var(--space-lg); display: grid; grid-template-columns: 120px 1fr; gap: var(--space-sm) var(--space-lg);">
+            <div class="swe-caption swe-mute">Parameters</div>
+            <div>
+                {{#parameterTypes}}
+                <code style="background: var(--surface-card); padding: 2px 6px; border-radius: var(--radius-xs); font-size: 12px; margin-right: var(--space-xs);">{{.}}</code>
+                {{/parameterTypes}}
+                {{^parameterTypes}}<span class="swe-mute">—</span>{{/parameterTypes}}
+            </div>
+            <div class="swe-caption swe-mute">Returns</div>
+            <div>
+                <code style="background: var(--surface-card); padding: 2px 6px; border-radius: var(--radius-xs); font-size: 12px;">{{returnType}}</code>
+            </div>
+        </div>
+    </div>
+    {{/entries}}
+
+    {{^entries}}
+    <div class="swe-card" style="text-align: center; color: var(--mute); padding: var(--space-section);">
+        No activities registered. <code>@Activity</code> 어노테이션이 붙은 컴포넌트를 추가하세요.
+    </div>
+    {{/entries}}
+
+</div>
+</body>
+</html>

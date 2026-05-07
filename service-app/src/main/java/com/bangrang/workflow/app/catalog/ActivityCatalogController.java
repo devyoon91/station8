@@ -2,10 +2,12 @@ package com.bangrang.workflow.app.catalog;
 
 import com.bangrang.workflow.engine.core.WorkflowRegistry;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.util.ClassUtils;
 
 import java.lang.reflect.Method;
@@ -14,16 +16,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 액티비티 카탈로그 REST API.
+ * 액티비티 카탈로그 REST API + UI 페이지.
  * <ul>
- *   <li>GET /api/workflow/activities       — 등록된 모든 액티비티 목록</li>
+ *   <li>GET /api/workflow/activities       — 등록된 모든 액티비티 목록 (JSON)</li>
  *   <li>GET /api/workflow/activities/{name} — 단건 상세 (없으면 404)</li>
+ *   <li>GET /workflow/activities           — 카탈로그 페이지 (Mustache)</li>
  * </ul>
  *
  * M3 그래프 빌더(#12)의 노드 팔레트가 본 API를 소비한다.
  */
-@RestController
-@RequestMapping("/api/workflow/activities")
+@Controller
+@RequestMapping
 public class ActivityCatalogController {
 
     private final WorkflowRegistry workflowRegistry;
@@ -32,7 +35,24 @@ public class ActivityCatalogController {
         this.workflowRegistry = workflowRegistry;
     }
 
-    @GetMapping
+    // ====== UI ======
+
+    @GetMapping("/workflow/activities")
+    public String page(Model model) {
+        var entries = workflowRegistry.getActivities().entrySet().stream()
+                .map(e -> toEntry(e.getKey(), e.getValue()))
+                .sorted((a, b) -> a.activityName().compareToIgnoreCase(b.activityName()))
+                .toList();
+        model.addAttribute("entries", entries);
+        model.addAttribute("totalCount", entries.size());
+        model.addAttribute("navActivities", true);
+        return "activities";
+    }
+
+    // ====== REST API ======
+
+    @ResponseBody
+    @GetMapping("/api/workflow/activities")
     public List<ActivityCatalogEntry> list() {
         return workflowRegistry.getActivities().entrySet().stream()
                 .map(e -> toEntry(e.getKey(), e.getValue()))
@@ -40,7 +60,8 @@ public class ActivityCatalogController {
                 .toList();
     }
 
-    @GetMapping("/{name}")
+    @ResponseBody
+    @GetMapping("/api/workflow/activities/{name}")
     public ResponseEntity<?> getByName(@PathVariable("name") String name) {
         WorkflowRegistry.ActivityMetadata meta = workflowRegistry.getActivity(name);
         if (meta == null) {
