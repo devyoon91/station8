@@ -108,10 +108,13 @@ public class JdbcTaskExecutor implements TaskExecutor {
         activityRepository.updateStatus(updated);
 
         // 재시도 정책은 여기서 직접 생성하지 않음(정책 해석은 상위 레이어에서).
-        // TODO: 정책에 따른 최대 재시도 횟수 전달 및 최종 FAILED 처리 및 알림 발송 로직 검토
         // 필요 시 다음과 같이 동일 액티비티 재시도 레코드를 생성할 수 있음:
         if (nextRetry != null) {
-            activityRepository.createPending(context.instanceId(), context.currentActivityName(), jsonUtil.toJson(context.input()), nextRetry);
+            // #49 fix: context.input()이 이미 String이면 그대로 사용 (jsonUtil.toJson은 String을 또 escape 처리해
+            // 매 retry마다 escape가 누적됨). String이 아닐 때만 직렬화한다.
+            Object input = context.input();
+            String inputJson = (input instanceof String s) ? s : jsonUtil.toJson(input);
+            activityRepository.createPending(context.instanceId(), context.currentActivityName(), inputJson, nextRetry);
         }
     }
 
