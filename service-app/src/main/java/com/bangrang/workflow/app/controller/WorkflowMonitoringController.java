@@ -88,7 +88,8 @@ public class WorkflowMonitoringController {
         model.addAttribute("completedCount", completedCount);
         model.addAttribute("failedCount", failedCount);
         model.addAttribute("totalCount", instances.size());
-        
+        model.addAttribute("navDashboard", true);
+
         return "dashboard";
     }
 
@@ -99,11 +100,54 @@ public class WorkflowMonitoringController {
     public String timeline(@PathVariable("id") String instanceId, Model model) {
         WorkflowInstance instance = activityRepository.findInstanceById(instanceId);
         List<ActivityExecution> activities = activityRepository.findActivitiesByInstanceId(instanceId);
-        
-        model.addAttribute("instance", instance);
-        model.addAttribute("activities", activities);
-        
+
+        // Mustache view용 — derived 필드를 미리 계산
+        java.util.Map<String, Object> instView = new java.util.HashMap<>();
+        instView.put("id", instance.id());
+        instView.put("workflowName", instance.workflowName());
+        instView.put("statusSt", instance.statusSt());
+        instView.put("inputData", instance.inputData());
+        instView.put("badgeClass", badgeFor(instance.statusSt()));
+        instView.put("isFailed", "FAILED".equals(instance.statusSt()));
+        model.addAttribute("instance", instView);
+
+        List<java.util.Map<String, Object>> actViews = activities.stream().map(a -> {
+            java.util.Map<String, Object> m = new java.util.HashMap<>();
+            m.put("activityName", a.activityName());
+            m.put("statusSt", a.statusSt());
+            m.put("startDt", a.startDt());
+            m.put("endDt", a.endDt());
+            m.put("inputData", a.inputData());
+            m.put("outputData", a.outputData());
+            m.put("errorMessage", a.errorMessage());
+            m.put("retryCnt", a.retryCnt());
+            m.put("hasRetry", a.retryCnt() > 0);
+            m.put("badgeClass", badgeFor(a.statusSt()));
+            m.put("dotClass", dotFor(a.statusSt()));
+            return m;
+        }).toList();
+        model.addAttribute("activities", actViews);
+        model.addAttribute("navDashboard", true);
+
         return "timeline";
+    }
+
+    private static String badgeFor(String status) {
+        return switch (status == null ? "" : status) {
+            case "COMPLETED" -> "success";
+            case "RUNNING" -> "warning";
+            case "FAILED" -> "danger";
+            default -> "mute";
+        };
+    }
+
+    private static String dotFor(String status) {
+        return switch (status == null ? "" : status) {
+            case "COMPLETED" -> "completed";
+            case "RUNNING" -> "running";
+            case "FAILED" -> "failed";
+            default -> "pending";
+        };
     }
 
     /**
@@ -121,7 +165,26 @@ public class WorkflowMonitoringController {
     @GetMapping("/dlq")
     public String dlqList(Model model) {
         List<DlqEntry> dlqEntries = dlqRepository.findAll();
-        model.addAttribute("dlqEntries", dlqEntries);
+        // view-derived 필드를 미리 계산
+        List<java.util.Map<String, Object>> view = dlqEntries.stream().map(e -> {
+            java.util.Map<String, Object> m = new java.util.HashMap<>();
+            m.put("id", e.id());
+            m.put("workflowName", e.workflowName());
+            m.put("activityName", e.activityName());
+            m.put("dlqStatusSt", e.dlqStatusSt());
+            m.put("retryCnt", e.retryCnt());
+            m.put("maxRetryCnt", e.maxRetryCnt());
+            m.put("failedAtDt", e.failedAtDt());
+            m.put("isNew", "NEW".equals(e.dlqStatusSt()));
+            String badge = switch (e.dlqStatusSt() == null ? "" : e.dlqStatusSt()) {
+                case "NEW" -> "danger";
+                case "REQUEUED" -> "info";
+                default -> "mute";
+            };
+            m.put("badgeClass", badge);
+            return m;
+        }).toList();
+        model.addAttribute("dlqEntries", view);
         long newCount = dlqEntries.stream().filter(e -> "NEW".equals(e.dlqStatusSt())).count();
         long requeuedCount = dlqEntries.stream().filter(e -> "REQUEUED".equals(e.dlqStatusSt())).count();
         long discardedCount = dlqEntries.stream().filter(e -> "DISCARDED".equals(e.dlqStatusSt())).count();
@@ -129,6 +192,7 @@ public class WorkflowMonitoringController {
         model.addAttribute("requeuedCount", requeuedCount);
         model.addAttribute("discardedCount", discardedCount);
         model.addAttribute("totalDlqCount", dlqEntries.size());
+        model.addAttribute("navDlq", true);
         return "dlq";
     }
 
@@ -138,7 +202,22 @@ public class WorkflowMonitoringController {
     @GetMapping("/dlq/{id}")
     public String dlqDetail(@PathVariable("id") String dlqId, Model model) {
         DlqEntry entry = dlqRepository.findById(dlqId);
-        model.addAttribute("entry", entry);
+        java.util.Map<String, Object> view = new java.util.HashMap<>();
+        view.put("id", entry.id());
+        view.put("workflowName", entry.workflowName());
+        view.put("activityName", entry.activityName());
+        view.put("dlqStatusSt", entry.dlqStatusSt());
+        view.put("instanceId", entry.instanceId());
+        view.put("executionId", entry.executionId());
+        view.put("retryCnt", entry.retryCnt());
+        view.put("maxRetryCnt", entry.maxRetryCnt());
+        view.put("failedAtDt", entry.failedAtDt());
+        view.put("regDt", entry.regDt());
+        view.put("errorMessage", entry.errorMessage());
+        view.put("stackTrace", entry.stackTrace());
+        view.put("isNew", "NEW".equals(entry.dlqStatusSt()));
+        model.addAttribute("entry", view);
+        model.addAttribute("navDlq", true);
         return "dlq-detail";
     }
 

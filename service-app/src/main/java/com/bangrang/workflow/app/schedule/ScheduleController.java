@@ -42,9 +42,24 @@ public class ScheduleController {
     @GetMapping("/workflow/schedules")
     public String list(Model model) {
         List<WorkflowSchedule> all = scheduleService.listAll();
-        model.addAttribute("schedules", all);
+        // Mustache view용 — isPaused boolean을 미리 계산 (helper 미지원 회피)
+        List<java.util.Map<String, Object>> view = all.stream().map(s -> {
+            java.util.Map<String, Object> m = new java.util.HashMap<>();
+            m.put("id", s.id());
+            m.put("definitionId", s.definitionId());
+            m.put("cronExpr", s.cronExpr());
+            m.put("nextRunDt", s.nextRunDt());
+            m.put("lastRunDt", s.lastRunDt());
+            m.put("pausedFl", s.pausedFl());
+            m.put("isPaused", "Y".equals(s.pausedFl()));
+            return m;
+        }).toList();
+        model.addAttribute("schedules", view);
         model.addAttribute("activeCount", all.stream().filter(s -> "N".equals(s.pausedFl())).count());
         model.addAttribute("pausedCount", all.stream().filter(s -> "Y".equals(s.pausedFl())).count());
+        model.addAttribute("totalCount", all.size());
+        // nav active
+        model.addAttribute("navSchedules", true);
         return "schedules";
     }
 

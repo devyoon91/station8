@@ -2,100 +2,109 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Workflow Timeline</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <title>Instance Timeline — Workflow Engine</title>
+    <link rel="stylesheet" href="/css/design.css">
     <style>
-        .timeline { position: relative; padding: 20px 0; list-style: none; }
-        .timeline:before { content: ""; position: absolute; top: 0; bottom: 0; left: 40px; width: 2px; background: #e9ecef; }
-        .timeline-item { position: relative; margin-bottom: 30px; }
-        .timeline-badge { position: absolute; top: 0; left: 28px; width: 26px; height: 26px; border-radius: 50%; background: #adb5bd; z-index: 100; border: 4px solid #fff; }
-        .timeline-panel { position: relative; width: calc(100% - 80px); left: 80px; padding: 15px; border: 1px solid #dee2e6; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .bg-pending { background-color: #6c757d; }
-        .bg-running { background-color: #ffc107; }
-        .bg-completed { background-color: #198754; }
-        .bg-failed { background-color: #dc3545; }
+        .swe-timeline { position: relative; padding-left: 24px; margin: 0; list-style: none; }
+        .swe-timeline:before { content: ""; position: absolute; top: 8px; bottom: 8px; left: 7px; width: 1px; background: var(--hairline); }
+        .swe-timeline-item { position: relative; padding: 0 0 var(--space-lg) 0; }
+        .swe-timeline-dot {
+            position: absolute; left: -22px; top: 14px;
+            width: 10px; height: 10px; border-radius: 50%;
+            border: 2px solid var(--canvas);
+            background: var(--mute);
+        }
+        .swe-timeline-dot.completed { background: var(--accent-green); }
+        .swe-timeline-dot.running   { background: var(--accent-yellow); }
+        .swe-timeline-dot.failed    { background: var(--accent-red); }
+        .swe-timeline-dot.pending   { background: var(--mute); }
     </style>
 </head>
-<body class="bg-light">
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Workflow Timeline</h1>
-        <a href="/workflow/dashboard" class="btn btn-outline-secondary">Back to Dashboard</a>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <a href="/workflow/dashboard" class="swe-caption swe-mute" style="text-decoration: none;">← Dashboard</a>
+            <h1 class="swe-display-lg" style="margin: var(--space-xs) 0 0;">Instance Timeline</h1>
+        </div>
+        {{#instance.isFailed}}
+        <form action="/workflow/instance/{{instance.id}}/resume" method="post" style="margin: 0;">
+            <button type="submit" class="swe-btn-primary">Resume</button>
+        </form>
+        {{/instance.isFailed}}
     </div>
 
-    <div class="card mb-4 shadow-sm border-0">
-        <div class="card-body">
-            <h5 class="card-title text-primary">Instance Details</h5>
-            <div class="row mt-3">
-                <div class="col-md-4">
-                    <p class="mb-1 text-muted">Instance ID</p>
-                    <p class="fw-bold">{{instance.id}}</p>
-                </div>
-                <div class="col-md-4">
-                    <p class="mb-1 text-muted">Workflow Name</p>
-                    <p class="fw-bold">{{instance.workflowName}}</p>
-                </div>
-                <div class="col-md-4">
-                    <p class="mb-1 text-muted">Current Status</p>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge {{#instance.statusSt}}bg-{{#equals . 'COMPLETED'}}success{{/equals}}{{#equals . 'RUNNING'}}warning{{/equals}}{{#equals . 'FAILED'}}danger{{/equals}}{{/instance.statusSt}}">
-                            {{instance.statusSt}}
-                        </span>
-                        {{#instance.statusSt}}
-                        {{#equals . 'FAILED'}}
-                        <form action="/workflow/instance/{{instance.id}}/resume" method="post" class="m-0">
-                            <button type="submit" class="btn btn-sm btn-primary">Resume</button>
-                        </form>
-                        {{/equals}}
-                        {{/instance.statusSt}}
-                    </div>
-                </div>
+    <!-- Instance meta -->
+    <div class="swe-card swe-mb-xl">
+        <div class="swe-grid swe-grid-3">
+            <div>
+                <div class="swe-caption swe-mute">Instance ID</div>
+                <div style="font-family: monospace; font-size: 13px;">{{instance.id}}</div>
             </div>
-            <div class="row mt-3">
-                <div class="col-md-12">
-                    <p class="mb-1 text-muted">Input Data</p>
-                    <pre class="bg-light p-2 rounded small">{{instance.inputData}}</pre>
-                </div>
+            <div>
+                <div class="swe-caption swe-mute">Workflow</div>
+                <div class="swe-body-md">{{instance.workflowName}}</div>
+            </div>
+            <div>
+                <div class="swe-caption swe-mute">Status</div>
+                <div><span class="swe-badge swe-badge-{{instance.badgeClass}}">{{instance.statusSt}}</span></div>
             </div>
         </div>
+        {{#instance.inputData}}
+        <div style="margin-top: var(--space-lg);">
+            <div class="swe-caption swe-mute">Input data</div>
+            <pre style="margin: var(--space-xs) 0 0; padding: var(--space-md); background: var(--surface-card); border-radius: var(--radius-md); color: var(--body); font-size: 12px; overflow-x: auto;">{{instance.inputData}}</pre>
+        </div>
+        {{/instance.inputData}}
     </div>
 
-    <h5 class="mb-4">Execution History</h5>
-    <ul class="timeline">
+    <h2 class="swe-heading-md swe-mb-xl" style="margin-top: 0;">Execution history</h2>
+
+    <ul class="swe-timeline">
         {{#activities}}
-        <li class="timeline-item">
-            <div class="timeline-badge bg-{{#statusSt}}{{#equals . 'COMPLETED'}}completed{{/equals}}{{#equals . 'RUNNING'}}running{{/equals}}{{#equals . 'FAILED'}}failed{{/equals}}{{#equals . 'PENDING'}}pending{{/equals}}{{/statusSt}}"></div>
-            <div class="timeline-panel">
-                <div class="d-flex justify-content-between">
-                    <h6 class="fw-bold mb-1">{{activityName}}</h6>
-                    <small class="text-muted">{{startDt}}</small>
-                </div>
-                <div class="mt-2">
-                    <span class="badge rounded-pill {{#statusSt}}bg-{{#equals . 'COMPLETED'}}success{{/equals}}{{#equals . 'RUNNING'}}warning{{/equals}}{{#equals . 'FAILED'}}danger{{/equals}}{{#equals . 'PENDING'}}secondary{{/equals}}{{/statusSt}} mb-2">
-                        {{statusSt}}
-                    </span>
-                    <div class="small">
-                        {{#inputData}}
-                        <div class="text-muted mt-1">Input: <code class="text-dark">{{inputData}}</code></div>
-                        {{/inputData}}
-                        {{#outputData}}
-                        <div class="text-muted mt-1">Output: <code class="text-dark">{{outputData}}</code></div>
-                        {{/outputData}}
-                        {{#errorMessage}}
-                        <div class="text-danger mt-2 fw-bold">Error: {{errorMessage}}</div>
-                        {{/errorMessage}}
-                        {{#retryCnt}}
-                        <div class="text-muted mt-1 small italic">Retry Attempt: {{retryCnt}}</div>
-                        {{/retryCnt}}
+        <li class="swe-timeline-item">
+            <span class="swe-timeline-dot {{dotClass}}"></span>
+            <div class="swe-card swe-card-tight">
+                <div class="swe-flex-between">
+                    <div>
+                        <div class="swe-heading-sm" style="margin: 0 0 var(--space-xs);">{{activityName}}</div>
+                        <div class="swe-caption swe-mute">Started: {{startDt}}{{#endDt}} · Ended: {{endDt}}{{/endDt}}</div>
                     </div>
+                    <span class="swe-badge swe-badge-{{badgeClass}}">{{statusSt}}</span>
                 </div>
+                {{#inputData}}
+                <div style="margin-top: var(--space-md);">
+                    <div class="swe-caption swe-mute">Input</div>
+                    <pre style="margin: var(--space-xs) 0 0; padding: var(--space-sm); background: var(--surface-card); border-radius: var(--radius-sm); font-size: 12px;">{{inputData}}</pre>
+                </div>
+                {{/inputData}}
+                {{#outputData}}
+                <div style="margin-top: var(--space-md);">
+                    <div class="swe-caption swe-mute">Output</div>
+                    <pre style="margin: var(--space-xs) 0 0; padding: var(--space-sm); background: var(--surface-card); border-radius: var(--radius-sm); font-size: 12px;">{{outputData}}</pre>
+                </div>
+                {{/outputData}}
+                {{#errorMessage}}
+                <div style="margin-top: var(--space-md); padding: var(--space-md); background: var(--accent-red-soft); border-radius: var(--radius-md); color: var(--accent-red); font-size: 13px;">
+                    <strong>Error:</strong> {{errorMessage}}
+                </div>
+                {{/errorMessage}}
+                {{#hasRetry}}
+                <div class="swe-caption swe-mute" style="margin-top: var(--space-sm);">Retry attempt: {{retryCnt}}</div>
+                {{/hasRetry}}
             </div>
         </li>
         {{/activities}}
         {{^activities}}
-        <p class="text-center text-muted">No activity records found.</p>
+        <li>
+            <div class="swe-card" style="text-align: center; color: var(--mute);">No activity records.</div>
+        </li>
         {{/activities}}
     </ul>
+
 </div>
 </body>
 </html>

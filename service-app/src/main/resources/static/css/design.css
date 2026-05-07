@@ -1,0 +1,463 @@
+/* ============================================================================
+   Workflow Engine — Design System (Raycast 스타일 다크 모드)
+   DESIGN.md 토큰 기반. 모든 페이지가 본 파일을 import.
+   ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  /* Surface ladder */
+  --canvas: #07080a;
+  --surface: #0d0d0d;
+  --surface-elevated: #101111;
+  --surface-card: #121212;
+
+  /* Hairlines (border) */
+  --hairline: #242728;
+  --hairline-strong: rgba(255, 255, 255, 0.16);
+  --hairline-soft: rgba(255, 255, 255, 0.08);
+
+  /* CTA + on-primary */
+  --primary: #ffffff;
+  --primary-pressed: #e8e8e8;
+  --on-primary: #000000;
+
+  /* Text scale */
+  --ink: #f4f4f6;
+  --body: #cdcdcd;
+  --charcoal: #d3d3d4;
+  --mute: #9c9c9d;
+  --ash: #6a6b6c;
+  --stone: #434345;
+
+  /* Saturated accents (chip 안에서만, 텍스트에는 신중히) */
+  --accent-blue: #57c1ff;
+  --accent-blue-soft: rgba(87, 193, 255, 0.15);
+  --accent-red: #ff6161;
+  --accent-red-soft: rgba(255, 97, 97, 0.15);
+  --accent-green: #59d499;
+  --accent-green-soft: rgba(89, 212, 153, 0.15);
+  --accent-yellow: #ffc533;
+  --accent-yellow-soft: rgba(255, 197, 51, 0.15);
+
+  /* Hero stripe (M8-6에서만 사용) */
+  --hero-stripe-start: #ff5757;
+  --hero-stripe-end: #a1131a;
+
+  /* Keycap gradient */
+  --key-bg-start: #121212;
+  --key-bg-end: #0d0d0d;
+
+  /* Radius */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Spacing */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  --space-section: 96px;
+}
+
+/* ============================================================================
+   Base
+   ============================================================================ */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: 'Inter', 'Inter Fallback', system-ui, -apple-system, sans-serif;
+  font-feature-settings: "calt", "kern", "liga", "ss03";
+  font-size: 16px;
+  line-height: 1.6;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--ink);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+code, pre {
+  font-family: 'JetBrains Mono', Consolas, Monaco, 'Courier New', monospace;
+}
+
+/* ============================================================================
+   Layout container
+   ============================================================================ */
+.swe-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 var(--space-xl);
+}
+
+.swe-section {
+  padding: var(--space-section) 0;
+}
+
+@media (max-width: 768px) {
+  .swe-section { padding: 64px 0; }
+  .swe-container { padding: 0 var(--space-lg); }
+}
+
+/* ============================================================================
+   Typography helpers
+   ============================================================================ */
+.swe-display-lg { font-size: 56px; font-weight: 500; line-height: 1.17; letter-spacing: 0.2px; }
+.swe-heading-xl { font-size: 24px; font-weight: 500; line-height: 1.6; letter-spacing: 0.2px; }
+.swe-heading-lg { font-size: 22px; font-weight: 500; line-height: 1.15; }
+.swe-heading-md { font-size: 20px; font-weight: 500; line-height: 1.4; letter-spacing: 0.2px; }
+.swe-heading-sm { font-size: 18px; font-weight: 500; line-height: 1.4; letter-spacing: 0.2px; }
+.swe-body-lg    { font-size: 18px; font-weight: 400; line-height: 1.6; }
+.swe-body-md    { font-size: 16px; font-weight: 400; line-height: 1.6; }
+.swe-body-sm    { font-size: 14px; font-weight: 400; line-height: 1.6; }
+.swe-caption    { font-size: 13px; font-weight: 400; line-height: 1.4; letter-spacing: 0.1px; color: var(--mute); }
+.swe-caption-sm { font-size: 12px; font-weight: 400; line-height: 1.5; letter-spacing: 0.4px; color: var(--mute); }
+
+.swe-mute  { color: var(--mute); }
+.swe-ink   { color: var(--ink); }
+.swe-body  { color: var(--body); }
+
+/* ============================================================================
+   Surface ladder utilities
+   ============================================================================ */
+.swe-surface         { background: var(--surface); }
+.swe-surface-el      { background: var(--surface-elevated); }
+.swe-surface-card    { background: var(--surface-card); }
+.swe-canvas          { background: var(--canvas); }
+
+/* ============================================================================
+   Card vocabulary
+   ============================================================================ */
+.swe-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+
+.swe-card-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+
+.swe-card-tight {
+  padding: var(--space-lg);
+}
+
+.swe-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+.swe-stat-card .swe-stat-label {
+  color: var(--mute);
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  margin-bottom: var(--space-sm);
+}
+.swe-stat-card .swe-stat-value {
+  color: var(--ink);
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+.swe-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: var(--on-primary) !important;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  height: 36px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  text-decoration: none;
+}
+.swe-btn-primary:hover { background: var(--primary-pressed); text-decoration: none; }
+.swe-btn-primary:active { background: var(--primary-pressed); }
+
+.swe-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  color: var(--ink) !important;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  height: 36px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.swe-btn-tertiary {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface-elevated);
+  color: var(--ink) !important;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  height: 36px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  text-decoration: none;
+}
+.swe-btn-tertiary:hover { background: var(--surface-card); text-decoration: none; }
+
+.swe-btn-danger {
+  background: transparent;
+  color: var(--accent-red) !important;
+  border: 1px solid var(--hairline);
+}
+.swe-btn-danger:hover { background: var(--accent-red-soft); }
+
+.swe-btn-sm { height: 28px; padding: 4px 10px; font-size: 13px; }
+
+/* ============================================================================
+   Inputs
+   ============================================================================ */
+.swe-input {
+  background: var(--surface-elevated);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  height: 36px;
+  font-family: inherit;
+  font-size: 16px;
+  width: 100%;
+}
+.swe-input:focus {
+  outline: none;
+  border-color: var(--hairline-strong);
+}
+.swe-input::placeholder { color: var(--ash); }
+
+.swe-search-bar {
+  height: 44px;
+  padding: 10px 16px;
+}
+
+/* ============================================================================
+   Chips & Badges
+   ============================================================================ */
+.swe-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+}
+.swe-badge-success { background: var(--accent-green-soft); color: var(--accent-green); }
+.swe-badge-warning { background: var(--accent-yellow-soft); color: var(--accent-yellow); }
+.swe-badge-danger  { background: var(--accent-red-soft); color: var(--accent-red); }
+.swe-badge-info    { background: var(--accent-blue-soft); color: var(--accent-blue); }
+.swe-badge-mute    { background: var(--surface-elevated); color: var(--mute); }
+
+.swe-pill {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  color: var(--body);
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+.swe-pill-active { background: var(--surface-elevated); color: var(--ink); }
+
+/* ============================================================================
+   Keycap (DESIGN.md: keyboard shortcut glyph with subtle gradient)
+   ============================================================================ */
+.swe-keycap {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(180deg, var(--key-bg-start) 0%, var(--key-bg-end) 100%);
+  color: var(--body);
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.1px;
+  padding: 1px 6px;
+  height: 20px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xs);
+}
+
+/* ============================================================================
+   Table (used inside swe-card)
+   ============================================================================ */
+.swe-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.swe-table thead th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--mute);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--hairline);
+}
+.swe-table tbody td {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--hairline);
+  color: var(--body);
+  vertical-align: middle;
+}
+.swe-table tbody tr:last-child td { border-bottom: none; }
+.swe-table tbody tr:hover td { background: var(--surface-card); }
+.swe-table .swe-id-cell {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--mute);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   Primary nav
+   ============================================================================ */
+.swe-nav {
+  background: var(--canvas);
+  border-bottom: 1px solid var(--hairline);
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-xl);
+}
+.swe-nav-inner {
+  max-width: 1240px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xl);
+}
+.swe-nav-brand {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.2px;
+}
+.swe-nav-links {
+  display: flex;
+  gap: var(--space-xl);
+  flex: 1;
+  margin-left: var(--space-xxl);
+}
+.swe-nav-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--body);
+  letter-spacing: 0.2px;
+  padding: var(--space-sm) 0;
+  text-decoration: none;
+}
+.swe-nav-link:hover { color: var(--ink); text-decoration: none; }
+.swe-nav-link.active { color: var(--ink); }
+.swe-nav-cta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* ============================================================================
+   Modal (다크 + 카드 패턴 유지)
+   ============================================================================ */
+.swe-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.swe-modal-backdrop.open { display: flex; }
+.swe-modal {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* ============================================================================
+   Helpers
+   ============================================================================ */
+.swe-stack { display: flex; flex-direction: column; gap: var(--space-md); }
+.swe-row { display: flex; gap: var(--space-md); align-items: center; }
+.swe-grid { display: grid; gap: var(--space-lg); }
+.swe-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.swe-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.swe-grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+@media (max-width: 1024px) {
+  .swe-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .swe-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .swe-grid-4, .swe-grid-3, .swe-grid-2 { grid-template-columns: 1fr; }
+}
+
+.swe-flex-between { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); }
+.swe-mt-section { margin-top: var(--space-section); }
+.swe-mt-xl { margin-top: var(--space-xl); }
+.swe-mb-xl { margin-bottom: var(--space-xl); }
+.swe-text-right { text-align: right; }
+.swe-w-full { width: 100%; }
+
+label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(--space-xs); }

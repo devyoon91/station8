@@ -2,97 +2,89 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>DLQ - Dead Letter Queue</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <title>DLQ — Workflow Engine</title>
+    <link rel="stylesheet" href="/css/design.css">
 </head>
-<body class="bg-light">
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Dead Letter Queue</h1>
-        <a href="/workflow/dashboard" class="btn btn-outline-secondary">← Dashboard</a>
-    </div>
+<body>
+{{> _nav }}
 
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card text-white bg-secondary mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Total</h5>
-                    <p class="card-text fs-2">{{totalDlqCount}}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-danger mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">NEW</h5>
-                    <p class="card-text fs-2">{{newCount}}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-info mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">REQUEUED</h5>
-                    <p class="card-text fs-2">{{requeuedCount}}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-dark mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">DISCARDED</h5>
-                    <p class="card-text fs-2">{{discardedCount}}</p>
-                </div>
-            </div>
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <h1 class="swe-display-lg" style="margin: 0;">Dead Letter Queue</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">최대 재시도 초과한 액티비티 — Requeue 또는 Discard</p>
         </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title mb-4">DLQ Entries</h5>
-            <table class="table table-hover">
-                <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>Workflow</th>
-                    <th>Activity</th>
-                    <th>Status</th>
-                    <th>Retry</th>
-                    <th>Failed At</th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                {{#dlqEntries}}
-                <tr>
-                    <td class="text-truncate" style="max-width: 120px;" title="{{id}}">{{id}}</td>
-                    <td>{{workflowName}}</td>
-                    <td>{{activityName}}</td>
-                    <td><span class="badge bg-secondary">{{dlqStatusSt}}</span></td>
-                    <td>{{retryCnt}} / {{maxRetryCnt}}</td>
-                    <td>{{failedAtDt}}</td>
-                    <td>
-                        <a href="/workflow/dlq/{{id}}" class="btn btn-sm btn-outline-primary">Detail</a>
-                        {{#isNew}}
-                        <form action="/workflow/dlq/{{id}}/requeue" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-outline-success">Requeue</button>
-                        </form>
-                        <form action="/workflow/dlq/{{id}}/discard" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-outline-dark">Discard</button>
-                        </form>
-                        {{/isNew}}
-                    </td>
-                </tr>
-                {{/dlqEntries}}
-                {{^dlqEntries}}
-                <tr>
-                    <td colspan="7" class="text-center text-muted">No DLQ entries found.</td>
-                </tr>
-                {{/dlqEntries}}
-                </tbody>
-            </table>
+    <!-- 통계 -->
+    <div class="swe-grid swe-grid-4 swe-mb-xl">
+        <div class="swe-stat-card">
+            <div class="swe-stat-label">Total</div>
+            <div class="swe-stat-value">{{totalDlqCount}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-red);">NEW</div>
+            <div class="swe-stat-value">{{newCount}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-blue);">REQUEUED</div>
+            <div class="swe-stat-value">{{requeuedCount}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label">DISCARDED</div>
+            <div class="swe-stat-value">{{discardedCount}}</div>
         </div>
     </div>
+
+    <div class="swe-card" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Workflow</th>
+                <th>Activity</th>
+                <th>Status</th>
+                <th>Retry</th>
+                <th>Failed at</th>
+                <th class="swe-text-right">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#dlqEntries}}
+            <tr>
+                <td class="swe-id-cell" title="{{id}}">{{id}}</td>
+                <td>{{workflowName}}</td>
+                <td>{{activityName}}</td>
+                <td>
+                    <span class="swe-badge swe-badge-{{badgeClass}}">{{dlqStatusSt}}</span>
+                </td>
+                <td class="swe-mute">{{retryCnt}} / {{maxRetryCnt}}</td>
+                <td class="swe-mute">{{failedAtDt}}</td>
+                <td class="swe-text-right">
+                    <a href="/workflow/dlq/{{id}}" class="swe-btn-tertiary swe-btn-sm">Detail</a>
+                    {{#isNew}}
+                    <form action="/workflow/dlq/{{id}}/requeue" method="post" style="display:inline;">
+                        <button type="submit" class="swe-btn-tertiary swe-btn-sm">Requeue</button>
+                    </form>
+                    <form action="/workflow/dlq/{{id}}/discard" method="post" style="display:inline;">
+                        <button type="submit" class="swe-btn-tertiary swe-btn-sm swe-btn-danger">Discard</button>
+                    </form>
+                    {{/isNew}}
+                </td>
+            </tr>
+            {{/dlqEntries}}
+            {{^dlqEntries}}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    No DLQ entries.
+                </td>
+            </tr>
+            {{/dlqEntries}}
+            </tbody>
+        </table>
+    </div>
+
 </div>
 </body>
 </html>

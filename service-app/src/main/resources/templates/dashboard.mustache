@@ -2,158 +2,111 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Workflow Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <title>Dashboard — Workflow Engine</title>
+    <link rel="stylesheet" href="/css/design.css">
 </head>
-<body class="bg-light">
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Workflow Monitoring Dashboard</h1>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
         <div>
-            <button onclick="location.reload()" class="btn btn-outline-secondary me-2">🔄 Refresh</button>
-            <a href="/workflow/dlq" class="btn btn-outline-danger">DLQ ☠️</a>
+            <h1 class="swe-display-lg" style="margin: 0;">Dashboard</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">워크플로우 인스턴스 모니터링 + 재개</p>
         </div>
+        <a href="/workflow/dashboard?auto=1" class="swe-btn-tertiary">↻ Refresh</a>
     </div>
-    
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card text-white bg-primary mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Total</h5>
-                    <p class="card-text fs-2">{{totalCount}}</p>
-                </div>
-            </div>
+
+    <!-- 통계 -->
+    <div class="swe-grid swe-grid-4 swe-mb-xl">
+        <div class="swe-stat-card">
+            <div class="swe-stat-label">Total</div>
+            <div class="swe-stat-value">{{totalCount}}</div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-success mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Completed</h5>
-                    <p class="card-text fs-2">{{completedCount}}</p>
-                </div>
-            </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-yellow);">Running</div>
+            <div class="swe-stat-value">{{runningCount}}</div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-warning mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Running</h5>
-                    <p class="card-text fs-2">{{runningCount}}</p>
-                </div>
-            </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-green);">Completed</div>
+            <div class="swe-stat-value">{{completedCount}}</div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-danger mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Failed</h5>
-                    <p class="card-text fs-2">{{failedCount}}</p>
-                </div>
-            </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-red);">Failed</div>
+            <div class="swe-stat-value">{{failedCount}}</div>
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <form action="/workflow/dashboard" method="get" class="row g-3">
-                <div class="col-md-4">
-                    <label for="instanceId" class="form-label">Instance ID</label>
-                    <input type="text" class="form-control" id="instanceId" name="instanceId" value="{{#instanceId}}{{instanceId}}{{/instanceId}}" placeholder="ID Substring">
-                </div>
-                <div class="col-md-4">
-                    <label for="workflowName" class="form-label">Workflow Name</label>
-                    <input type="text" class="form-control" id="workflowName" name="workflowName" value="{{#workflowName}}{{workflowName}}{{/workflowName}}" placeholder="Name Substring">
-                </div>
-                <div class="col-md-3">
-                    <label for="statusSt" class="form-label">Status</label>
-                    <select class="form-select" id="statusSt" name="statusSt">
-                        <option value="">All Status</option>
-                        <option value="RUNNING" {{#selectedRunning}}selected{{/selectedRunning}}>RUNNING</option>
-                        <option value="COMPLETED" {{#selectedCompleted}}selected{{/selectedCompleted}}>COMPLETED</option>
-                        <option value="FAILED" {{#selectedFailed}}selected{{/selectedFailed}}>FAILED</option>
-                        <option value="TERMINATED" {{#selectedTerminated}}selected{{/selectedTerminated}}>TERMINATED</option>
-                    </select>
-                </div>
-                <div class="col-md-1 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Filter</button>
-                </div>
-            </form>
-        </div>
+    <!-- 검색/필터 -->
+    <div class="swe-card-elevated swe-mb-xl">
+        <form method="get" action="/workflow/dashboard" class="swe-grid swe-grid-3">
+            <div>
+                <label for="workflowName">Workflow Name</label>
+                <input type="text" id="workflowName" name="workflowName" class="swe-input"
+                       value="{{#workflowName}}{{workflowName}}{{/workflowName}}" placeholder="Name substring">
+            </div>
+            <div>
+                <label for="statusSt">Status</label>
+                <select class="swe-input" id="statusSt" name="statusSt">
+                    <option value="">All</option>
+                    <option value="RUNNING" {{#selectedRunning}}selected{{/selectedRunning}}>RUNNING</option>
+                    <option value="COMPLETED" {{#selectedCompleted}}selected{{/selectedCompleted}}>COMPLETED</option>
+                    <option value="FAILED" {{#selectedFailed}}selected{{/selectedFailed}}>FAILED</option>
+                    <option value="TERMINATED" {{#selectedTerminated}}selected{{/selectedTerminated}}>TERMINATED</option>
+                </select>
+            </div>
+            <div>
+                <label for="instanceId">Instance ID</label>
+                <input type="text" id="instanceId" name="instanceId" class="swe-input"
+                       value="{{#instanceId}}{{instanceId}}{{/instanceId}}" placeholder="UUID substring">
+            </div>
+            <div style="grid-column: 1 / -1; display: flex; gap: var(--space-md); justify-content: flex-end;">
+                <a href="/workflow/dashboard" class="swe-btn-secondary">Reset</a>
+                <button type="submit" class="swe-btn-primary">Apply</button>
+            </div>
+        </form>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="card-title mb-0">Workflow Instances</h5>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="autoRefreshCheck">
-                    <label class="form-check-label" for="autoRefreshCheck">Auto Refresh (5s)</label>
-                </div>
-            </div>
-            <table class="table table-hover">
-                <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>Workflow Name</th>
-                    <th>Status</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                {{#instances}}
-                <tr>
-                    <td class="text-truncate" style="max-width: 150px;" title="{{id}}">{{id}}</td>
-                    <td>{{workflowName}}</td>
-                    <td>
-                        <span class="badge bg-{{badgeClass}}">
-                            {{statusSt}}
-                        </span>
-                    </td>
-                    <td>{{startDt}}</td>
-                    <td>{{#endDt}}{{endDt}}{{/endDt}}{{^endDt}}-{{/endDt}}</td>
-                    <td>
-                        <a href="/workflow/instance/{{id}}" class="btn btn-sm btn-outline-primary">Details</a>
-                    </td>
-                </tr>
-                {{/instances}}
-                {{^instances}}
-                <tr>
-                    <td colspan="6" class="text-center text-muted">No instances found.</td>
-                </tr>
-                {{/instances}}
-                </tbody>
-            </table>
-        </div>
+    <!-- 인스턴스 테이블 -->
+    <div class="swe-card" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Workflow</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th>Ended</th>
+                <th class="swe-text-right">Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#instances}}
+            <tr>
+                <td class="swe-id-cell" title="{{id}}">{{id}}</td>
+                <td>{{workflowName}}</td>
+                <td>
+                    <span class="swe-badge swe-badge-{{badgeClass}}">{{statusSt}}</span>
+                </td>
+                <td class="swe-mute">{{startDt}}</td>
+                <td class="swe-mute">{{#endDt}}{{endDt}}{{/endDt}}{{^endDt}}—{{/endDt}}</td>
+                <td class="swe-text-right">
+                    <a href="/workflow/instance/{{id}}" class="swe-btn-tertiary swe-btn-sm">Details</a>
+                </td>
+            </tr>
+            {{/instances}}
+            {{^instances}}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    No instances. Use <a href="/workflow/schedules" class="swe-ink">Schedules</a> to create one.
+                </td>
+            </tr>
+            {{/instances}}
+            </tbody>
+        </table>
     </div>
+
 </div>
-<script>
-    const autoRefreshCheck = document.getElementById('autoRefreshCheck');
-    let refreshInterval;
-
-    // Load state from localStorage
-    if (localStorage.getItem('autoRefresh') === 'true') {
-        autoRefreshCheck.checked = true;
-        startRefresh();
-    }
-
-    autoRefreshCheck.addEventListener('change', function() {
-        if (this.checked) {
-            localStorage.setItem('autoRefresh', 'true');
-            startRefresh();
-        } else {
-            localStorage.setItem('autoRefresh', 'false');
-            stopRefresh();
-        }
-    });
-
-    function startRefresh() {
-        refreshInterval = setInterval(() => {
-            location.reload();
-        }, 5000);
-    }
-
-    function stopRefresh() {
-        clearInterval(refreshInterval);
-    }
-</script>
 </body>
 </html>
