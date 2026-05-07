@@ -2,10 +2,14 @@ package com.bangrang.workflow.app;
 
 import com.bangrang.workflow.engine.dialect.DbDialect;
 import com.bangrang.workflow.engine.dialect.MariaDbDialect;
+import com.bangrang.workflow.engine.dialect.OracleDialect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.core.env.Environment;
 
 /**
  * Spring Boot 진입점.
@@ -27,12 +31,35 @@ public class Application {
         SpringApplication.run(Application.class, args);
     }
 
+    private static final Logger log = LoggerFactory.getLogger(Application.class);
+
     /**
      * DAG 인터프리터/스케줄러가 사용하는 SQL 방언.
-     * MariaDbDialect는 H2(MySQL 모드)와도 호환되므로 default/docker 프로파일 양쪽 모두 동작.
+     *
+     * <p>``spring.datasource.url``로 자동 판별:
+     * <ul>
+     *   <li>``oracle`` 포함 → {@link OracleDialect}</li>
+     *   <li>그 외(mariadb/h2/mysql) → {@link MariaDbDialect} (H2 MySQL 모드와도 호환)</li>
+     * </ul>
+     * 명시 override가 필요하면 ``engine.dialect=oracle|mariadb`` 프로퍼티로 강제 지정 가능.</p>
      */
     @Bean
-    public DbDialect dbDialect() {
+    public DbDialect dbDialect(Environment env) {
+        String explicit = env.getProperty("engine.dialect", "").trim().toLowerCase();
+        if ("oracle".equals(explicit)) {
+            log.info("DbDialect: OracleDialect (explicit engine.dialect=oracle)");
+            return new OracleDialect();
+        }
+        if ("mariadb".equals(explicit) || "mysql".equals(explicit) || "h2".equals(explicit)) {
+            log.info("DbDialect: MariaDbDialect (explicit engine.dialect={})", explicit);
+            return new MariaDbDialect();
+        }
+        String url = env.getProperty("spring.datasource.url", "").toLowerCase();
+        if (url.contains("oracle")) {
+            log.info("DbDialect: OracleDialect (auto-detected from datasource URL)");
+            return new OracleDialect();
+        }
+        log.info("DbDialect: MariaDbDialect (default — also covers H2 MySQL mode)");
         return new MariaDbDialect();
     }
 }

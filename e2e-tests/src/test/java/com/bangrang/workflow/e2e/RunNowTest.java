@@ -26,7 +26,7 @@ class RunNowTest extends E2EBaseTest {
                 "nodes", List.of(Map.of(
                         "nodeId", "r-n",
                         "nodeNm", "Only",
-                        "activityNm", "MIGRATION_WRITE",
+                        "activityNm", "NOOP",
                         "posX", 0, "posY", 0
                 )),
                 "edges", List.of()

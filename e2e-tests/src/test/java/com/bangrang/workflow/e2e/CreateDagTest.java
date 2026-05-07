@@ -26,8 +26,8 @@ class CreateDagTest extends E2EBaseTest {
         Map<String, Object> node = Map.of(
                 "nodeId", "s1-n",
                 "nodeNm", "Only",
-                "activityNm", "MIGRATION_WRITE",
-                "inputParams", "{\"id\":\"sc1\",\"content\":\"Scenario 1\"}",
+                "activityNm", "NOOP",
+                "inputParams", "scenario-1-payload",
                 "posX", 100,
                 "posY", 100
         );
@@ -58,6 +58,6 @@ class CreateDagTest extends E2EBaseTest {
                 .statusCode(200)
                 .body("definitionNm", org.hamcrest.Matchers.equalTo(name))
                 .body("nodes.size()", org.hamcrest.Matchers.equalTo(1))
-                .body("nodes[0].activityNm", org.hamcrest.Matchers.equalTo("MIGRATION_WRITE"));
+                .body("nodes[0].activityNm", org.hamcrest.Matchers.equalTo("NOOP"));
     }
 }

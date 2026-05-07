@@ -26,7 +26,7 @@ export function setup() {
     definitionNm: `k6-load-${Date.now()}`,
     description: 'k6 load shared definition',
     nodes: [
-      { nodeId: 'l-n', nodeNm: 'Only', activityNm: 'MIGRATION_WRITE', inputParams: '{}', posX: 0, posY: 0 },
+      { nodeId: 'l-n', nodeNm: 'Only', activityNm: 'NOOP', inputParams: '{}', posX: 0, posY: 0 },
     ],
     edges: [],
   });

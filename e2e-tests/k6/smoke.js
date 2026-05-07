@@ -21,7 +21,7 @@ export default function () {
     definitionNm: `k6-smoke-${Date.now()}`,
     description: 'k6 smoke',
     nodes: [
-      { nodeId: 's-n', nodeNm: 'Only', activityNm: 'MIGRATION_WRITE', inputParams: '{}', posX: 0, posY: 0 },
+      { nodeId: 's-n', nodeNm: 'Only', activityNm: 'NOOP', inputParams: '{}', posX: 0, posY: 0 },
     ],
     edges: [],
   });
