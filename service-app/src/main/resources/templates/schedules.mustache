@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Schedules - Cron 스케줄러</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Cron 스케줄러</h1>
+        <div>
+            <a href="/workflow/dashboard" class="btn btn-outline-secondary">← Dashboard</a>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">+ 새 스케줄</button>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">활성 (자동 실행)</h5>
+                    <p class="card-text fs-2">{{activeCount}}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">일시중지</h5>
+                    <p class="card-text fs-2">{{pausedCount}}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>정의 ID</th>
+                    <th>Cron 표현식</th>
+                    <th>다음 실행</th>
+                    <th>마지막 실행</th>
+                    <th>상태</th>
+                    <th class="text-end">액션</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{#schedules}}
+                <tr>
+                    <td><code>{{id}}</code></td>
+                    <td><small>{{definitionId}}</small></td>
+                    <td><code>{{cronExpr}}</code></td>
+                    <td>{{nextRunDt}}</td>
+                    <td>{{lastRunDt}}</td>
+                    <td>
+                        {{#pausedFl}}
+                            {{#isPaused}}<span class="badge bg-warning">일시중지</span>{{/isPaused}}
+                        {{/pausedFl}}
+                        <span class="badge bg-success" data-show-when="active-{{pausedFl}}">자동</span>
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" onclick="runNow('{{id}}')">즉시 실행</button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="pause('{{id}}')">일시중지</button>
+                        <button class="btn btn-sm btn-outline-success" onclick="resume('{{id}}')">재개</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="del('{{id}}')">삭제</button>
+                    </td>
+                </tr>
+                {{/schedules}}
+                {{^schedules}}
+                <tr><td colspan="7" class="text-center text-muted">등록된 스케줄이 없습니다</td></tr>
+                {{/schedules}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 신규 등록 모달 -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">새 스케줄 등록</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">정의 ID</label>
+                    <input type="text" id="definitionId" class="form-control" placeholder="UUID">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Cron 표현식 (Spring 형식, 6필드: 초 분 시 일 월 요일)</label>
+                    <input type="text" id="cronExpr" class="form-control" placeholder="0 */5 * * * *" oninput="previewCron()">
+                    <div id="cronPreview" class="form-text"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">입력 데이터 JSON (선택)</label>
+                    <textarea id="inputData" class="form-control" rows="3" placeholder='{"key": "value"}'></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="createSchedule()">등록</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+async function previewCron() {
+    const expr = document.getElementById('cronExpr').value;
+    const preview = document.getElementById('cronPreview');
+    if (!expr) { preview.textContent = ''; return; }
+    try {
+        const res = await fetch('/api/workflow/schedules/preview-cron?cronExpr=' + encodeURIComponent(expr));
+        const j = await res.json();
+        if (j.valid) {
+            preview.innerHTML = '<span class="text-success">다음 실행: ' + j.next1 + ', ' + j.next2 + ', ' + j.next3 + '</span>';
+        } else {
+            preview.innerHTML = '<span class="text-danger">' + (j.message || '잘못된 표현식') + '</span>';
+        }
+    } catch (e) {
+        preview.textContent = e.message;
+    }
+}
+
+async function createSchedule() {
+    const body = {
+        definitionId: document.getElementById('definitionId').value,
+        cronExpr: document.getElementById('cronExpr').value,
+        inputData: document.getElementById('inputData').value || null
+    };
+    const res = await fetch('/api/workflow/schedules', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+    if (res.ok) location.reload();
+    else alert('등록 실패: ' + (await res.text()));
+}
+
+async function runNow(id) {
+    if (!confirm('cron과 무관하게 즉시 실행하시겠습니까?')) return;
+    const res = await fetch('/api/workflow/schedules/' + id + '/run-now', {method: 'POST'});
+    if (res.ok) {
+        const j = await res.json();
+        alert('실행됨. instanceId=' + j.instanceId);
+    } else alert('실패: ' + (await res.text()));
+}
+
+async function pause(id) {
+    const res = await fetch('/api/workflow/schedules/' + id + '/pause', {method: 'PUT'});
+    if (res.ok) location.reload();
+}
+
+async function resume(id) {
+    const res = await fetch('/api/workflow/schedules/' + id + '/resume', {method: 'PUT'});
+    if (res.ok) location.reload();
+}
+
+async function del(id) {
+    if (!confirm('이 스케줄을 삭제하시겠습니까?')) return;
+    const res = await fetch('/api/workflow/schedules/' + id, {method: 'DELETE'});
+    if (res.ok) location.reload();
+}
+</script>
+</body>
+</html>
