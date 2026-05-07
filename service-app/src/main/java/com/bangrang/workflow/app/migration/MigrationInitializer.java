@@ -17,8 +17,12 @@ import java.util.UUID;
 
 /**
  * 데모 초기화 컴포넌트: 테스트 테이블/데이터 생성 후, 마이그레이션 작업을 PENDING으로 등록한다.
+ *
+ * Order 0 — DemoSeedRunner(@Order(100))보다 먼저 실행되어 schema를 적용한다.
+ * 미적용 시 후속 Runner들이 ``Table doesn't exist`` 에러를 만난다.
  */
 @Component
+@org.springframework.core.annotation.Order(0)
 public class MigrationInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(MigrationInitializer.class);
