@@ -65,10 +65,10 @@
                     <label for="statusSt" class="form-label">Status</label>
                     <select class="form-select" id="statusSt" name="statusSt">
                         <option value="">All Status</option>
-                        <option value="RUNNING" {{#statusSt}}{{#equals . 'RUNNING'}}selected{{/equals}}{{/statusSt}}>RUNNING</option>
-                        <option value="COMPLETED" {{#statusSt}}{{#equals . 'COMPLETED'}}selected{{/equals}}{{/statusSt}}>COMPLETED</option>
-                        <option value="FAILED" {{#statusSt}}{{#equals . 'FAILED'}}selected{{/equals}}{{/statusSt}}>FAILED</option>
-                        <option value="TERMINATED" {{#statusSt}}{{#equals . 'TERMINATED'}}selected{{/equals}}{{/statusSt}}>TERMINATED</option>
+                        <option value="RUNNING" {{#selectedRunning}}selected{{/selectedRunning}}>RUNNING</option>
+                        <option value="COMPLETED" {{#selectedCompleted}}selected{{/selectedCompleted}}>COMPLETED</option>
+                        <option value="FAILED" {{#selectedFailed}}selected{{/selectedFailed}}>FAILED</option>
+                        <option value="TERMINATED" {{#selectedTerminated}}selected{{/selectedTerminated}}>TERMINATED</option>
                     </select>
                 </div>
                 <div class="col-md-1 d-flex align-items-end">
@@ -104,7 +104,7 @@
                     <td class="text-truncate" style="max-width: 150px;" title="{{id}}">{{id}}</td>
                     <td>{{workflowName}}</td>
                     <td>
-                        <span class="badge {{#statusSt}}bg-{{#equals . 'COMPLETED'}}success{{/equals}}{{#equals . 'RUNNING'}}warning{{/equals}}{{#equals . 'FAILED'}}danger{{/equals}}{{/statusSt}}">
+                        <span class="badge bg-{{badgeClass}}">
                             {{statusSt}}
                         </span>
                     </td>

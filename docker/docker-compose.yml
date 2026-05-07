@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mariadb:
     image: mariadb:11.4
@@ -11,13 +9,33 @@ services:
       MARIADB_PASSWORD: wfpw
     ports:
       - "3307:3306"
-    volumes:
-      - ./init/mariadb:/docker-entrypoint-initdb.d:ro
+    # 스키마는 service-app이 부팅 시 schema-mariadb.sql로 적용 (single source of truth)
+    # docker init scripts는 drift 위험이 있어 제거
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpw"]
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: swe-app
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      # docker 프로파일이 spring.datasource를 참조하므로 명시적 override는 불필요하나,
+      # 컨테이너 네트워크 호스트로 mariadb 사용 (compose 서비스명 = DNS)
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/workflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: wfuser
+      SPRING_DATASOURCE_PASSWORD: wfpw
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "8080:8080"
     restart: unless-stopped
 
 # Optional: Oracle Free (commented by default due to image size and license constraints)

@@ -10,7 +10,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-batch'
 
     // DB Drivers (Runtime)
-    runtimeOnly 'com.h2database:h2' // 로컬 테스트용
+    // 호스트(default 프로파일)에서 ./gradlew bootRun 시 H2 임베디드 자동 설정용. docker 프로파일에서는 mariadb URL이 명시되므로 H2가 무시됨.
+    runtimeOnly 'com.h2database:h2'
     // runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 }
