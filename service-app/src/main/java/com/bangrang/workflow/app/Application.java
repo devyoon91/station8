@@ -6,11 +6,20 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-import javax.sql.DataSource;
-
+/**
+ * Spring Boot 진입점.
+ *
+ * <p>DataSource/JdbcTemplate은 Spring Boot 자동 설정에 위임한다:
+ * <ul>
+ *   <li>default 프로파일: H2 임베디드 (h2 의존성 + spring.datasource.url 미명시)</li>
+ *   <li>docker 프로파일: ``application-docker.properties``의 mariadb URL 또는 환경변수</li>
+ * </ul>
+ * </p>
+ *
+ * <p>이전에는 ``@Bean DataSource``가 H2 URL을 hardcode하고 있어 docker 프로파일에서도
+ * mariadb 설정이 무시되는 #45 결함이 있었다.</p>
+ */
 @SpringBootApplication
 @ComponentScan(basePackages = {"com.bangrang.workflow.app", "com.bangrang.workflow.engine"})
 public class Application {
@@ -18,27 +27,12 @@ public class Application {
         SpringApplication.run(Application.class, args);
     }
 
-    // 간단한 데모용 단일 DataSource (H2 또는 MariaDB URL로 교체 가능)
-    @Bean
-    public DataSource dataSource() {
-        // TODO: 실환경에서는 application-*.yml 프로파일별 설정으로 분리하고, Oracle/MariaDB 두 개의 DataSource를 구성하십시오.
-        DriverManagerDataSource ds = new DriverManagerDataSource();
-        ds.setDriverClassName("org.h2.Driver");
-        ds.setUrl("jdbc:h2:mem:demo;MODE=MariaDB;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false");
-        ds.setUsername("sa");
-        ds.setPassword("");
-        return ds;
-    }
-
-    @Bean
-    public JdbcTemplate jdbcTemplate(DataSource dataSource) {
-        return new JdbcTemplate(dataSource);
-    }
-
+    /**
+     * DAG 인터프리터/스케줄러가 사용하는 SQL 방언.
+     * MariaDbDialect는 H2(MySQL 모드)와도 호환되므로 default/docker 프로파일 양쪽 모두 동작.
+     */
     @Bean
     public DbDialect dbDialect() {
-        // H2 호환을 위해 MariaDB 방언 사용 (CURRENT_TIMESTAMP, LIMIT 지원)
         return new MariaDbDialect();
     }
 }
-

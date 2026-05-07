@@ -50,12 +50,34 @@ public class WorkflowMonitoringController {
                 .filter(i -> instanceId == null || instanceId.isEmpty() || i.id().contains(instanceId))
                 .collect(Collectors.toList());
 
-        model.addAttribute("instances", filtered);
+        // Mustache는 helper 미지원 — instance마다 배지 색상 클래스를 미리 계산해 view에 전달
+        List<java.util.Map<String, Object>> instanceViews = filtered.stream().map(i -> {
+            String badge = switch (i.statusSt() == null ? "" : i.statusSt()) {
+                case "COMPLETED" -> "success";
+                case "RUNNING" -> "warning";
+                case "FAILED" -> "danger";
+                default -> "secondary";
+            };
+            java.util.Map<String, Object> m = new java.util.HashMap<>();
+            m.put("id", i.id());
+            m.put("workflowName", i.workflowName());
+            m.put("statusSt", i.statusSt());
+            m.put("startDt", i.startDt());
+            m.put("endDt", i.endDt());
+            m.put("badgeClass", badge);
+            return m;
+        }).collect(Collectors.toList());
+        model.addAttribute("instances", instanceViews);
         
         // 검색 필드 유지를 위해 다시 모델에 추가
         model.addAttribute("workflowName", workflowName);
         model.addAttribute("statusSt", statusSt);
         model.addAttribute("instanceId", instanceId);
+        // Mustache(JMustache)는 ``{{#equals}}`` helper 미지원 — selected 상태를 미리 boolean으로 계산
+        model.addAttribute("selectedRunning", "RUNNING".equals(statusSt));
+        model.addAttribute("selectedCompleted", "COMPLETED".equals(statusSt));
+        model.addAttribute("selectedFailed", "FAILED".equals(statusSt));
+        model.addAttribute("selectedTerminated", "TERMINATED".equals(statusSt));
         
         // 전체 통계 계산 (필터링 전 데이터 기준)
         long runningCount = instances.stream().filter(i -> "RUNNING".equals(i.statusSt())).count();

@@ -9,8 +9,8 @@ services:
       MARIADB_PASSWORD: wfpw
     ports:
       - "3307:3306"
-    volumes:
-      - ./init/mariadb:/docker-entrypoint-initdb.d:ro
+    # 스키마는 service-app이 부팅 시 schema-mariadb.sql로 적용 (single source of truth)
+    # docker init scripts는 drift 위험이 있어 제거
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpw"]
       interval: 5s
