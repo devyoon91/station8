@@ -1,0 +1,36 @@
+# Build outputs
+build/
+**/build/
+.gradle/
+out/
+gen/
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# Claude / 작업 환경
+.claude/
+
+# Git
+.git/
+.gitignore
+
+# Docker (빌드 컨텍스트에 포함 불필요)
+docker/init/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+test_output.txt
+
+# Local props
+local.properties

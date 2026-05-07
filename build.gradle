@@ -51,14 +51,28 @@ subprojects {
 // --- Docker Compose helper tasks ---
 tasks.register('composeUp', Exec) {
     group = 'docker'
-    description = 'Start test databases via docker-compose'
+    description = 'Start test databases via docker-compose (DB only, daemon)'
     workingDir = file('docker')
-    commandLine 'docker', 'compose', 'up', '-d'
+    commandLine 'docker', 'compose', 'up', '-d', 'mariadb'
+}
+
+tasks.register('composeUpApp', Exec) {
+    group = 'docker'
+    description = 'Build app image and start full stack (MariaDB + service-app) — single command'
+    workingDir = file('docker')
+    commandLine 'docker', 'compose', 'up', '--build', '-d'
+}
+
+tasks.register('composeLogsApp', Exec) {
+    group = 'docker'
+    description = 'Tail service-app container logs'
+    workingDir = file('docker')
+    commandLine 'docker', 'compose', 'logs', '-f', 'app'
 }
 
 tasks.register('composeDown', Exec) {
     group = 'docker'
-    description = 'Stop test databases and remove containers'
+    description = 'Stop all compose services and remove containers + volumes'
     workingDir = file('docker')
     commandLine 'docker', 'compose', 'down', '-v'
 }

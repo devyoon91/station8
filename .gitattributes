@@ -1,0 +1,19 @@
+# Default: 텍스트 파일은 OS 기본 line ending으로 정규화
+* text=auto
+
+# 셸 스크립트는 LF 고정 (Linux 컨테이너에서 실행되므로 CRLF 금지)
+*.sh        text eol=lf
+gradlew     text eol=lf
+
+# Windows 배치 파일은 CRLF 고정
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+gradlew.bat text eol=crlf
+
+# 바이너리
+*.jar       binary
+*.png       binary
+*.jpg       binary
+*.gif       binary
+*.ico       binary
+*.zip       binary

@@ -58,3 +58,6 @@ gradle-app.setting
 # Local test output
 test_output.txt
 
+# Claude Code working dirs (worktrees + scheduled task logs)
+.claude/
+
