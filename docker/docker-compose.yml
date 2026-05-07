@@ -27,7 +27,9 @@ services:
       mariadb:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      # docker: 컨테이너 네트워크용 datasource 설정 (mariadb 호스트)
+      # demo: 부팅 직후 샘플 DAG + 스케줄 자동 시드 (DemoSeedRunner)
+      SPRING_PROFILES_ACTIVE: docker,demo
       # docker 프로파일이 spring.datasource를 참조하므로 명시적 override는 불필요하나,
       # 컨테이너 네트워크 호스트로 mariadb 사용 (compose 서비스명 = DNS)
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/workflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
