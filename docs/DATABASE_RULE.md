@@ -1,291 +1,119 @@
-# DATABASE_RULE
+# 데이터베이스 명명 규칙
 
-# 관계형 데이터베이스 규칙
+``simple-workflow-engine`` 저장소의 RDBMS 스키마 명명 / 작성 규칙.
+``engine-core/src/main/resources/sql/schema-{h2,mariadb,oracle}.sql``이 본 규칙의 source of truth.
 
-> ESP 관계형 데이터베이스 내부 규칙
+## 공통 컬럼
 
-## 공통 컬럼 규칙 (Common Column)
+테이블 설계 시 일관되게 사용하는 공통 컬럼.
 
-### 필수 컬럼
+| 명칭       | 타입             | 값(예)                  | NOT NULL | DEFAULT | 설명     |
+|----------|----------------|-----------------------|----------|---------|--------|
+| ``USE_FL``  | ``VARCHAR(1)``  | ``'Y'``, ``'N'``      | Y        | ``'N'`` | 사용 여부  |
+| ``VIEW_FL`` | ``VARCHAR(1)``  | ``'Y'``, ``'N'``      | Y        | ``'Y'`` | 표시 여부  |
+| ``DEL_FL``  | ``VARCHAR(1)``  | ``'Y'``, ``'N'``      | Y        | ``'N'`` | 삭제 여부  |
+| ``REG_DT``  | ``TIMESTAMP``   | ``2026-05-08 12:00`` | N        |         | 등록일시   |
+| ``REG_ID``  | ``VARCHAR(32)`` | ``bykim``             | N        |         | 등록자    |
+| ``EDIT_DT`` | ``TIMESTAMP``   | ``2026-05-08 12:00`` | N        |         | 수정일시   |
+| ``EDIT_ID`` | ``VARCHAR(32)`` | ``bykim``             | N        |         | 수정자    |
 
-테이블 설계 시 사용하는 공통 컬럼
-
-| 명칭      | 데이터타입       | 값(예시)               | not null | default | 설명   |
-|---------|-------------|---------------------|----------|---------|------|
-| use_fl  | varchar(1)  | "Y", "N"            | Y        | "N"     | 사용여부 |
-| view_fl | varchar(1)  | "Y", "N"            | Y        | "Y"     | 표시여부 |
-| del_fl  | varchar(1)  | "Y", "N"            | Y        | "N"     | 삭제여부 |
-| reg_dt  | date        | 2024-06-19 20:55:20 | N        |         | 등록일시 |
-| reg_id  | varchar(32) | bykim               | N        |         | 등록자  |
-| edit_dt | date        | 2024-06-19 20:55:20 | N        |         | 수정일시 |
-| edit_id | varchar(32) | bykim               | N        |         | 수정자  |
+본 저장소의 ``H_WF_*`` 이력 테이블은 ``REG_DT``를 폴링 키로도 사용한다 (``ORDER BY REG_DT ASC``).
 
 ---
 
-## 대소문자 처리 규칙 (Case Sensitivity)
+## 대소문자 정책
 
-**중요**: RDBMS 별로 대소문자 처리 방식에 차이가 있으므로 주의하여 설계 및 작성
+본 저장소는 **테이블/컬럼명을 모두 대문자**로 작성하고, SQL 식별자에 따옴표를 사용하지 않는다.
+이 정책은 다음 RDBMS 모두에서 호환된다:
 
-### Oracle
+- **Oracle** — 따옴표 없는 식별자는 자동 대문자 처리.
+- **MariaDB / MySQL** — Linux는 식별자 대소문자 구분, Windows는 무시. 둘 다 "쓴 그대로"가 곧 "저장된 형태"이므로 대문자로 통일하면 OS 무관하게 동작.
+- **H2 (MariaDB MODE)** — ``DATABASE_TO_UPPER=false``로 시작해도 본 저장소 SQL이 일관되게 대문자라 충돌 없음.
 
-대소문자를 구분하지 않음 (기본적으로 대문자로 저장)
+따옴표 식별자(``"My_Table"``)는 사용하지 않는다.
 
-- **기본 동작**: SQL에서 테이블 및 컬럼명을 작성할 때, 따옴표를 사용하지 않는 경우 모두 대문자로 저장 및 인식됨
-- **따옴표 사용 시**: 따옴표를 사용하는 경우 대소문자를 구분하며, 지정한 이름 그대로 저장
+---
 
-**예시:**
+## 테이블 명명
+
+### 형식
+
+``<접두사>_<도메인>_<엔티티>``
+
+### 접두사 (본 저장소 사용 분)
+
+| 접두사 | 의미       | 예                                             |
+|------|----------|----------------------------------------------|
+| ``U_`` | 마스터/구성  | ``U_WF_DEFINITION``, ``U_WF_NODE``, ``U_WF_EDGE``, ``U_WF_INSTANCE``, ``U_WF_SCHEDULE`` |
+| ``H_`` | 이력/실행   | ``H_WF_ACTIVITY_EXECUTION``, ``H_WF_DLQ``     |
+
+다른 접두사(``R_``, ``M_``, ``E_``, ``C_``, ``T_`` 등)나 접미사(``_V``, ``_TP`` 등)는 본 저장소에서 사용하지 않는다. 새 테이블이 마스터/이력 어느 쪽으로도 분류되지 않는다면 PR에서 접두사 정책을 먼저 합의한 뒤 추가한다.
+
+### 단복수 / 약어
+
+- 단수형. 예: ``U_WF_NODE`` (O), ``U_WF_NODES`` (X).
+- 명확성을 우선. 통용 약어(``WF``, ``DLQ``, ``IDX``)는 허용.
+
+---
+
+## 컬럼 명명
+
+### 형식
+
+``<의미>_<접미사>``
+
+### 접미사
+
+| 접미사   | 의미              | 예                              |
+|-------|-----------------|--------------------------------|
+| ``_CD``  | CODE — ENUM 문자열 코드 | ``ERROR_CODE_CD``        |
+| ``_NM``  | NAME           | ``WORKFLOW_NM``                |
+| ``_NO``  | NUMBER         | ``RETRY_NO``                   |
+| ``_ID``  | 아이디(PK/FK)     | ``DEFINITION_ID``, ``NODE_ID`` |
+| ``_DT``  | DATE/TIMESTAMP | ``REG_DT``, ``NEXT_RUN_DT``    |
+| ``_FL``  | FLAG ``'Y'/'N'``  | ``ACTIVE_FL``, ``PAUSED_FL``  |
+| ``_CNT`` | COUNT          | ``RETRY_CNT``, ``MAX_RETRY_CNT`` |
+| ``_ORD`` | ORDER          | ``DISPLAY_ORD``                |
+| ``_ST``  | STATUS / STATE | ``STATUS_ST``, ``DLQ_STATUS_ST`` |
+
+### 일반 규칙
+
+- PK 컬럼은 ``ID`` 또는 ``<엔티티>_ID``. 본 저장소는 비즈니스 의미를 살린 후자를 선호 (예: ``DEFINITION_ID``).
+- FK 컬럼은 참조 테이블의 PK명을 그대로 사용해 ``WHERE A.DEFINITION_ID = B.DEFINITION_ID`` 형태로 자연스럽게 결합되도록 한다.
+- 축약형(예: ``USR_NM`` → ``USER_NM``)은 가급적 피한다.
+
+---
+
+## 인덱스 명명
+
+``<TABLE>_IDX<NN>`` (NN은 01부터 시작하는 두 자리 번호).
 
 ```sql
-CREATE TABLE my_table
-(
-    column_name VARCHAR2(100)
-); -- "MY_TABLE" 및 "COLUMN_NAME"으로 저장됨
-CREATE TABLE "My_Table"
-(
-    "Column_Name" VARCHAR2(100)
-); -- 작성한 대소문자 그대로 저장
+CREATE INDEX H_WF_ACTIVITY_EXECUTION_IDX01 ON H_WF_ACTIVITY_EXECUTION (STATUS_ST, NEXT_RETRY_DT);
+CREATE INDEX H_WF_ACTIVITY_EXECUTION_IDX02 ON H_WF_ACTIVITY_EXECUTION (INSTANCE_ID);
 ```
 
-### MySQL
-
-대소문자 구분 여부는 운영 체제 및 설정에 따라 다름
-
-- **Windows**: 테이블, 뷰, 컬럼 이름 구분 하지 않음
-- **Linux, macOS**: 테이블명은 대소문자 구분, 컬럼명은 구분 하지 않음
-- **설정 통일**: 테이블 이름의 대소문자를 통일하려면 설정 파일(my.cnf)에서 lower_case_table_names를 지정
-
-**예시:**
-
-```sql
--- Windows에서
-CREATE TABLE MyTable
-(
-    ColumnName VARCHAR(100)
-);
--- "MyTable", "ColumnName"으로 동작
-
--- Linux에서
-CREATE TABLE MyTable
-(
-    ColumnName VARCHAR(100)
-); -- 테이블명: "MyTable" (대소문자 구분), 컬럼명: 대소문자 구분 없음
-```
-
-**lower_case_table_names 설정:**
-
-| 값   | 동작               | 기본값     |
-|-----|------------------|---------|
-| `0` | 대소문자 구분          | Linux   |
-| `1` | 테이블명 대소문자 구분 안 함 | Windows |
-
-### PostgreSQL
-
-모든 테이블 및 컬럼명은 소문자로 저장 (기본 설정)
-
-- **기본 동작**: SQL에서 따옴표를 사용하지 않는 경우 작성된 이름을 모두 소문자로 변환해 저장하고 그에 따라 인식
-- **따옴표 사용 시**: 따옴표로 감쌀 경우 대소문자 구분하며, 지정한 이름 그대로 저장됨
-
-**예시:**
-
-```sql
-CREATE TABLE MyTable
-(
-    ColumnName VARCHAR(100)
-); -- 테이블명: "mytable", 컬럼명: "columnname"으로 저장
-CREATE TABLE "MyTable"
-(
-    "ColumnName" VARCHAR(100)
-); -- 테이블명: "MyTable", 컬럼명: "ColumnName"으로 저장
-```
-
-### 대소문자 사용 권장 사항 (공통)
-
-대소문자 처리 이슈를 방지하기 위해 모든 테이블 및 컬럼명은 소문자로 작성 권장
-
-- RDBMS 별 설정에 따라 발생할 수 있는 혼란을 방지
-- 필요 시 일관된 명명 방식 사용 (예: 소문자로 쓰되, PostgreSQL과 Oracle처럼 따옴표 사용)
+폴링 핫 패스(``status + next_retry_dt``)나 조인 키(``instance_id``)에 우선 인덱스를 둔다. 본 저장소의 인덱스 목록은 ``schema-mariadb.sql`` 끝부분 참조.
 
 ---
 
-## 테이블 및 뷰 명명 규칙 (Table/View Naming)
+## 제약조건 명명
 
-### 기본 규칙
+| 제약       | 형식                  | 예                       |
+|----------|---------------------|-------------------------|
+| **PK**   | ``<TABLE>_PK``       | ``U_WF_DEFINITION_PK``    |
+| **FK**   | ``<TABLE>_FK<NN>``   | ``U_WF_NODE_FK01``        |
+| **Unique** | ``<TABLE>_U<NN>``   | ``U_WF_SCHEDULE_U01``     |
 
-- **테이블명**: 대문자로 작성
-- **단복수**: 테이블명은 단수로 작성 (예: member vs members(X))
-- **뷰 테이블**: 이름 끝에 _V를 추가 (예: user_v)
-- **트리 뷰**: 트리 형식의 뷰 테이블은 _TREE_V를 사용 (예: user_tree_v)
-- **단어 구분**: 단어 사이는 _(언더바) 로 구분
-- **약어 금지**: 단어를 명확히 전달하도록 약어 사용 금지 (일반적으로 통용되는 약어는 허용)
-
-### 표기 방식
-
-**형식**: `접두사_의미있는영문명_접미사` (예: `m_skl_agt`)
-
-**부모-자식 관계**: `접두사_부모_자식_접미사` (예: `u_ivr_dnis`)
-
-### 접두사/접미사 분류
-
-| 명칭  | 구분 | 설명           | 예시                                |
-|-----|----|--------------|-----------------------------------|
-| U_  | 접두 | 마스터 테이블      | `U_USER`, `U_DEPT`, `U_MEMBER`    |
-| H_  | 접두 | 이력 테이블       | `H_IVRSVC_M`, `H_IVRSVC_D`        |
-| R_  | 접두 | 실시간 테이블      | `R_IVR`                           |
-| M_  | 접두 | 매핑 테이블       | `M_SKL_AGT`                       |
-| E_  | 접두 | 이벤트 테이블      | `E_IVRSVC`, `E_OFFERED`           |
-| C_  | 접두 | 이벤트 + 정보 테이블 | `C_INBOUND`, `C_OUTBOUND`         |
-| T_  | 접두 | 당일 테이블       | `T_C_IVRCALL`, `T_CALL_STATE`     |
-| _V  | 접미 | 뷰 테이블        | `USER_V`, `CODE_V`, `CODE_TREE_V` |
-| _TP | 접미 | 템플릿 테이블      | `U_IVR_SVC_TP`                    |
+본 저장소 현행 스키마는 PRIMARY KEY를 컬럼 정의에 인라인으로 두고 별도 제약 이름을 부여하지 않는다. 향후 명시적 제약 추가 시 위 형식을 따른다.
 
 ---
 
-## 컬럼 명명 규칙 (Column Naming)
+## 시퀀스 / 트리거 / 프로시저 / 함수 / 패키지
 
-### 기본 규칙
+본 저장소는 사용하지 않는다.
 
-- **단어 구분**: 단어 사이는 _(언더바) 로 구분
-- **축약형 금지**: 축약형 사용 금지
-- **단일 PK**: 반드시 ID로 설정 (예: U_USER 테이블의 PK는 ID)
-- **FK 규칙**: 테이블 이름과 컬럼명을 사용해 정의 (예: U_USER_FK01)
+- ID 생성: MariaDB ``AUTO_INCREMENT``, Oracle ``GENERATED BY DEFAULT AS IDENTITY``, H2는 동일 키워드 호환.
+- 비즈니스 로직: 모두 Java 측(``DagInterpreter``, ``WorkflowWorker`` 등)에서 처리. PL/SQL 프로시저/함수/패키지는 도입하지 않는다.
 
-### 표기 방식
-
-**형식**: `<의미있는컬럼명>_<접미사>`
-
-### 접미사 분류
-
-| 명칭    | 의미          | 설명                                     |
-|-------|-------------|----------------------------------------|
-| _CD   | CODE        | 공통코드 또는 ENUM 클래스 문자열 코드                |
-| _NM   | NAME        | 이름                                     |
-| _NO   | NUMBER      | 숫자                                     |
-| _SQ   | SEQUENCE    | AUTO 시퀀스                               |
-| _ID   | ID          | 아이디                                    |
-| _DT   | DATE        | 날짜                                     |
-| _TM   | String Date | 문자열 형식의 날짜                             |
-| _FL   | FLAG        | 플래그 값 ("Y: 사용", "N: 미사용")              |
-| _CNT  | COUNT       | 개수                                     |
-| _ORD  | ORDER       | 순서                                     |
-| _SUM  | SUM         | 합계                                     |
-| _AVG  | AVERAGE     | 평균                                     |
-| _ST   | STAGE       | 상태                                     |
-| _GB   | 구분          | 코드 테이블 없이 구분자를 사용할 경우                  |
-| _TIME | TIME(sec)   | 초 단위 값 (예: `RING_TIME` = "61" → 1분 1초) |
-
----
-
-## 인덱스 규칙 (Index)
-
-### 기본 규칙
-
-- **명명 방식**: 테이블명 뒤에 _IDX를 추가
-- **번호 체계**: 번호는 01 ~ 99 사용
-
-**예시:**
-
-```
-U_USER_IDX01, U_USER_IDX02
-```
-
----
-
-## 시퀀스 규칙 (Sequence)
-
-### 기본 규칙
-
-- **명명 방식**: 테이블명과 컬럼명을 조합하고 _SEQ를 추가
-
-**예시:**
-
-```
-U_USER_ID_SEQ
-```
-
----
-
-## 트리거 규칙 (Trigger)
-
-### 기본 규칙
-
-- **명명 방식**: 테이블명과 컬럼명을 조합하고 _TRG를 추가
-
-**예시:**
-
-```
-U_USER_ID_TRG
-```
-
----
-
-## 제약조건 규칙 (Constraints)
-
-### 기본 규칙 및 표기 방식
-
-| 제약조건       | 명명 방식             | 예시                         |
-|------------|-------------------|----------------------------|
-| **PK**     | `<테이블명>_PK`       | `U_USER_PK`                |
-| **FK**     | `<테이블명>_FK<일련번호>` | `U_USER_FK01`              |
-| **Unique** | `<테이블명>_U<일련번호>`  | `U_USER_U01`, `U_USER_U02` |
-
----
-
-## 프로시저 규칙 (Procedure)
-
-### 기본 규칙 및 표기 방식
-
-- **접미사**: 프로시저명 뒤에 _SP를 추가
-- **번호 부여**: 동일한 기능의 프로시저가 여러 개일 경우 번호를 부여
-- **기능별 접두어**: 기능에 따라 접두어 사용
-
-### 기능별 접두어
-
-| 기능         | 접두어    | 예시               |
-|------------|--------|------------------|
-| **INSERT** | `INS`  | `U_USER_INS_SP`  |
-| **UPDATE** | `UDT`  | `U_USER_UDT_SP`  |
-| **DELETE** | `DEL`  | `U_USER_DEL_SP`  |
-| **SELECT** | `LIST` | `U_USER_LIST_SP` |
-
----
-
-## 함수 규칙 (Function)
-
-### 기본 규칙 및 표기 방식
-
-- **명명 방식**: 함수명 뒤에 _FN를 추가
-
-**예시:**
-
-```
-CALCULATE_SUM_FN
-```
-
----
-
-## 패키지 규칙 (Package)
-
-### 기본 규칙 및 표기 방식
-
-- **명명 방식**: 패키지명 뒤에 _PKG를 추가
-
-**예시:**
-
-```
-USER_MANAGEMENT_PKG
-```
-
----
-
-## 데이터 구분자
-
-같은 필드에 문자열 데이터의 구분이 필요할 경우 특수문자 중 구분자 문자를 지정하여 사용
-
-### 지정 구분자 문자
-
-ESP 문자열 데이터 구분 시 아래의 문자 사용
-
-- **‡ (더블 대거)**: 일반적으로 사용하지 않는 구분자로 문자열을 구분할 때 사용
-
----
-[← AGENTS.md로 돌아가기](../AGENTS.md)
+신규 도입이 필요하다면 별도 ADR/이슈로 합의 후 명명 규칙을 본 문서에 추가한다.
