@@ -14,6 +14,13 @@ public interface LineDefinitionRepository {
 
     LineDefinition findDefinitionById(String definitionId);
 
+    /**
+     * 살아있는(소프트 삭제 아님) 정의의 활성 버전만 반환.
+     * 같은 ``definitionNm``이 여러 버전을 가지는 경우 ``ACTIVE_FL = 'Y'`` 한 행만 노출한다.
+     * 정렬은 ``DEFINITION_NM ASC``.
+     */
+    List<LineDefinition> findAllActiveDefinitions();
+
     List<LineStation> findNodesByDefinition(String definitionId);
 
     List<LineEdge> findEdgesByDefinition(String definitionId);

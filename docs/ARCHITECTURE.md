@@ -276,6 +276,8 @@ ApplicationReadyEvent
 | GET | `/line/dashboard` | `LineMonitoringController#dashboard` | `dashboard.mustache` | 인스턴스 목록 (`U_WF_INSTANCE`) |
 | GET | `/line/instance/{id}` | `LineMonitoringController#timeline` | `timeline.mustache` | 인스턴스 + 액티비티 이력 |
 | GET | `/line/builder` | `BuilderController` | `builder.mustache` | (Drawflow 클라이언트 전용) |
+| GET | `/line/definitions` | `LineDefinitionPageController#list` | `definitions.mustache` | 활성 정의 목록 (`U_WF_DEFINITION`) |
+| GET | `/line/definitions/{id}` | `LineDefinitionPageController#preview` | `definition-preview.mustache` | 노선도(서브웨이 맵) SVG 미리보기 |
 | GET | `/line/schedules` | `ScheduleController#list` | `schedules.mustache` | `U_WF_SCHEDULE` |
 | GET | `/line/dlq` | `LineMonitoringController#dlqList` | `dlq.mustache` | `H_WF_DLQ` |
 | GET | `/line/dlq/{id}` | `LineMonitoringController#dlqDetail` | `dlq-detail.mustache` | DLQ 단건 |

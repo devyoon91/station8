@@ -65,6 +65,20 @@
   --space-xl: 24px;
   --space-xxl: 32px;
   --space-section: 96px;
+
+  /* Subway map palette — 사용자가 지정한 노선이 있으면 그것을, 아니면 라인 이름 해시로 선택.
+     8호선 핑크가 기본(--line-pink). 다중 라인을 한 화면에 모을 때 색을 골고루 분산시키기 위해
+     서울 지하철 노선도에서 영감을 받은 6색을 사용한다. */
+  --line-pink:   #e6197f;  /* 8호선 — Station8 시그니처 */
+  --line-cyan:   #00a5de;  /* 4호선 */
+  --line-yellow: #f5a200;  /* 3호선 */
+  --line-green:  #00a84d;  /* 2호선 */
+  --line-purple: #747f00;  /* 7호선과 차별: 보라계열 */
+  --line-coral:  #ff6f00;  /* 강조용 */
+
+  --station-fill: #07080a;
+  --station-stroke-width: 4px;
+  --track-width: 8px;
 }
 
 /* ============================================================================
@@ -514,3 +528,52 @@ code, pre {
 .swe-w-full { width: 100%; }
 
 label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(--space-xs); }
+
+/* ============================================================================
+   Subway map (#87 M1) — 라인 정의를 SVG 노선도로 표현
+   ============================================================================ */
+.swe-subway-frame {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  overflow: hidden;
+}
+.swe-subway-frame svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+}
+.swe-subway-track {
+  fill: none;
+  stroke: var(--line-pink);
+  stroke-width: var(--track-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.swe-subway-station-circle {
+  fill: var(--station-fill);
+  stroke: var(--line-pink);
+  stroke-width: var(--station-stroke-width);
+}
+.swe-subway-station-label {
+  fill: var(--ink);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  text-anchor: middle;
+  dominant-baseline: hanging;
+}
+.swe-subway-station-sublabel {
+  fill: var(--mute);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-anchor: middle;
+  dominant-baseline: hanging;
+}
+.swe-subway-empty {
+  text-align: center;
+  padding: var(--space-section) 0;
+  color: var(--mute);
+}

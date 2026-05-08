@@ -235,6 +235,11 @@ public class MyBatchConfig {
 - `/line/activities` — 등록된 모든 `@Activity` 카드
 - M3 빌더의 좌측 팔레트가 같은 데이터 소비
 
+### 5.6. Lines (노선도 미리보기)
+- `/line/definitions` — 활성 라인 정의 목록
+- `/line/definitions/{id}` — 저장된 라인을 서브웨이 맵 스타일 SVG로 미리보기
+  - 정적 렌더(M1). 인스턴스 진행 위치 오버레이는 후속(M2)에서
+
 ---
 
 ## 6. 흔한 시나리오
