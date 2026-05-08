@@ -29,8 +29,29 @@
         <div id="subway-map"></div>
     </div>
 
+    <div id="station-detail" class="swe-card swe-card-tight" style="margin-top: var(--space-lg); display: none;">
+        <div class="swe-flex-between swe-mb-xl" style="margin-bottom: var(--space-md);">
+            <h3 class="swe-heading-sm" style="margin: 0;" id="station-detail-name">—</h3>
+            <button type="button" class="swe-btn-tertiary swe-btn-sm" id="station-detail-close">닫기</button>
+        </div>
+        <div class="swe-grid swe-grid-2">
+            <div>
+                <div class="swe-caption swe-mute">Activity</div>
+                <div id="station-detail-activity" class="swe-body-md">—</div>
+            </div>
+            <div>
+                <div class="swe-caption swe-mute">Node ID</div>
+                <div id="station-detail-id" style="font-family: monospace; font-size: 12px;">—</div>
+            </div>
+        </div>
+        <div style="margin-top: var(--space-md);">
+            <div class="swe-caption swe-mute">Input params</div>
+            <pre id="station-detail-params" style="margin: var(--space-xs) 0 0; padding: var(--space-md); background: var(--surface-card); border-radius: var(--radius-md); font-size: 12px; overflow-x: auto;">—</pre>
+        </div>
+    </div>
+
     <p class="swe-caption-sm" style="margin-top: var(--space-md);">
-        ※ 정적 미리보기 (M1). 인스턴스 진행 위치 오버레이는 후속 작업(M2)에서.
+        ※ 역을 클릭하면 메타데이터(M3). 인스턴스 진행 위치 오버레이는 인스턴스 상세 페이지에서.
     </p>
 
 </div>
@@ -41,7 +62,21 @@
 (function () {
     const raw = document.getElementById('graph-data').textContent;
     const graph = JSON.parse(raw);
-    Station8SubwayMap.render(document.getElementById('subway-map'), graph);
+    const target = document.getElementById('subway-map');
+    const panel = document.getElementById('station-detail');
+    Station8SubwayMap.render(target, graph, {
+        interactive: true,
+        onStationClick: (node) => {
+            document.getElementById('station-detail-name').textContent = node.name || node.id;
+            document.getElementById('station-detail-activity').textContent = node.activity || '—';
+            document.getElementById('station-detail-id').textContent = node.id;
+            document.getElementById('station-detail-params').textContent = node.inputParams || '—';
+            panel.style.display = 'block';
+        }
+    });
+    document.getElementById('station-detail-close').addEventListener('click', () => {
+        panel.style.display = 'none';
+    });
 })();
 </script>
 </body>

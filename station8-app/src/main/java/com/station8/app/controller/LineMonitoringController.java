@@ -126,6 +126,7 @@ public class LineMonitoringController {
 
         List<java.util.Map<String, Object>> actViews = activities.stream().map(a -> {
             java.util.Map<String, Object> m = new java.util.HashMap<>();
+            m.put("nodeId", a.nodeId());
             m.put("activityName", a.activityName());
             m.put("statusSt", a.statusSt());
             m.put("startDt", a.startDt());

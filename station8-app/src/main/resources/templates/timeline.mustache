@@ -18,6 +18,15 @@
         .swe-timeline-dot.running   { background: var(--accent-yellow); }
         .swe-timeline-dot.failed    { background: var(--accent-red); }
         .swe-timeline-dot.pending   { background: var(--mute); }
+
+        /* M3: 역 클릭 시 timeline 카드 일시 강조 */
+        .swe-timeline-item.flash > .swe-card {
+            animation: swe-card-flash 1.6s ease-out;
+        }
+        @keyframes swe-card-flash {
+            0%   { box-shadow: 0 0 0 2px var(--line-pink); }
+            100% { box-shadow: 0 0 0 0 transparent; }
+        }
     </style>
 </head>
 <body>
@@ -72,7 +81,7 @@
 
     <ul class="swe-timeline">
         {{#activities}}
-        <li class="swe-timeline-item">
+        <li class="swe-timeline-item" data-node-id="{{nodeId}}" id="exec-{{nodeId}}">
             <span class="swe-timeline-dot {{dotClass}}"></span>
             <div class="swe-card swe-card-tight">
                 <div class="swe-flex-between">
@@ -121,7 +130,17 @@
 (function () {
     const raw = document.getElementById('subway-data').textContent;
     const graph = JSON.parse(raw);
-    Station8SubwayMap.render(document.getElementById('subway-map'), graph);
+    Station8SubwayMap.render(document.getElementById('subway-map'), graph, {
+        interactive: true,
+        // M3: 역 클릭 → 해당 timeline 카드로 스크롤 + 일시 강조
+        onStationClick: (node) => {
+            const card = document.getElementById('exec-' + node.id);
+            if (!card) return;
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.add('flash');
+            setTimeout(() => card.classList.remove('flash'), 1600);
+        }
+    });
 })();
 </script>
 {{/hasSubway}}

@@ -240,6 +240,7 @@ public class MyBatchConfig {
 - `/line/definitions` — 활성 라인 정의 목록
 - `/line/definitions/{id}` — 저장된 라인을 서브웨이 맵 스타일 SVG로 정적 미리보기 (M1)
 - `/line/instance/{id}` — 같은 렌더러가 인스턴스 진행 위치 오버레이로 동작 (M2)
+- 인터랙션(M3): 역 hover → 인접 트랙·이웃 역 강조, 클릭 → 정의 페이지에서 메타데이터 패널, 인스턴스 페이지에서 해당 timeline 카드로 스크롤·일시 강조
 
 ---
 

@@ -78,13 +78,17 @@ public class LineDefinitionPageController {
         Map<String, Object> payload = Map.of(
                 "definitionId", def.definitionId(),
                 "definitionNm", def.definitionNm(),
-                "nodes", def.nodes().stream().map(n -> Map.of(
-                        "id", n.nodeId(),
-                        "name", n.nodeNm() == null ? n.activityNm() : n.nodeNm(),
-                        "activity", n.activityNm() == null ? "" : n.activityNm(),
-                        "x", n.posX() == null ? 0 : n.posX(),
-                        "y", n.posY() == null ? 0 : n.posY()
-                )).toList(),
+                "nodes", def.nodes().stream().map(n -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", n.nodeId());
+                    m.put("name", n.nodeNm() == null ? n.activityNm() : n.nodeNm());
+                    m.put("activity", n.activityNm() == null ? "" : n.activityNm());
+                    m.put("x", n.posX() == null ? 0 : n.posX());
+                    m.put("y", n.posY() == null ? 0 : n.posY());
+                    // M3 클릭 시 inline 패널이 표시할 메타 — null 허용
+                    m.put("inputParams", n.inputParams());
+                    return m;
+                }).toList(),
                 "edges", def.edges().stream().map(e -> Map.of(
                         "id", e.edgeId(),
                         "from", e.fromNodeId(),
