@@ -1,4 +1,4 @@
-# 📖 How-To Guide
+# How-To Guide
 
 `simple-workflow-engine` 사용자 가이드 — 액티비티 작성부터 DAG 빌드, 스케줄링, Spring Batch 통합까지.
 

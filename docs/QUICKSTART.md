@@ -1,4 +1,4 @@
-# 🚀 Quickstart
+# Quickstart
 
 5분 안에 simple-workflow-engine을 띄우고 시나리오를 실행해본다.
 
@@ -137,8 +137,9 @@ public class OrderWorkflow {
 
 ## 다음 단계
 
-- 운영자 가이드 (각 페이지 상세): `docs/HOWTO.md` ([#21](https://github.com/devyoon91/simple-workflow-engine/issues/21), 진행 예정)
-- 데이터베이스 명명 규칙: [docs/DATABASE_RULE.md](DATABASE_RULE.md)
-- 엔진 명세: [docs/workflow-engine-spec.md](workflow-engine-spec.md)
-- 협업 규정: [docs/CONTRIBUTING.md](CONTRIBUTING.md)
+- 모듈 흐름과 런타임 시퀀스: [ARCHITECTURE.md](ARCHITECTURE.md)
+- 사용자 가이드 (각 페이지 상세): [HOWTO.md](HOWTO.md)
+- 데이터베이스 명명 규칙: [DATABASE_RULE.md](DATABASE_RULE.md)
+- 엔진 명세: [workflow-engine-spec.md](workflow-engine-spec.md)
+- 협업 규정: [CONTRIBUTING.md](CONTRIBUTING.md)
 - 작업 추적: [GitHub Issues](https://github.com/devyoon91/simple-workflow-engine/issues) · [Milestones](https://github.com/devyoon91/simple-workflow-engine/milestones)

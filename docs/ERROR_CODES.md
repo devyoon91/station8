@@ -1,4 +1,4 @@
-# 🚨 Error Codes
+# Error Codes
 
 워크플로우 엔진의 에러 코드 카탈로그 + 사용자 액션 매핑.
 

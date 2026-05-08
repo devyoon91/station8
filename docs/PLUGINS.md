@@ -1,4 +1,4 @@
-# 🔌 Plugins Guide
+# Plugins Guide
 
 외부 jar로 제공되는 액티비티를 동적으로 등록하기 위한 가이드. M5에서 도입된 `PluginLoader` 운영 매뉴얼.
 

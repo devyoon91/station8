@@ -1,4 +1,4 @@
-# 📄 workflow-engine-spec.md
+# Workflow Engine Specification
 
 ## 1. Project Overview
 
@@ -12,9 +12,9 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 
 ### 1.2. 무엇이 아닌가
 
-- ❌ "웹에서 Java 코드를 짜는" 시스템이 아니다 (보안·격리 비용 과다).
-- ❌ Airflow의 Python DAG처럼 코드 파일로 워크플로우를 정의하지 않는다 (운영자 친화 우선).
-- ❌ Spring Batch를 대체하지 않는다. 필요 시 Spring Batch Job을 어댑터 노드로 감싸서 호출한다.
+- "웹에서 Java 코드를 짜는" 시스템이 아니다 (보안·격리 비용 과다).
+- Airflow의 Python DAG처럼 코드 파일로 워크플로우를 정의하지 않는다 (운영자 친화 우선).
+- Spring Batch를 대체하지 않는다. 필요 시 Spring Batch Job을 어댑터 노드로 감싸서 호출한다.
 
 ## 2. Technical Stack
 
