@@ -14,10 +14,16 @@ COPY service-app/build.gradle service-app/build.gradle
 # build.gradle만 두어 프로젝트 구조만 만족시킨다.
 COPY e2e-tests/build.gradle e2e-tests/build.gradle
 
-# 2) 의존성 다운로드만 미리 (실패해도 캐시 일부는 생성됨)
-RUN chmod +x gradlew && ./gradlew --no-daemon dependencies > /dev/null 2>&1 || true
+# 2) Windows에서 클론한 워킹 트리는 ``gradlew``에 CRLF가 섞일 수 있다.
+#    .gitattributes로 LF 고정해도 이미 CRLF로 체크아웃된 사본은 그대로 컨텍스트에 들어가
+#    ``/bin/sh: ./gradlew: not found`` (shebang ``#!/usr/bin/env sh\r`` 파싱 실패)로 빌드가 깨진다.
+#    호스트 환경과 무관하게 컨테이너 빌드가 성공하도록 LF로 강제 정규화.
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
 
-# 3) 소스 복사 후 bootJar (테스트는 CI에서 별도 — 이미지 빌드는 빠르게)
+# 3) 의존성 다운로드만 미리 (실패해도 캐시 일부는 생성됨)
+RUN ./gradlew --no-daemon dependencies > /dev/null 2>&1 || true
+
+# 4) 소스 복사 후 bootJar (테스트는 CI에서 별도 — 이미지 빌드는 빠르게)
 COPY engine-core engine-core
 COPY service-app service-app
 RUN ./gradlew --no-daemon :service-app:bootJar -x test
