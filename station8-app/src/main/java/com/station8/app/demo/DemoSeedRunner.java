@@ -21,14 +21,14 @@ import java.util.List;
  *
  * 적재 항목:
  * <ul>
- *   <li>DAG 정의 1개: {@code DemoMigrationFlow} (단일 노드 ``MIGRATION_WRITE``)</li>
+ *   <li>DAG 정의 1개: {@code DemoMigrationFlow} (단일 역 ``MIGRATION_WRITE``)</li>
  *   <li>스케줄 1개: 위 정의를 5분마다 정기 실행</li>
  * </ul>
  *
  * 멱등성: 같은 이름의 정의가 이미 존재하면 시드 전체를 skip한다 (재기동 시 중복 방지).
  *
  * Order는 {@code MigrationInitializer}(SRC_DATA 시드, 기본 Order)보다 뒤에 동작하도록 명시.
- * MigrationInitializer는 schema 적용 + SRC_DATA 시드까지 담당. 본 Runner는 워크플로우 정의/스케줄만.
+ * MigrationInitializer는 schema 적용 + SRC_DATA 시드까지 담당. 본 Runner는 라인 정의/스케줄만.
  */
 @Component
 @Profile("demo")

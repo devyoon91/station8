@@ -82,7 +82,7 @@ CREATE INDEX H_WF_DLQ_IDX01 ON H_WF_DLQ (DLQ_STATUS_ST, REG_DT);
 CREATE INDEX H_WF_DLQ_IDX02 ON H_WF_DLQ (INSTANCE_ID);
 
 -- ============================================================================
--- DAG Definition Tables (M1-1: 워크플로우를 데이터로 정의)
+-- DAG Definition Tables (M1-1: 라인을 데이터로 정의)
 -- ============================================================================
 
 -- Line Definition Table (Master) - MariaDB

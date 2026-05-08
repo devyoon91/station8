@@ -113,7 +113,7 @@ public class LineWorker {
             taskExecutor.complete(context, result);
             log.info("Activity completed: {} (Execution ID: {})", activity.activityName(), activity.id());
 
-            // 4-1. DAG 모드(NODE_ID 보유)면 인터프리터에 후행 노드 활성화 위임
+            // 4-1. DAG 모드(NODE_ID 보유)면 인터프리터에 후행 역 활성화 위임
             if (activity.nodeId() != null) {
                 dagInterpreter.onNodeCompleted(activity.instanceId(), activity.nodeId());
             }

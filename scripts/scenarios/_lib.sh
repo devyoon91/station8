@@ -75,7 +75,7 @@ wait_for_url() {
 # 시나리오 진입점에서 호출 — base 환경 헬스체크
 ensure_app_up() {
   step "Pinging $BASE_URL"
-  if ! wait_for_url GET /api/workflow/activities 200 30; then
+  if ! wait_for_url GET /api/line/activities 200 30; then
     note "App not reachable. 'docker compose up --build -d' 또는 './gradlew composeUpApp' 먼저 실행하세요."
     exit 2
   fi

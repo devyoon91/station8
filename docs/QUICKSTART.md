@@ -1,6 +1,6 @@
 # Quickstart
 
-5분 안에 simple-workflow-engine을 띄우고 시나리오를 실행해본다.
+5분 안에 station8을 띄우고 시나리오를 실행해본다.
 
 ## 1. 사전 요구사항
 
@@ -15,8 +15,8 @@
 ## 2. 한 줄로 띄우기
 
 ```bash
-git clone git@github.com:devyoon91/simple-workflow-engine.git
-cd simple-workflow-engine
+git clone git@github.com:devyoon91/station8.git
+cd station8
 
 # 한 번의 명령으로: app 빌드 + MariaDB 기동 + 데모 시드 자동 등록
 docker compose -f docker/docker-compose.yml up --build -d
@@ -38,11 +38,11 @@ docker compose -f docker/docker-compose.yml up --build -d
 
 | URL | 설명 |
 |-----|------|
-| http://localhost:8080/workflow/dashboard | 인스턴스 목록 + 통계 |
-| http://localhost:8080/workflow/schedules | Cron 스케줄 관리 (자동 시드 1건 + Add) |
-| http://localhost:8080/workflow/dlq | Dead Letter Queue (재시도 초과 항목) |
-| http://localhost:8080/api/workflow/activities | 등록된 `@Activity` 목록 (JSON) |
-| http://localhost:8080/api/workflow/definitions | DAG 정의 등록 API (POST) |
+| http://localhost:8080/line/dashboard | 인스턴스 목록 + 통계 |
+| http://localhost:8080/line/schedules | Cron 스케줄 관리 (자동 시드 1건 + Add) |
+| http://localhost:8080/line/dlq | Dead Letter Queue (재시도 초과 항목) |
+| http://localhost:8080/api/line/activities | 등록된 `@Activity` 목록 (JSON) |
+| http://localhost:8080/api/line/definitions | DAG 정의 등록 API (POST) |
 
 `demo` 프로파일이 활성되어 있어 부팅 직후:
 - `DemoMigrationFlow` DAG 정의 1건 자동 등록
@@ -70,11 +70,11 @@ REST API + 핵심 흐름을 한 번에 점검:
 
 ## 5. DAG 직접 등록 예시
 
-REST API로 단일 노드 DAG를 등록하고 즉시 실행:
+REST API로 단일 역 DAG를 등록하고 즉시 실행:
 
 ```bash
 # 1) 정의 등록
-DEF_ID=$(curl -sX POST http://localhost:8080/api/workflow/definitions \
+DEF_ID=$(curl -sX POST http://localhost:8080/api/line/definitions \
   -H "Content-Type: application/json" \
   -d '{
     "definitionNm": "MyFirstFlow",
@@ -85,21 +85,21 @@ DEF_ID=$(curl -sX POST http://localhost:8080/api/workflow/definitions \
 echo "Created: $DEF_ID"
 
 # 2) 즉시 실행
-curl -X POST "http://localhost:8080/api/workflow/definitions/$DEF_ID/run"
+curl -X POST "http://localhost:8080/api/line/definitions/$DEF_ID/run"
 
 # 3) Dashboard에서 결과 확인
-open http://localhost:8080/workflow/dashboard   # macOS
-# 또는 Windows: start http://localhost:8080/workflow/dashboard
+open http://localhost:8080/line/dashboard   # macOS
+# 또는 Windows: start http://localhost:8080/line/dashboard
 ```
 
 ## 6. 고유 액티비티 직접 만들기
 
-`@Workflow` + `@Activity` 어노테이션 1쌍이면 끝:
+`@Line` + `@Activity` 어노테이션 1쌍이면 끝:
 
 ```java
-@Workflow("MyOrder")
+@Line("MyOrder")
 @Component
-public class OrderWorkflow {
+public class OrderLine {
 
     @Activity(value = "VALIDATE_ORDER", retryCount = 3, backoffSeconds = 5)
     public String validate(String inputJson) {
@@ -110,7 +110,7 @@ public class OrderWorkflow {
 }
 ```
 
-부팅 시 `WorkflowRegistry`가 자동 스캔 → `/api/workflow/activities`에 즉시 가시화 → DAG 노드의 `activityNm`으로 사용 가능.
+부팅 시 `LineRegistry`가 자동 스캔 → `/api/line/activities`에 즉시 가시화 → DAG 역의 `activityNm`으로 사용 가능.
 
 ## 7. 트러블슈팅
 
@@ -119,7 +119,7 @@ public class OrderWorkflow {
 | `port 8080 already in use` | 다른 앱이 점유. `docker compose down` 또는 `docker-compose.yml`에서 port 변경 |
 | `port 3307 already in use` | MariaDB 포트 충돌. compose에서 호스트 포트 변경 |
 | **컨테이너 빌드 실패** `./gradlew: not found` | Windows git의 CRLF 변환. `.gitattributes`로 해결되어 있으나, 직접 클론한 환경에서 `git config core.autocrlf input` |
-| **`/workflow/dashboard` 빈 화면** | `MigrationInitializer`가 시드되기 전. 25초 기다린 후 새로고침 |
+| **`/line/dashboard` 빈 화면** | `MigrationInitializer`가 시드되기 전. 25초 기다린 후 새로고침 |
 | **DLQ가 비어있음** | 'Second Data' 액티비티가 5회 재시도 + backoff 누적 ~155초 후에 적재. 기다리거나 직접 정의 등록 |
 | **`docker compose` 실행 시 mariadb만 뜸** | `./gradlew composeUp` (DB only)을 실행한 경우. **`composeUpApp`** (전체) 사용 |
 | **시나리오 5/5가 4/5로 떨어짐** | 시간 누적된 mariadb data. `docker compose down -v` 후 재기동 |
@@ -140,6 +140,6 @@ public class OrderWorkflow {
 - 모듈 흐름과 런타임 시퀀스: [ARCHITECTURE.md](ARCHITECTURE.md)
 - 사용자 가이드 (각 페이지 상세): [HOWTO.md](HOWTO.md)
 - 데이터베이스 명명 규칙: [DATABASE_RULE.md](DATABASE_RULE.md)
-- 엔진 명세: [workflow-engine-spec.md](workflow-engine-spec.md)
+- 엔진 명세: [line-engine-spec.md](line-engine-spec.md)
 - 협업 규정: [CONTRIBUTING.md](CONTRIBUTING.md)
-- 작업 추적: [GitHub Issues](https://github.com/devyoon91/simple-workflow-engine/issues) · [Milestones](https://github.com/devyoon91/simple-workflow-engine/milestones)
+- 작업 추적: [GitHub Issues](https://github.com/devyoon91/station8/issues) · [Milestones](https://github.com/devyoon91/station8/milestones)

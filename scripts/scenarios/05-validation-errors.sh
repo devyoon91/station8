@@ -23,7 +23,7 @@ PAYLOAD=$(cat <<EOF
 }
 EOF
 )
-out=$(http POST "/api/workflow/definitions" "$PAYLOAD")
+out=$(http POST "/api/line/definitions" "$PAYLOAD")
 status=$(echo "$out" | head -1)
 body=$(echo "$out" | tail -n +2)
 if [[ "$status" == "400" ]]; then
@@ -41,7 +41,7 @@ fi
 step "Case 2: 미등록 activityName"
 NM2="UnknownAct-$(date +%s)"
 PAYLOAD2="{\"definitionNm\":\"$NM2\",\"nodes\":[{\"nodeId\":\"u1\",\"nodeNm\":\"X\",\"activityNm\":\"NO_SUCH_ACTIVITY\",\"posX\":0,\"posY\":0}],\"edges\":[]}"
-out=$(http POST "/api/workflow/definitions" "$PAYLOAD2")
+out=$(http POST "/api/line/definitions" "$PAYLOAD2")
 status=$(echo "$out" | head -1)
 body=$(echo "$out" | tail -n +2)
 if [[ "$status" == "400" ]] && echo "$body" | grep -q "WF-E307"; then
@@ -54,6 +54,6 @@ fi
 step "Case 3: 정상 DAG는 통과"
 NM3="OK-$(date +%s)"
 PAYLOAD3="{\"definitionNm\":\"$NM3\",\"nodes\":[{\"nodeId\":\"ok1\",\"nodeNm\":\"A\",\"activityNm\":\"NOOP\",\"posX\":0,\"posY\":0}],\"edges\":[]}"
-out=$(http POST "/api/workflow/definitions" "$PAYLOAD3")
+out=$(http POST "/api/line/definitions" "$PAYLOAD3")
 status=$(echo "$out" | head -1)
 [[ "$status" == "201" ]] && pass "Valid DAG accepted (201)" || { fail "Valid DAG rejected: $status"; exit 1; }

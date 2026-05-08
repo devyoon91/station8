@@ -21,7 +21,7 @@ class ActivityCatalogControllerTest {
 
     @Test
     void list_returns_registered_activities_including_RUN_BATCH_JOB_and_MIGRATION_WRITE() throws Exception {
-        mvc.perform(get("/api/workflow/activities"))
+        mvc.perform(get("/api/line/activities"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.activityName == 'RUN_BATCH_JOB')]").exists())
                 .andExpect(jsonPath("$[?(@.activityName == 'MIGRATION_WRITE')]").exists());
@@ -29,7 +29,7 @@ class ActivityCatalogControllerTest {
 
     @Test
     void getByName_RUN_BATCH_JOB_returns_metadata() throws Exception {
-        mvc.perform(get("/api/workflow/activities/RUN_BATCH_JOB"))
+        mvc.perform(get("/api/line/activities/RUN_BATCH_JOB"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.activityName").value("RUN_BATCH_JOB"))
                 .andExpect(jsonPath("$.methodName").value("runJob"))
@@ -43,7 +43,7 @@ class ActivityCatalogControllerTest {
 
     @Test
     void getByName_unknown_returns_404() throws Exception {
-        mvc.perform(get("/api/workflow/activities/NO_SUCH_ACTIVITY"))
+        mvc.perform(get("/api/line/activities/NO_SUCH_ACTIVITY"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("NO_SUCH_ACTIVITY")));
     }

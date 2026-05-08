@@ -141,7 +141,7 @@ class DagInterpreterTest {
         insertInstance(instanceId);
         interpreter.startInstance(defId, instanceId, null);
 
-        // 시작 노드 2개 (A, B), C는 대기
+        // 시작 역 2개 (A, B), C는 대기
         assertEquals("PENDING", statusOf(instanceId, "n-a"));
         assertEquals("PENDING", statusOf(instanceId, "n-b"));
         assertEquals("WAITING_DEPENDENCIES", statusOf(instanceId, "n-c"));
@@ -201,7 +201,7 @@ class DagInterpreterTest {
 
     @Test
     void terminalNodeCompletion_isNoOp() {
-        // 단일 노드 정의: 종단 노드 완료 시 후행 없음
+        // 단일 역 정의: 종단 역 완료 시 후행 없음
         String defId = "def-single";
         insertDefinition(defId, "Single");
         insertNode(defId, "n-only", "A");

@@ -14,10 +14,10 @@ import static io.restassured.RestAssured.given;
 class DlqTest extends E2EBaseTest {
 
     @Test
-    @DisplayName("/workflow/dlq 200 응답")
+    @DisplayName("/line/dlq 200 응답")
     void dlqPageAccessible() {
         given(SPEC)
-                .when().get("/workflow/dlq")
+                .when().get("/line/dlq")
                 .then().statusCode(200);
     }
 }

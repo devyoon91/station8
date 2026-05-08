@@ -62,12 +62,12 @@
                 <td class="swe-mute">{{retryCnt}} / {{maxRetryCnt}}</td>
                 <td class="swe-mute">{{failedAtDt}}</td>
                 <td class="swe-text-right">
-                    <a href="/workflow/dlq/{{id}}" class="swe-btn-tertiary swe-btn-sm">Detail</a>
+                    <a href="/line/dlq/{{id}}" class="swe-btn-tertiary swe-btn-sm">Detail</a>
                     {{#isNew}}
-                    <form action="/workflow/dlq/{{id}}/requeue" method="post" style="display:inline;">
+                    <form action="/line/dlq/{{id}}/requeue" method="post" style="display:inline;">
                         <button type="submit" class="swe-btn-tertiary swe-btn-sm">Requeue</button>
                     </form>
-                    <form action="/workflow/dlq/{{id}}/discard" method="post" style="display:inline;">
+                    <form action="/line/dlq/{{id}}/discard" method="post" style="display:inline;">
                         <button type="submit" class="swe-btn-tertiary swe-btn-sm swe-btn-danger">Discard</button>
                     </form>
                     {{/isNew}}

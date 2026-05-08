@@ -30,7 +30,7 @@ export function setup() {
     ],
     edges: [],
   });
-  const r = http.post(`${BASE_URL}/api/workflow/definitions`, defPayload, {
+  const r = http.post(`${BASE_URL}/api/line/definitions`, defPayload, {
     headers: { 'Content-Type': 'application/json' },
   });
   if (r.status !== 201) {
@@ -40,7 +40,7 @@ export function setup() {
 }
 
 export default function (data) {
-  const url = `${BASE_URL}/api/workflow/definitions/${data.definitionId}/run`;
+  const url = `${BASE_URL}/api/line/definitions/${data.definitionId}/run`;
   const payload = JSON.stringify({ input: `vu-${__VU}-iter-${__ITER}` });
 
   const res = http.post(url, payload, {

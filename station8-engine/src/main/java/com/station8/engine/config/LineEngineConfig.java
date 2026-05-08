@@ -16,7 +16,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * 워크플로우 엔진을 위한 스케줄링 및 스레드 풀 설정.
+ * 라인 엔진을 위한 스케줄링 및 스레드 풀 설정.
  */
 @Configuration
 @EnableScheduling

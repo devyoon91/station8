@@ -50,7 +50,7 @@ public class MigrationInitializer implements CommandLineRunner {
         populator.execute(jdbcTemplate.getDataSource());
         log.info("Loaded migration test seed data (core schema is applied by spring.sql.init)");
 
-        // 2) 워크플로우 인스턴스 생성
+        // 2) 라인 인스턴스 생성
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
             INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)

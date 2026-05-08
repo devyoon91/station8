@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Controller
-@RequestMapping("/workflow")
+@RequestMapping("/line")
 public class LineMonitoringController {
 
     private final ActivityRepository activityRepository;
@@ -34,7 +34,7 @@ public class LineMonitoringController {
     }
 
     /**
-     * 전체 워크플로우 인스턴스 목록 대시보드
+     * 전체 라인 인스턴스 목록 대시보드
      */
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(value = "workflowName", required = false) String workflowName,
@@ -151,12 +151,12 @@ public class LineMonitoringController {
     }
 
     /**
-     * 실패한 워크플로우 재개
+     * 실패한 라인 재개
      */
     @PostMapping("/instance/{id}/resume")
     public String resume(@PathVariable("id") String instanceId) {
         workflowExecutor.resumeLine(instanceId);
-        return "redirect:/workflow/instance/" + instanceId;
+        return "redirect:/line/instance/" + instanceId;
     }
 
     /**
@@ -229,7 +229,7 @@ public class LineMonitoringController {
         DlqEntry entry = dlqRepository.findById(dlqId);
         activityRepository.createPending(entry.instanceId(), entry.activityName(), null, null);
         dlqRepository.updateStatus(dlqId, "REQUEUED");
-        return "redirect:/workflow/dlq";
+        return "redirect:/line/dlq";
     }
 
     /**
@@ -238,7 +238,7 @@ public class LineMonitoringController {
     @PostMapping("/dlq/{id}/discard")
     public String dlqDiscard(@PathVariable("id") String dlqId) {
         dlqRepository.updateStatus(dlqId, "DISCARDED");
-        return "redirect:/workflow/dlq";
+        return "redirect:/line/dlq";
     }
 }
 

@@ -17,9 +17,9 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 
 /**
- * 기존 Spring Batch ``Job``을 본 워크플로우 엔진의 액티비티(노드)로 호출하는 어댑터.
+ * 기존 Spring Batch ``Job``을 본 라인 엔진의 액티비티(역)로 호출하는 어댑터.
  *
- * 사용법: DAG 노드의 ``ACTIVITY_NM = "RUN_BATCH_JOB"``으로 두고
+ * 사용법: DAG 역의 ``ACTIVITY_NM = "RUN_BATCH_JOB"``으로 두고
  * ``INPUT_PARAMS``에 다음 형식의 JSON을 둔다:
  *
  * <pre>{@code

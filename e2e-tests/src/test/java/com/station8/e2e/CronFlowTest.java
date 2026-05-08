@@ -21,7 +21,7 @@ class CronFlowTest extends E2EBaseTest {
     @AfterEach
     void cleanup() {
         if (createdScheduleId != null) {
-            given(SPEC).when().delete("/api/workflow/schedules/" + createdScheduleId);
+            given(SPEC).when().delete("/api/line/schedules/" + createdScheduleId);
             createdScheduleId = null;
         }
     }
@@ -43,7 +43,7 @@ class CronFlowTest extends E2EBaseTest {
         );
         String definitionId = given(SPEC)
                 .body(defPayload)
-                .when().post("/api/workflow/definitions")
+                .when().post("/api/line/definitions")
                 .then().statusCode(201)
                 .extract().path("definitionId");
 
@@ -54,7 +54,7 @@ class CronFlowTest extends E2EBaseTest {
         );
         Response schedResp = given(SPEC)
                 .body(schedPayload)
-                .when().post("/api/workflow/schedules")
+                .when().post("/api/line/schedules")
                 .then().statusCode(201)
                 .extract().response();
         createdScheduleId = schedResp.path("scheduleId");
@@ -62,13 +62,13 @@ class CronFlowTest extends E2EBaseTest {
 
         // 조회 → nextRunDt가 비어있지 않아야 함
         given(SPEC)
-                .when().get("/api/workflow/schedules/" + createdScheduleId)
+                .when().get("/api/line/schedules/" + createdScheduleId)
                 .then().statusCode(200)
                 .body("nextRunDt", org.hamcrest.Matchers.notNullValue());
 
         // run-now → 즉시 인스턴스 생성
         given(SPEC)
-                .when().post("/api/workflow/schedules/" + createdScheduleId + "/run-now")
+                .when().post("/api/line/schedules/" + createdScheduleId + "/run-now")
                 .then().statusCode(201)
                 .body("instanceId", org.hamcrest.Matchers.notNullValue());
     }

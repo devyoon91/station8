@@ -32,7 +32,7 @@ class ValidationErrorsTest extends E2EBaseTest {
 
         given(SPEC)
                 .body(payload)
-                .when().post("/api/workflow/definitions")
+                .when().post("/api/line/definitions")
                 .then()
                 .statusCode(400)
                 .body("message", containsString("WF-E305"));
@@ -53,7 +53,7 @@ class ValidationErrorsTest extends E2EBaseTest {
 
         given(SPEC)
                 .body(payload)
-                .when().post("/api/workflow/definitions")
+                .when().post("/api/line/definitions")
                 .then()
                 .statusCode(400)
                 .body("message", containsString("WF-E307"));
@@ -74,7 +74,7 @@ class ValidationErrorsTest extends E2EBaseTest {
 
         given(SPEC)
                 .body(payload)
-                .when().post("/api/workflow/definitions")
+                .when().post("/api/line/definitions")
                 .then().statusCode(201);
     }
 }

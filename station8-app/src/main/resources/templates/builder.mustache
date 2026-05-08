@@ -146,7 +146,7 @@ let connectMode = null;  // {from: nodeId} when waiting for second click
 async function loadActivities() {
     const palette = document.getElementById('palette');
     try {
-        const res = await fetch('/api/workflow/activities');
+        const res = await fetch('/api/line/activities');
         activities = await res.json();
         palette.innerHTML = '';
         activities.forEach(a => {
@@ -242,7 +242,7 @@ function clearAll() {
     setStatus('Cleared');
 }
 
-// ===== Save → POST /api/workflow/definitions =====
+// ===== Save → POST /api/line/definitions =====
 async function saveDefinition() {
     const definitionNm = document.getElementById('defNm').value.trim();
     if (!definitionNm) { alert('Definition name 필수'); return; }
@@ -282,7 +282,7 @@ async function saveDefinition() {
 
     const payload = {definitionNm, description: 'Created via Builder', nodes, edges};
     setStatus('Saving…');
-    const res = await fetch('/api/workflow/definitions', {
+    const res = await fetch('/api/line/definitions', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
@@ -292,7 +292,7 @@ async function saveDefinition() {
         const j = await res.json();
         validation.style.display = 'none';
         setStatus('Saved! definitionId=' + j.definitionId);
-        alert('Saved. ID: ' + j.definitionId + '\n\nGo to Schedules to register a cron, or run via REST: POST /api/workflow/definitions/' + j.definitionId + '/run');
+        alert('Saved. ID: ' + j.definitionId + '\n\nGo to Schedules to register a cron, or run via REST: POST /api/line/definitions/' + j.definitionId + '/run');
     } else {
         const j = await res.json().catch(() => ({}));
         validation.style.display = 'block';

@@ -1,5 +1,5 @@
 -- Line Engine Schema (MariaDB)
--- (Copied from engine-core/src/main/resources/sql/schema-mariadb.sql)
+-- (Copied from station8-engine/src/main/resources/sql/schema-mariadb.sql)
 
 -- Line Instance Table (Master) - MariaDB
 CREATE TABLE IF NOT EXISTS U_WF_INSTANCE (
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS H_WF_DLQ (
 CREATE INDEX IF NOT EXISTS H_WF_DLQ_IDX01 ON H_WF_DLQ (DLQ_STATUS_ST, REG_DT);
 CREATE INDEX IF NOT EXISTS H_WF_DLQ_IDX02 ON H_WF_DLQ (INSTANCE_ID);
 
--- Sample App Tables and Data (from service-app/src/main/resources/sql/migration-test-data.sql)
+-- Sample App Tables and Data (from station8-app/src/main/resources/sql/migration-test-data.sql)
 CREATE TABLE IF NOT EXISTS SRC_DATA (
     ID VARCHAR(36) PRIMARY KEY,
     CONTENT VARCHAR(255),

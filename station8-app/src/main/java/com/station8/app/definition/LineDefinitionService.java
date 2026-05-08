@@ -74,7 +74,7 @@ public class LineDefinitionService {
         // 검증 — 위반 시 LineEngineException(DAG_INVALID) 으로 실패
         dagValidator.validate(nodes, edges, workflowRegistry.getActivityNames());
 
-        // 정의 + 노드 + 엣지 저장
+        // 정의 + 역 + 엣지 저장
         LineDefinition def = new LineDefinition(
                 definitionId, req.definitionNm(), req.description(),
                 nextVersion, "Y", "Y", "Y", "N",
@@ -109,7 +109,7 @@ public class LineDefinitionService {
     }
 
     /**
-     * 정의의 노드/엣지를 통째로 교체한다 (메타 + 그래프). 버전은 증가시키지 않으며 같은 ID 유지.
+     * 정의의 역/엣지를 통째로 교체한다 (메타 + 그래프). 버전은 증가시키지 않으며 같은 ID 유지.
      * 새 버전으로 저장하고 싶으면 createDefinition을 다시 호출.
      */
     @Transactional

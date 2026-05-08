@@ -77,7 +77,7 @@ class DagValidatorTest {
     @Test
     void unknown_activity_skipped_when_registered_set_is_null() {
         List<LineStation> nodes = List.of(node("n-a", "WHATEVER"));
-        // 단일 노드 — 시작이자 종료, registered=null이라 미등록 검증 생략
+        // 단일 역 — 시작이자 종료, registered=null이라 미등록 검증 생략
         assertDoesNotThrow(() -> validator.validate(nodes, List.of(), null));
     }
 
@@ -107,7 +107,7 @@ class DagValidatorTest {
 
     @Test
     void single_node_passes() {
-        // A 단일 노드 (시작이자 종료, 사이클 없음)
+        // A 단일 역 (시작이자 종료, 사이클 없음)
         List<LineStation> nodes = List.of(node("n-a", "A"));
         assertDoesNotThrow(() -> validator.validate(nodes, List.of(), registered));
     }

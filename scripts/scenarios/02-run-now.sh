@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 02: 정의 즉시 실행 → 인스턴스 생성 + 시작 노드 PENDING 검증
+# 02: 정의 즉시 실행 → 인스턴스 생성 + 시작 역 PENDING 검증
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
@@ -15,12 +15,12 @@ else
   step "No prior definition — creating one"
   NM="RunNowFlow-$(date +%s)"
   PAYLOAD="{\"definitionNm\":\"$NM\",\"nodes\":[{\"nodeId\":\"r-n\",\"nodeNm\":\"Only\",\"activityNm\":\"NOOP\",\"posX\":0,\"posY\":0}],\"edges\":[]}"
-  out=$(http POST "/api/workflow/definitions" "$PAYLOAD")
+  out=$(http POST "/api/line/definitions" "$PAYLOAD")
   DEF_ID=$(echo "$out" | tail -n +2 | jq -r '.definitionId')
 fi
 
-step "POST /api/workflow/definitions/$DEF_ID/run"
-out=$(http POST "/api/workflow/definitions/$DEF_ID/run" "{\"input\":\"scenario-02\"}")
+step "POST /api/line/definitions/$DEF_ID/run"
+out=$(http POST "/api/line/definitions/$DEF_ID/run" "{\"input\":\"scenario-02\"}")
 status=$(echo "$out" | head -1)
 if [[ "$status" != "201" ]]; then
   fail "Run status $status"

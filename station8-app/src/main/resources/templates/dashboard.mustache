@@ -13,9 +13,9 @@
     <div class="swe-flex-between swe-mb-xl">
         <div>
             <h1 class="swe-display-lg" style="margin: 0;">Dashboard</h1>
-            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">워크플로우 인스턴스 모니터링 + 재개</p>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">라인 인스턴스 모니터링 + 재개</p>
         </div>
-        <a href="/workflow/dashboard?auto=1" class="swe-btn-tertiary">↻ Refresh</a>
+        <a href="/line/dashboard?auto=1" class="swe-btn-tertiary">↻ Refresh</a>
     </div>
 
     <!-- 통계 -->
@@ -40,7 +40,7 @@
 
     <!-- 검색/필터 -->
     <div class="swe-card-elevated swe-mb-xl">
-        <form method="get" action="/workflow/dashboard" class="swe-grid swe-grid-3">
+        <form method="get" action="/line/dashboard" class="swe-grid swe-grid-3">
             <div>
                 <label for="workflowName">Line Name</label>
                 <input type="text" id="workflowName" name="workflowName" class="swe-input"
@@ -62,7 +62,7 @@
                        value="{{#instanceId}}{{instanceId}}{{/instanceId}}" placeholder="UUID substring">
             </div>
             <div style="grid-column: 1 / -1; display: flex; gap: var(--space-md); justify-content: flex-end;">
-                <a href="/workflow/dashboard" class="swe-btn-secondary">Reset</a>
+                <a href="/line/dashboard" class="swe-btn-secondary">Reset</a>
                 <button type="submit" class="swe-btn-primary">Apply</button>
             </div>
         </form>
@@ -92,14 +92,14 @@
                 <td class="swe-mute">{{startDt}}</td>
                 <td class="swe-mute">{{#endDt}}{{endDt}}{{/endDt}}{{^endDt}}—{{/endDt}}</td>
                 <td class="swe-text-right">
-                    <a href="/workflow/instance/{{id}}" class="swe-btn-tertiary swe-btn-sm">Details</a>
+                    <a href="/line/instance/{{id}}" class="swe-btn-tertiary swe-btn-sm">Details</a>
                 </td>
             </tr>
             {{/instances}}
             {{^instances}}
             <tr>
                 <td colspan="6" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
-                    No instances. Use <a href="/workflow/schedules" class="swe-ink">Schedules</a> to create one.
+                    No instances. Use <a href="/line/schedules" class="swe-ink">Schedules</a> to create one.
                 </td>
             </tr>
             {{/instances}}

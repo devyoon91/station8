@@ -12,15 +12,15 @@
 
     <div class="swe-flex-between swe-mb-xl">
         <div>
-            <a href="/workflow/dlq" class="swe-caption swe-mute" style="text-decoration: none;">← DLQ</a>
+            <a href="/line/dlq" class="swe-caption swe-mute" style="text-decoration: none;">← DLQ</a>
             <h1 class="swe-display-lg" style="margin: var(--space-xs) 0 0;">DLQ Entry</h1>
         </div>
         {{#entry.isNew}}
         <div class="swe-row">
-            <form action="/workflow/dlq/{{entry.id}}/requeue" method="post">
+            <form action="/line/dlq/{{entry.id}}/requeue" method="post">
                 <button type="submit" class="swe-btn-primary">Requeue</button>
             </form>
-            <form action="/workflow/dlq/{{entry.id}}/discard" method="post">
+            <form action="/line/dlq/{{entry.id}}/discard" method="post">
                 <button type="submit" class="swe-btn-tertiary swe-btn-danger">Discard</button>
             </form>
         </div>
@@ -35,7 +35,7 @@
             <tr><td style="color: var(--mute);">Line</td><td>{{entry.workflowName}}</td></tr>
             <tr><td style="color: var(--mute);">Activity</td><td>{{entry.activityName}}</td></tr>
             <tr><td style="color: var(--mute);">Status</td><td><span class="swe-badge swe-badge-mute">{{entry.dlqStatusSt}}</span></td></tr>
-            <tr><td style="color: var(--mute);">Instance</td><td><a href="/workflow/instance/{{entry.instanceId}}" class="swe-ink"><code>{{entry.instanceId}}</code></a></td></tr>
+            <tr><td style="color: var(--mute);">Instance</td><td><a href="/line/instance/{{entry.instanceId}}" class="swe-ink"><code>{{entry.instanceId}}</code></a></td></tr>
             <tr><td style="color: var(--mute);">Execution</td><td><code>{{entry.executionId}}</code></td></tr>
             <tr><td style="color: var(--mute);">Retry</td><td>{{entry.retryCnt}} / {{entry.maxRetryCnt}}</td></tr>
             <tr><td style="color: var(--mute);">Failed at</td><td>{{entry.failedAtDt}}</td></tr>

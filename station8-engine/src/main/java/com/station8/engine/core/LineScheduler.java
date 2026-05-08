@@ -16,7 +16,7 @@ import java.util.UUID;
 
 /**
  * Cron 스케줄 폴러: 만료된 ``U_WF_SCHEDULE`` 행을 SKIP LOCKED로 가져와
- * 워크플로우 인스턴스를 시작하고 ``NEXT_RUN_DT``를 다음 cron 시각으로 갱신한다.
+ * 라인 인스턴스를 시작하고 ``NEXT_RUN_DT``를 다음 cron 시각으로 갱신한다.
  *
  * <p>분산 환경 안전성: ``findDueWithLock``의 SKIP LOCKED로 두 워커가 동일 스케줄을 동시 트리거하지 않는다.</p>
  *
@@ -79,7 +79,7 @@ public class LineScheduler {
                     VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     """, instanceId, workflowName, s.inputData());
 
-            // 2) DAG 시작 (검증 + 시작 노드 PENDING + 후행 WAITING_DEPENDENCIES)
+            // 2) DAG 시작 (검증 + 시작 역 PENDING + 후행 WAITING_DEPENDENCIES)
             dagInterpreter.startInstance(s.definitionId(), instanceId, s.inputData());
 
             // 3) 다음 실행 시각 계산 + markRun

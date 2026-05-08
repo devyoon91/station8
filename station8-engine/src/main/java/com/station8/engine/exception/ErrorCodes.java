@@ -1,7 +1,7 @@
 package com.station8.engine.exception;
 
 /**
- * 워크플로우 엔진 에러 코드 정의.
+ * 라인 엔진 에러 코드 정의.
  *
  * <p>코드 체계: ``WF-E<영역><번호>``</p>
  * <ul>
@@ -35,13 +35,13 @@ public final class ErrorCodes {
 
     // 3xx — DAG 정의/검증
     public static final String DAG_INVALID = "WF-E301";              // 한 가지 이상 위반의 종합 컨테이너
-    public static final String DAG_NO_NODES = "WF-E302";             // 노드 0개
-    public static final String DAG_NO_START_NODE = "WF-E303";        // incoming 0개 노드 부재
-    public static final String DAG_NO_TERMINAL_NODE = "WF-E304";     // outgoing 0개 노드 부재
+    public static final String DAG_NO_NODES = "WF-E302";             // 역 0개
+    public static final String DAG_NO_START_NODE = "WF-E303";        // incoming 0개 역 부재
+    public static final String DAG_NO_TERMINAL_NODE = "WF-E304";     // outgoing 0개 역 부재
     public static final String DAG_CYCLE_DETECTED = "WF-E305";       // 사이클
     public static final String DAG_SELF_LOOP = "WF-E306";            // 자기-참조 엣지
     public static final String DAG_UNKNOWN_ACTIVITY = "WF-E307";     // 미등록 액티비티 참조
-    public static final String DAG_DANGLING_EDGE = "WF-E308";        // 엣지가 정의 외부 노드를 참조
+    public static final String DAG_DANGLING_EDGE = "WF-E308";        // 엣지가 정의 외부 역을 참조
 
     // 4xx — Schedule / Cron
     public static final String SCHEDULE_NOT_FOUND = "WF-E401";

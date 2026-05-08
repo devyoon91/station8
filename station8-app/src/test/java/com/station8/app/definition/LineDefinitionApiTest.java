@@ -20,9 +20,9 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * DAG 정의 API + 서비스 통합 테스트.
  * 시나리오:
- *  - 정상 등록 → 조회 → 즉시 실행 → 시작 노드 PENDING 확인
+ *  - 정상 등록 → 조회 → 즉시 실행 → 시작 역 PENDING 확인
  *  - 검증 실패 (사이클) → 예외
- *  - PUT 교체 → 노드/엣지 갱신 확인
+ *  - PUT 교체 → 역/엣지 갱신 확인
  *  - DELETE 후 조회 실패
  */
 @SpringBootTest(classes = Application.class)
@@ -80,13 +80,13 @@ class LineDefinitionApiTest {
         String instanceId = service.runDefinition(defId, null);
         assertNotNull(instanceId);
 
-        // 즉시 실행 직후: 시작 노드는 PENDING, 후행은 WAITING_DEPENDENCIES
+        // 즉시 실행 직후: 시작 역은 PENDING, 후행은 WAITING_DEPENDENCIES
         List<ActivityExecution> activities = activityRepository.findActivitiesByInstanceId(instanceId);
         assertEquals(2, activities.size());
         long pending = activities.stream().filter(a -> "PENDING".equals(a.statusSt())).count();
         long waiting = activities.stream().filter(a -> "WAITING_DEPENDENCIES".equals(a.statusSt())).count();
-        assertEquals(1, pending, "시작 노드 1개가 PENDING");
-        assertEquals(1, waiting, "후행 노드 1개가 WAITING_DEPENDENCIES");
+        assertEquals(1, pending, "시작 역 1개가 PENDING");
+        assertEquals(1, waiting, "후행 역 1개가 WAITING_DEPENDENCIES");
     }
 
     @Test
@@ -148,7 +148,7 @@ class LineDefinitionApiTest {
 
         DagDefinitionResponse fetched = service.getDefinition(defId);
         assertEquals("v2-replaced", fetched.description());
-        assertEquals(3, fetched.nodes().size(), "노드 수 v1=2 → v2=3");
+        assertEquals(3, fetched.nodes().size(), "역 수 v1=2 → v2=3");
         assertEquals(2, fetched.edges().size(), "엣지 수 v1=1 → v2=2");
     }
 

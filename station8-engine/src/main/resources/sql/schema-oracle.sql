@@ -82,7 +82,7 @@ CREATE INDEX H_WF_DLQ_IDX01 ON H_WF_DLQ (DLQ_STATUS_ST, REG_DT);
 CREATE INDEX H_WF_DLQ_IDX02 ON H_WF_DLQ (INSTANCE_ID);
 
 -- ============================================================================
--- DAG Definition Tables (M1-1: 워크플로우를 데이터로 정의)
+-- DAG Definition Tables (M1-1: 라인을 데이터로 정의)
 -- ============================================================================
 
 -- Line Definition Table (Master) - 사용자가 정의한 DAG의 본체
@@ -105,7 +105,7 @@ CREATE TABLE U_WF_DEFINITION (
 
 CREATE INDEX U_WF_DEFINITION_IDX01 ON U_WF_DEFINITION (ACTIVE_FL, DEL_FL);
 
--- Line Node Table (Master) - DAG 정의 내 노드(=액티비티 호출 단위)
+-- Line Node Table (Master) - DAG 정의 내 역(=액티비티 호출 단위)
 CREATE TABLE U_WF_NODE (
     ID VARCHAR2(50),
     DEFINITION_ID VARCHAR2(50) NOT NULL,

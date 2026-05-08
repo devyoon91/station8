@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * DAG 정의(U_WF_DEFINITION/NODE/EDGE) 조회/저장 리포지토리.
- * M1-2 인터프리터에서 노드 의존성 그래프를 탐색할 때 사용한다.
+ * M1-2 인터프리터에서 역 의존성 그래프를 탐색할 때 사용한다.
  */
 public interface LineDefinitionRepository {
 
@@ -18,13 +18,13 @@ public interface LineDefinitionRepository {
 
     List<LineEdge> findEdgesByDefinition(String definitionId);
 
-    /** 후행 노드 → 선행 노드 조회 (fan-in 검사에 사용). */
+    /** 후행 역 → 선행 역 조회 (fan-in 검사에 사용). */
     List<LineEdge> findIncomingEdges(String toNodeId);
 
-    /** 선행 노드 → 후행 노드 조회 (fan-out 활성화에 사용). */
+    /** 선행 역 → 후행 역 조회 (fan-out 활성화에 사용). */
     List<LineEdge> findOutgoingEdges(String fromNodeId);
 
-    /** 시작 노드(들): incoming edge가 0개인 노드. */
+    /** 시작 역(들): incoming edge가 0개인 역. */
     List<LineStation> findStartNodes(String definitionId);
 
     /** 정의 INSERT. */
@@ -36,10 +36,10 @@ public interface LineDefinitionRepository {
     /** 정의 소프트 삭제 (DEL_FL='Y'). */
     void softDeleteDefinition(String definitionId);
 
-    /** 노드 INSERT. */
+    /** 역 INSERT. */
     void insertNode(LineStation node);
 
-    /** 정의 소속 노드 일괄 소프트 삭제. */
+    /** 정의 소속 역 일괄 소프트 삭제. */
     void softDeleteNodesByDefinition(String definitionId);
 
     /** 엣지 INSERT. */

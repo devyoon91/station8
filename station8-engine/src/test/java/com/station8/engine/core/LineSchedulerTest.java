@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * LineScheduler 통합 테스트 — H2 + 실제 schema 적용.
  *
  * 시나리오:
- *  - 만료된 스케줄 1건 → 인스턴스 생성 + 시작 노드 PENDING + nextRunDt 갱신
+ *  - 만료된 스케줄 1건 → 인스턴스 생성 + 시작 역 PENDING + nextRunDt 갱신
  *  - 일시중지(PAUSED='Y')는 폴링 무시
  *  - 미래 nextRunDt는 폴링 무시
  *  - 잘못된 cron은 1시간 뒤로 fallback (테스트는 nextFromCron 단독 검증)
@@ -86,7 +86,7 @@ class LineSchedulerTest {
         jdbcTemplate.execute("DELETE FROM U_WF_NODE");
         jdbcTemplate.execute("DELETE FROM U_WF_DEFINITION");
 
-        // 단일 노드 정의 (시작이자 종료) — DAG 검증 통과
+        // 단일 역 정의 (시작이자 종료) — DAG 검증 통과
         jdbcTemplate.update("""
                 INSERT INTO U_WF_DEFINITION
                   (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
@@ -110,7 +110,7 @@ class LineSchedulerTest {
         assertNotNull(triggered);
         assertEquals(1, triggered.size(), "만료 스케줄 1개 트리거되어야 함");
 
-        // 인스턴스 + 시작 노드 PENDING 검증
+        // 인스턴스 + 시작 역 PENDING 검증
         String instanceId = triggered.get(0);
         List<ActivityExecution> activities = activityRepo.findActivitiesByInstanceId(instanceId);
         assertEquals(1, activities.size());

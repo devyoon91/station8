@@ -120,7 +120,7 @@ async function previewCron() {
     const preview = document.getElementById('cronPreview');
     if (!expr) { preview.textContent = ''; return; }
     try {
-        const res = await fetch('/api/workflow/schedules/preview-cron?cronExpr=' + encodeURIComponent(expr));
+        const res = await fetch('/api/line/schedules/preview-cron?cronExpr=' + encodeURIComponent(expr));
         const j = await res.json();
         if (j.valid) {
             preview.style.color = 'var(--accent-green)';
@@ -138,7 +138,7 @@ async function createSchedule() {
         cronExpr: document.getElementById('cronExpr').value,
         inputData: document.getElementById('inputData').value || null
     };
-    const res = await fetch('/api/workflow/schedules', {
+    const res = await fetch('/api/line/schedules', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(body)
@@ -149,7 +149,7 @@ async function createSchedule() {
 
 async function runNow(id) {
     if (!confirm('Run this schedule now (independent of cron)?')) return;
-    const res = await fetch('/api/workflow/schedules/' + id + '/run-now', {method: 'POST'});
+    const res = await fetch('/api/line/schedules/' + id + '/run-now', {method: 'POST'});
     if (res.ok) {
         const j = await res.json();
         alert('Triggered. instanceId=' + j.instanceId);
@@ -157,16 +157,16 @@ async function runNow(id) {
     } else alert('Failed: ' + (await res.text()));
 }
 async function pause(id) {
-    const res = await fetch('/api/workflow/schedules/' + id + '/pause', {method: 'PUT'});
+    const res = await fetch('/api/line/schedules/' + id + '/pause', {method: 'PUT'});
     if (res.ok) location.reload();
 }
 async function resume(id) {
-    const res = await fetch('/api/workflow/schedules/' + id + '/resume', {method: 'PUT'});
+    const res = await fetch('/api/line/schedules/' + id + '/resume', {method: 'PUT'});
     if (res.ok) location.reload();
 }
 async function del(id) {
     if (!confirm('Delete this schedule?')) return;
-    const res = await fetch('/api/workflow/schedules/' + id, {method: 'DELETE'});
+    const res = await fetch('/api/line/schedules/' + id, {method: 'DELETE'});
     if (res.ok) location.reload();
 }
 </script>

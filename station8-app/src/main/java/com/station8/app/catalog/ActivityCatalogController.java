@@ -18,12 +18,12 @@ import java.util.Map;
 /**
  * 액티비티 카탈로그 REST API + UI 페이지.
  * <ul>
- *   <li>GET /api/workflow/activities       — 등록된 모든 액티비티 목록 (JSON)</li>
- *   <li>GET /api/workflow/activities/{name} — 단건 상세 (없으면 404)</li>
- *   <li>GET /workflow/activities           — 카탈로그 페이지 (Mustache)</li>
+ *   <li>GET /api/line/activities       — 등록된 모든 액티비티 목록 (JSON)</li>
+ *   <li>GET /api/line/activities/{name} — 단건 상세 (없으면 404)</li>
+ *   <li>GET /line/activities           — 카탈로그 페이지 (Mustache)</li>
  * </ul>
  *
- * M3 그래프 빌더(#12)의 노드 팔레트가 본 API를 소비한다.
+ * M3 그래프 빌더(#12)의 역 팔레트가 본 API를 소비한다.
  */
 @Controller
 @RequestMapping
@@ -37,7 +37,7 @@ public class ActivityCatalogController {
 
     // ====== UI ======
 
-    @GetMapping("/workflow/activities")
+    @GetMapping("/line/activities")
     public String page(Model model) {
         var entries = workflowRegistry.getActivities().entrySet().stream()
                 .map(e -> toEntry(e.getKey(), e.getValue()))
@@ -52,7 +52,7 @@ public class ActivityCatalogController {
     // ====== REST API ======
 
     @ResponseBody
-    @GetMapping("/api/workflow/activities")
+    @GetMapping("/api/line/activities")
     public List<ActivityCatalogEntry> list() {
         return workflowRegistry.getActivities().entrySet().stream()
                 .map(e -> toEntry(e.getKey(), e.getValue()))
@@ -61,7 +61,7 @@ public class ActivityCatalogController {
     }
 
     @ResponseBody
-    @GetMapping("/api/workflow/activities/{name}")
+    @GetMapping("/api/line/activities/{name}")
     public ResponseEntity<?> getByName(@PathVariable("name") String name) {
         LineRegistry.ActivityMetadata meta = workflowRegistry.getActivity(name);
         if (meta == null) {

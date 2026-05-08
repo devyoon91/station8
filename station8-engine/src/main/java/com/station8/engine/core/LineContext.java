@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 워크플로우 실행 컨텍스트/액티비티 실행 맥락을 표준화한 인터페이스.
+ * 라인 실행 컨텍스트/액티비티 실행 맥락을 표준화한 인터페이스.
  *
  * - 특정 DB 기술(JPA 등)에 의존하지 않는 순수 POJO 기반 계약입니다.
  * - 엔진 구현체는 본 인터페이스를 통해 컨텍스트를 주입/교환합니다.
@@ -13,12 +13,12 @@ import java.util.Optional;
 public interface LineContext {
 
     /**
-     * 워크플로우 인스턴스 식별자
+     * 라인 인스턴스 식별자
      */
     String instanceId();
 
     /**
-     * 워크플로우 이름 (@Line value 또는 클래스명)
+     * 라인 이름 (@Line value 또는 클래스명)
      */
     String workflowName();
 

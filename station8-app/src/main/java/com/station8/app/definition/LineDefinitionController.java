@@ -11,17 +11,17 @@ import java.util.Map;
  * DAG 정의 등록/조회/수정/삭제 + 즉시 실행 REST API.
  *
  * <ul>
- *   <li>POST   /api/workflow/definitions          — 신규 등록 (검증 + 저장)</li>
- *   <li>GET    /api/workflow/definitions/{id}     — 단건 조회</li>
- *   <li>PUT    /api/workflow/definitions/{id}     — 노드/엣지 교체 (메타 + 그래프)</li>
- *   <li>DELETE /api/workflow/definitions/{id}     — 소프트 삭제</li>
- *   <li>POST   /api/workflow/definitions/{id}/run — 즉시 실행 (인스턴스 생성)</li>
+ *   <li>POST   /api/line/definitions          — 신규 등록 (검증 + 저장)</li>
+ *   <li>GET    /api/line/definitions/{id}     — 단건 조회</li>
+ *   <li>PUT    /api/line/definitions/{id}     — 역/엣지 교체 (메타 + 그래프)</li>
+ *   <li>DELETE /api/line/definitions/{id}     — 소프트 삭제</li>
+ *   <li>POST   /api/line/definitions/{id}/run — 즉시 실행 (인스턴스 생성)</li>
  * </ul>
  *
  * 검증 실패는 {@code 400 Bad Request} + {@code LineEngineException} 메시지로 응답.
  */
 @RestController
-@RequestMapping("/api/workflow/definitions")
+@RequestMapping("/api/line/definitions")
 public class LineDefinitionController {
 
     private final LineDefinitionService service;

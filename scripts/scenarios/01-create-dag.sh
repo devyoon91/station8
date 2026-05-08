@@ -8,7 +8,7 @@ source "$SCRIPT_DIR/_lib.sh"
 ensure_app_up
 
 NM="ScenarioFlow-$(date +%s)"
-step "POST /api/workflow/definitions ($NM)"
+step "POST /api/line/definitions ($NM)"
 # jq -c (compact)로 single-line JSON 생성 — Git Bash의 CRLF/한글 + 멀티라인 조합 함정 회피
 INPUT_PARAMS='{"id":"sc1","content":"Scenario 1"}'
 PAYLOAD=$(jq -c -n \
@@ -21,7 +21,7 @@ PAYLOAD=$(jq -c -n \
     nodes: [{nodeId: "s1-n", nodeNm: "Only", activityNm: "MIGRATION_WRITE", inputParams: $input, posX: 100, posY: 100}],
     edges: []
   }')
-out=$(http POST "/api/workflow/definitions" "$PAYLOAD")
+out=$(http POST "/api/line/definitions" "$PAYLOAD")
 status=$(echo "$out" | head -1)
 body=$(echo "$out" | tail -n +2)
 if [[ "$status" != "201" ]]; then
@@ -31,8 +31,8 @@ fi
 DEF_ID=$(echo "$body" | jq -r '.definitionId')
 pass "Created definitionId=$DEF_ID"
 
-step "GET /api/workflow/definitions/$DEF_ID"
-out=$(http GET "/api/workflow/definitions/$DEF_ID")
+step "GET /api/line/definitions/$DEF_ID"
+out=$(http GET "/api/line/definitions/$DEF_ID")
 status=$(echo "$out" | head -1)
 if [[ "$status" != "200" ]]; then
   fail "GET status $status"

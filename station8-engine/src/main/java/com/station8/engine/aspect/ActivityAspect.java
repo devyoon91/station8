@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * @Activity 어노테이션이 붙은 메서드 호출을 가로채어 실행 이력을 기록하는 Aspect.
- * 주로 개발자가 직접 워크플로우 내부에서 Activity를 호출할 때 로그를 남기는 용도입니다.
+ * 주로 개발자가 직접 라인 내부에서 Activity를 호출할 때 로그를 남기는 용도입니다.
  * (Worker에 의한 실행은 별도 로직으로 처리될 수 있음)
  */
 @Aspect

@@ -35,7 +35,7 @@ class RunNowTest extends E2EBaseTest {
         String definitionId = given(SPEC)
                 .body(defPayload)
                 .when()
-                .post("/api/workflow/definitions")
+                .post("/api/line/definitions")
                 .then()
                 .statusCode(201)
                 .extract().path("definitionId");
@@ -44,7 +44,7 @@ class RunNowTest extends E2EBaseTest {
         Response runResp = given(SPEC)
                 .body(Map.of("input", "scenario-02"))
                 .when()
-                .post("/api/workflow/definitions/" + definitionId + "/run")
+                .post("/api/line/definitions/" + definitionId + "/run")
                 .then()
                 .statusCode(201)
                 .body("instanceId", notNullValue())
@@ -56,7 +56,7 @@ class RunNowTest extends E2EBaseTest {
         // 대시보드에 200으로 응답하는지 (HTML 페이지)
         given(SPEC)
                 .when()
-                .get("/workflow/dashboard")
+                .get("/line/dashboard")
                 .then()
                 .statusCode(200);
     }

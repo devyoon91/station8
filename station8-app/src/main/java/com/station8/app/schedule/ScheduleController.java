@@ -16,17 +16,17 @@ import java.util.Map;
  * 스케줄 관리 — REST API + Mustache UI 페이지.
  *
  * UI:
- *  - GET    /workflow/schedules                    : 목록 페이지
+ *  - GET    /line/schedules                    : 목록 페이지
  *
  * REST:
- *  - POST   /api/workflow/schedules                : 신규 등록
- *  - GET    /api/workflow/schedules                : 목록 (JSON)
- *  - GET    /api/workflow/schedules/{id}           : 단건
- *  - PUT    /api/workflow/schedules/{id}           : cron 변경
- *  - DELETE /api/workflow/schedules/{id}           : 소프트 삭제
- *  - PUT    /api/workflow/schedules/{id}/pause     : 일시중지
- *  - PUT    /api/workflow/schedules/{id}/resume    : 재개
- *  - POST   /api/workflow/schedules/{id}/run-now   : 즉시 실행
+ *  - POST   /api/line/schedules                : 신규 등록
+ *  - GET    /api/line/schedules                : 목록 (JSON)
+ *  - GET    /api/line/schedules/{id}           : 단건
+ *  - PUT    /api/line/schedules/{id}           : cron 변경
+ *  - DELETE /api/line/schedules/{id}           : 소프트 삭제
+ *  - PUT    /api/line/schedules/{id}/pause     : 일시중지
+ *  - PUT    /api/line/schedules/{id}/resume    : 재개
+ *  - POST   /api/line/schedules/{id}/run-now   : 즉시 실행
  */
 @Controller
 public class ScheduleController {
@@ -39,7 +39,7 @@ public class ScheduleController {
 
     // ========== UI ==========
 
-    @GetMapping("/workflow/schedules")
+    @GetMapping("/line/schedules")
     public String list(Model model) {
         List<LineSchedule> all = scheduleService.listAll();
         // Mustache view용 — isPaused boolean을 미리 계산 (helper 미지원 회피)
@@ -66,26 +66,26 @@ public class ScheduleController {
     // ========== REST API ==========
 
     @ResponseBody
-    @PostMapping("/api/workflow/schedules")
+    @PostMapping("/api/line/schedules")
     public ResponseEntity<Map<String, String>> create(@RequestBody CreateRequest req) {
         String id = scheduleService.create(req.definitionId(), req.cronExpr(), req.inputData());
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("scheduleId", id));
     }
 
     @ResponseBody
-    @GetMapping("/api/workflow/schedules")
+    @GetMapping("/api/line/schedules")
     public List<LineSchedule> listJson() {
         return scheduleService.listAll();
     }
 
     @ResponseBody
-    @GetMapping("/api/workflow/schedules/{id}")
+    @GetMapping("/api/line/schedules/{id}")
     public LineSchedule get(@PathVariable("id") String id) {
         return scheduleService.findById(id);
     }
 
     @ResponseBody
-    @PutMapping("/api/workflow/schedules/{id}")
+    @PutMapping("/api/line/schedules/{id}")
     public ResponseEntity<Void> updateCron(@PathVariable("id") String id,
                                             @RequestBody UpdateCronRequest req) {
         scheduleService.updateCron(id, req.cronExpr());
@@ -93,28 +93,28 @@ public class ScheduleController {
     }
 
     @ResponseBody
-    @DeleteMapping("/api/workflow/schedules/{id}")
+    @DeleteMapping("/api/line/schedules/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         scheduleService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @ResponseBody
-    @PutMapping("/api/workflow/schedules/{id}/pause")
+    @PutMapping("/api/line/schedules/{id}/pause")
     public ResponseEntity<Void> pause(@PathVariable("id") String id) {
         scheduleService.pause(id);
         return ResponseEntity.noContent().build();
     }
 
     @ResponseBody
-    @PutMapping("/api/workflow/schedules/{id}/resume")
+    @PutMapping("/api/line/schedules/{id}/resume")
     public ResponseEntity<Void> resume(@PathVariable("id") String id) {
         scheduleService.resume(id);
         return ResponseEntity.noContent().build();
     }
 
     @ResponseBody
-    @PostMapping("/api/workflow/schedules/{id}/run-now")
+    @PostMapping("/api/line/schedules/{id}/run-now")
     public ResponseEntity<Map<String, String>> runNow(@PathVariable("id") String id) {
         String instanceId = scheduleService.runNow(id);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("instanceId", instanceId));
@@ -122,7 +122,7 @@ public class ScheduleController {
 
     /** cron 다음 매칭 시각을 미리보기로 보여주는 헬퍼 (UI용). */
     @ResponseBody
-    @GetMapping("/api/workflow/schedules/preview-cron")
+    @GetMapping("/api/line/schedules/preview-cron")
     public ResponseEntity<?> previewCron(@RequestParam("cronExpr") String cronExpr) {
         try {
             CronExpression ce = CronExpression.parse(cronExpr);

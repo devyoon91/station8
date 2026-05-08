@@ -46,7 +46,7 @@ class ScheduleApiTest {
         jdbcTemplate.execute("DELETE FROM U_WF_NODE");
         jdbcTemplate.execute("DELETE FROM U_WF_DEFINITION");
 
-        // 단일 노드 정의 — 검증 통과
+        // 단일 역 정의 — 검증 통과
         defId = definitionService.createDefinition(new DagDefinitionRequest(
                 "ScheduleTestFlow", null,
                 List.of(new DagDefinitionRequest.NodeDef(

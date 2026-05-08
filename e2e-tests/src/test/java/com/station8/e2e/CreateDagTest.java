@@ -12,14 +12,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 
 /**
- * 시나리오 01 포팅: 단일 노드 DAG 정의 등록 → 조회 검증.
+ * 시나리오 01 포팅: 단일 역 DAG 정의 등록 → 조회 검증.
  *
  * <p>bash 스크립트 ``scripts/scenarios/01-create-dag.sh``의 REST Assured 버전.</p>
  */
 class CreateDagTest extends E2EBaseTest {
 
     @Test
-    @DisplayName("POST /api/workflow/definitions → 201 + GET으로 노드 1개 검증")
+    @DisplayName("POST /api/line/definitions → 201 + GET으로 역 1개 검증")
     void createSingleNodeDag() {
         String name = "ScenarioFlow-" + System.currentTimeMillis();
 
@@ -41,7 +41,7 @@ class CreateDagTest extends E2EBaseTest {
         Response createResp = given(SPEC)
                 .body(payload)
                 .when()
-                .post("/api/workflow/definitions")
+                .post("/api/line/definitions")
                 .then()
                 .statusCode(201)
                 .body("definitionId", notNullValue())
@@ -50,10 +50,10 @@ class CreateDagTest extends E2EBaseTest {
         String definitionId = createResp.path("definitionId");
         assertThat(definitionId).as("definitionId 응답").isNotBlank();
 
-        // GET으로 노드 개수 확인
+        // GET으로 역 개수 확인
         given(SPEC)
                 .when()
-                .get("/api/workflow/definitions/" + definitionId)
+                .get("/api/line/definitions/" + definitionId)
                 .then()
                 .statusCode(200)
                 .body("definitionNm", org.hamcrest.Matchers.equalTo(name))

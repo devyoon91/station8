@@ -5,7 +5,7 @@
 ## 사전 조건
 
 1. k6 설치: `winget install k6.k6` (Windows) / `brew install k6` (macOS) / `apt install k6` (Linux)
-2. service-app 가동: `./gradlew composeUpApp`
+2. station8-app 가동: `./gradlew composeUpApp`
 
 ## 시나리오
 

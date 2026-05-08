@@ -27,7 +27,7 @@ public interface ActivityRepository {
     /**
      * 다음 단계 또는 재시도 작업을 PENDING 상태로 생성합니다 (레거시 선형 모드).
      *
-     * @param instanceId 워크플로우 인스턴스 ID
+     * @param instanceId 라인 인스턴스 ID
      * @param activityName 액티비티 이름
      * @param inputData 입력 JSON 문자열
      * @param nextRetryDt 다음 실행(재시도) 예정 시각 (없으면 즉시 실행 대상으로 간주)
@@ -36,10 +36,10 @@ public interface ActivityRepository {
     String createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt);
 
     /**
-     * DAG 모드에서 노드 단위 액티비티 실행을 생성합니다.
-     * STATUS_ST는 호출자가 결정 (시작 노드는 PENDING, 후행 노드는 WAITING_DEPENDENCIES).
+     * DAG 모드에서 역 단위 액티비티 실행을 생성합니다.
+     * STATUS_ST는 호출자가 결정 (시작 역은 PENDING, 후행 역은 WAITING_DEPENDENCIES).
      *
-     * @param instanceId 워크플로우 인스턴스 ID
+     * @param instanceId 라인 인스턴스 ID
      * @param nodeId U_WF_NODE.ID
      * @param activityName 액티비티 이름
      * @param statusSt 초기 상태 (PENDING 또는 WAITING_DEPENDENCIES)
@@ -54,7 +54,7 @@ public interface ActivityRepository {
     ActivityExecution findById(String executionId);
 
     /**
-     * 특정 인스턴스에서 특정 노드의 실행을 조회합니다.
+     * 특정 인스턴스에서 특정 역의 실행을 조회합니다.
      */
     ActivityExecution findByInstanceAndNode(String instanceId, String nodeId);
 
@@ -64,7 +64,7 @@ public interface ActivityRepository {
     void promoteToPending(String executionId);
 
     /**
-     * 워크플로우 인스턴스 목록을 조회합니다.
+     * 라인 인스턴스 목록을 조회합니다.
      */
     List<com.station8.engine.entity.LineInstance> findAllInstances();
 

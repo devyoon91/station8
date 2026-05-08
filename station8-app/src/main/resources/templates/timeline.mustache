@@ -27,11 +27,11 @@
 
     <div class="swe-flex-between swe-mb-xl">
         <div>
-            <a href="/workflow/dashboard" class="swe-caption swe-mute" style="text-decoration: none;">← Dashboard</a>
+            <a href="/line/dashboard" class="swe-caption swe-mute" style="text-decoration: none;">← Dashboard</a>
             <h1 class="swe-display-lg" style="margin: var(--space-xs) 0 0;">Instance Timeline</h1>
         </div>
         {{#instance.isFailed}}
-        <form action="/workflow/instance/{{instance.id}}/resume" method="post" style="margin: 0;">
+        <form action="/line/instance/{{instance.id}}/resume" method="post" style="margin: 0;">
             <button type="submit" class="swe-btn-primary">Resume</button>
         </form>
         {{/instance.isFailed}}

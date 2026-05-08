@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  *   <li>{@code NOOP_FAIL_ONCE} — 첫 시도에서 실패하고, 재시도 시 성공한다 (재시도 정책 시연용).</li>
  * </ul>
  *
- * <p>비주얼 빌더에서 노드 팔레트에 자동 노출됨 ({@code LineRegistry} 스캔).</p>
+ * <p>비주얼 빌더에서 역 팔레트에 자동 노출됨 ({@code LineRegistry} 스캔).</p>
  */
 @Component
 @Line("NoopLine")
