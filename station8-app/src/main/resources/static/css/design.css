@@ -584,6 +584,30 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
   stroke: var(--accent-yellow);
   stroke-width: 3px;
 }
+
+/* 인터랙션(#87 M3) — interactive 모드에서만 활성 */
+.swe-subway-frame svg.interactive .swe-subway-station-hit { fill: transparent; cursor: pointer; }
+.swe-subway-frame svg.interactive .swe-subway-station-circle,
+.swe-subway-frame svg.interactive .swe-subway-station-label,
+.swe-subway-frame svg.interactive .swe-subway-station-sublabel { cursor: pointer; }
+
+.swe-subway-frame svg .swe-subway-track,
+.swe-subway-frame svg .swe-subway-station-circle,
+.swe-subway-frame svg .swe-subway-station-label { transition: stroke-width 0.12s ease, fill 0.12s ease, opacity 0.12s ease; }
+
+.swe-subway-frame svg .swe-subway-station-circle.hover {
+  stroke-width: 6px;
+  filter: drop-shadow(0 0 6px var(--line-pink));
+}
+.swe-subway-frame svg .swe-subway-station-circle.untouched.hover {
+  opacity: 1;
+}
+.swe-subway-frame svg .swe-subway-track.hover {
+  stroke-width: calc(var(--track-width) + 4px);
+  filter: drop-shadow(0 0 8px var(--line-pink));
+}
+.swe-subway-frame svg .swe-subway-station-label.hover { fill: var(--line-pink); font-weight: 600; }
+
 .swe-subway-station-label {
   fill: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;

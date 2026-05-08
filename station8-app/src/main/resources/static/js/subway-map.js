@@ -1,4 +1,4 @@
-/* Station8 — Subway Map Renderer (#87 M1·M2)
+/* Station8 — Subway Map Renderer (#87 M1·M2·M3)
  *
  * 입력:
  *   {
@@ -6,6 +6,11 @@
  *     nodes:[{id,name,activity,x,y}],
  *     edges:[{id,from,to}],
  *     statusByNode?: { [nodeId]: 'pending'|'running'|'completed'|'failed'|'untouched' }
+ *   }
+ * 옵션(opts):
+ *   {
+ *     interactive?: boolean   // M3: 클릭/hover 인터랙션 활성화 (default false)
+ *     onStationClick?: (node) => void   // 호출자 콜백(또는 'subway:station-click' 이벤트 수신)
  *   }
  *
  * 출력: 컨테이너 안에 인라인 SVG로 노선도 한 장.
@@ -24,7 +29,13 @@
  *  - pending:   가벼운 펄스
  *  - untouched: 기본 외곽선만
  *
- * M3(클릭 → 액티비티 상세, 트랙 hover → 의존성)는 후속.
+ * 인터랙션(M3, ``interactive: true``일 때만):
+ *  - 역 hover    → 본인+의존 트랙·이웃 역 강조 ('hover' 클래스)
+ *  - 역 click    → ``onStationClick(node)`` 호출 + ``subway:station-click`` 이벤트 디스패치
+ *  - 트랙 hover  → 본인+양 끝 역 강조
+ *
+ * 모든 SVG 노드에 ``data-node-id`` / ``data-edge-id`` / ``data-from`` / ``data-to``를
+ * 부착해 호출자 측 추가 처리(스크롤/플래시/inline 패널)를 가능하게 한다.
  */
 (function (global) {
   'use strict';
@@ -42,6 +53,8 @@
   function renderSubwayMap(target, graph, opts) {
     if (!target) throw new Error('subway-map: target 필수');
     if (!graph || !Array.isArray(graph.nodes)) throw new Error('subway-map: graph.nodes 필수');
+    const options = opts || {};
+    const interactive = !!options.interactive;
 
     target.innerHTML = '';
     if (graph.nodes.length === 0) {
@@ -58,8 +71,11 @@
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svg.setAttribute('role', 'img');
     svg.setAttribute('aria-label', `Subway map: ${graph.definitionNm || 'line'}`);
+    if (interactive) svg.classList.add('interactive');
 
     const positionsById = layout.positions;
+    const nodeById = {};
+    graph.nodes.forEach(n => { nodeById[n.id] = n; });
 
     // 1) 트랙(엣지)
     (graph.edges || []).forEach(e => {
@@ -69,6 +85,9 @@
       const path = document.createElementNS(NS, 'path');
       path.setAttribute('d', cubicBetween(a, b));
       path.setAttribute('class', 'swe-subway-track');
+      path.setAttribute('data-edge-id', e.id);
+      path.setAttribute('data-from', e.from);
+      path.setAttribute('data-to', e.to);
       svg.appendChild(path);
     });
 
@@ -106,12 +125,25 @@
       circle.setAttribute('cy', p.y);
       circle.setAttribute('r', STATION_R);
       circle.setAttribute('class', `swe-subway-station-circle ${status}`);
+      circle.setAttribute('data-node-id', n.id);
       svg.appendChild(circle);
+
+      // 클릭 적중률 향상용 투명 hit area (interactive 모드에서만 추가)
+      if (interactive) {
+        const hit = document.createElementNS(NS, 'circle');
+        hit.setAttribute('cx', p.x);
+        hit.setAttribute('cy', p.y);
+        hit.setAttribute('r', STATION_R + 8);
+        hit.setAttribute('class', 'swe-subway-station-hit');
+        hit.setAttribute('data-node-id', n.id);
+        svg.appendChild(hit);
+      }
 
       const label = document.createElementNS(NS, 'text');
       label.setAttribute('x', p.x);
       label.setAttribute('y', p.y + STATION_R + LABEL_GAP);
       label.setAttribute('class', 'swe-subway-station-label');
+      label.setAttribute('data-node-id', n.id);
       label.textContent = n.name || n.activity || n.id;
       svg.appendChild(label);
 
@@ -120,12 +152,90 @@
         sub.setAttribute('x', p.x);
         sub.setAttribute('y', p.y + STATION_R + LABEL_GAP + 18);
         sub.setAttribute('class', 'swe-subway-station-sublabel');
+        sub.setAttribute('data-node-id', n.id);
         sub.textContent = n.activity;
         svg.appendChild(sub);
       }
     });
 
     target.appendChild(svg);
+
+    if (interactive) attachInteractions(svg, target, nodeById, graph, options);
+  }
+
+  /**
+   * 호버/클릭 이벤트를 SVG 위임으로 처리한다. 어떤 SVG 자식이든
+   * ``data-node-id`` 또는 ``data-edge-id``를 들고 있으면 단일 origin으로 묶여
+   * hover/click 강조가 일관되게 동작한다.
+   */
+  function attachInteractions(svg, target, nodeById, graph, options) {
+    const hoverNode = (id) => setHover(svg, id ? { type: 'node', id } : null, graph);
+    const hoverEdge = (id) => setHover(svg, id ? { type: 'edge', id } : null, graph);
+
+    svg.addEventListener('mouseover', (ev) => {
+      const t = ev.target;
+      if (!(t instanceof Element)) return;
+      const nodeId = t.getAttribute('data-node-id');
+      const edgeId = t.getAttribute('data-edge-id');
+      if (nodeId) hoverNode(nodeId);
+      else if (edgeId) hoverEdge(edgeId);
+    });
+    svg.addEventListener('mouseout', (ev) => {
+      const related = ev.relatedTarget;
+      if (related && svg.contains(related)) return; // SVG 안에서의 이동은 무시
+      hoverNode(null);
+    });
+
+    svg.addEventListener('click', (ev) => {
+      const t = ev.target;
+      if (!(t instanceof Element)) return;
+      const nodeId = t.getAttribute('data-node-id');
+      if (!nodeId) return;
+      const node = nodeById[nodeId];
+      if (!node) return;
+      if (typeof options.onStationClick === 'function') {
+        options.onStationClick(node);
+      }
+      target.dispatchEvent(new CustomEvent('subway:station-click', {
+        detail: { node }, bubbles: true
+      }));
+    });
+  }
+
+  function setHover(svg, target, graph) {
+    // 기존 highlight 제거
+    svg.querySelectorAll('.hover').forEach(el => el.classList.remove('hover'));
+    if (!target) return;
+
+    if (target.type === 'node') {
+      // 본인 + 인접 트랙 + 인접 역 강조
+      const nodeEls = svg.querySelectorAll(`[data-node-id="${cssEscape(target.id)}"]`);
+      nodeEls.forEach(el => el.classList.add('hover'));
+      (graph.edges || []).forEach(e => {
+        if (e.from === target.id || e.to === target.id) {
+          const edgeEl = svg.querySelector(`[data-edge-id="${cssEscape(e.id)}"]`);
+          if (edgeEl) edgeEl.classList.add('hover');
+          const otherId = e.from === target.id ? e.to : e.from;
+          svg.querySelectorAll(`[data-node-id="${cssEscape(otherId)}"]`)
+              .forEach(el => el.classList.add('hover'));
+        }
+      });
+    } else if (target.type === 'edge') {
+      const edgeEl = svg.querySelector(`[data-edge-id="${cssEscape(target.id)}"]`);
+      if (edgeEl) edgeEl.classList.add('hover');
+      const edge = (graph.edges || []).find(e => e.id === target.id);
+      if (edge) {
+        svg.querySelectorAll(`[data-node-id="${cssEscape(edge.from)}"]`)
+            .forEach(el => el.classList.add('hover'));
+        svg.querySelectorAll(`[data-node-id="${cssEscape(edge.to)}"]`)
+            .forEach(el => el.classList.add('hover'));
+      }
+    }
+  }
+
+  function cssEscape(s) {
+    if (window.CSS && CSS.escape) return CSS.escape(String(s));
+    return String(s).replace(/["\\]/g, '\\$&');
   }
 
   function cubicBetween(a, b) {
