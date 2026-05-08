@@ -39,22 +39,12 @@
 - **영역**: `area:engine-core`, `area:service-app`, `area:docs`
 - **우선순위**: `priority:high`, `priority:medium`, `priority:low`
 
-## 6. 마일스톤
+## 6. 마일스톤 / 기술 스택
 
-- `M1 — DAG 정의 모델`: 스키마 + 인터프리터(분기/병렬) + `WAITING_DEPENDENCIES` 상태
-- `M2 — Cron 스케줄러`: `U_WF_SCHEDULE` + 트리거 폴러 + UI
-- `M3 — 그래프 빌더 UI`: 노드 팔레트 + 캔버스 + DAG 검증
-- `M4 — 액티비티 카탈로그`: `WorkflowRegistry` 메타데이터 노출
-- `M5 (선택) — 외부 jar 폴더 스캔`: `plugins/*.jar` 동적 로딩
-- `M6 (장기) — Spring Boot 4 + Java 25 마이그레이션`
+마일스톤 진척과 백로그는 [GitHub Milestones](https://github.com/devyoon91/simple-workflow-engine/milestones)가 source of truth.
+기술 스택(Java 21 / Spring Boot 3.4.x / Oracle·MariaDB·H2)은 [README.md](README.md) 참조.
 
-## 7. 기술 스택
-
-- Java 21 (LTS, Spring Boot 3.4.x 공식 지원)
-- Spring Boot 3.4.x
-- Oracle / MariaDB / H2 (`DbDialect` 추상화)
-
-## 8. Spoke 인덱스 (참조 문서)
+## 7. Spoke 인덱스 (참조 문서)
 
 - 빠른 시작: [README.md](README.md) · [docs/QUICKSTART.md](docs/QUICKSTART.md)
 - **아키텍처와 모듈 흐름**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)

@@ -155,5 +155,3 @@ engine.plugins.enabled=false
 
 - [HOWTO.md](HOWTO.md) — 액티비티 작성 일반 가이드
 - [workflow-engine-spec.md](workflow-engine-spec.md) — `PluginLoader` 아키텍처
-- [GitHub Issue #19](https://github.com/devyoon91/simple-workflow-engine/issues/19) — M5-1 구현 이슈
-- [GitHub Issue #20](https://github.com/devyoon91/simple-workflow-engine/issues/20) — M5-2 운영 가이드 (본 문서)

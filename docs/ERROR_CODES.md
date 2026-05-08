@@ -21,7 +21,7 @@
 | 코드 | 의미 | 사용자 액션 |
 |------|------|-----------|
 | **WF-E101** `JSON_SERIALIZATION_ERROR` | 객체 → JSON 직렬화 실패 | 입력 객체에 직렬화 불가능한 필드(예: 순환 참조)가 있는지 점검 |
-| **WF-E102** `JSON_DESERIALIZATION_ERROR` | JSON → 객체 역직렬화 실패 | INPUT_DATA의 JSON 형식 점검. 잘못된 escape는 `JdbcTaskExecutor.fail`의 이중 직렬화 결함(#49)에서 자주 발생했으나 fix됨 |
+| **WF-E102** `JSON_DESERIALIZATION_ERROR` | JSON → 객체 역직렬화 실패 | INPUT_DATA의 JSON 형식 점검 |
 
 ## 2xx — Registry / Context / Activity 실행
 
