@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Lines — Station8</title>
+    <link rel="stylesheet" href="/css/design.css">
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <h1 class="swe-display-lg" style="margin: 0;">Lines</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">활성 라인 정의 ({{totalCount}}건) — 노선도로 보거나 빌더에서 새 라인을 만든다</p>
+        </div>
+        <a href="/line/builder" class="swe-btn-primary">+ New Line</a>
+    </div>
+
+    <div class="swe-card" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+            <tr>
+                <th>Line Name</th>
+                <th>Description</th>
+                <th>Version</th>
+                <th>Created</th>
+                <th class="swe-text-right">Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#definitions}}
+            <tr>
+                <td><strong>{{definitionNm}}</strong></td>
+                <td class="swe-mute">{{#description}}{{description}}{{/description}}{{^description}}—{{/description}}</td>
+                <td>v{{versionNo}}</td>
+                <td class="swe-mute">{{#regDt}}{{regDt}}{{/regDt}}{{^regDt}}—{{/regDt}}</td>
+                <td class="swe-text-right">
+                    <a href="/line/definitions/{{id}}" class="swe-btn-tertiary swe-btn-sm">Preview</a>
+                </td>
+            </tr>
+            {{/definitions}}
+            {{^definitions}}
+            <tr>
+                <td colspan="5" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    아직 라인이 없습니다. <a href="/line/builder" class="swe-ink">Builder</a>에서 새 라인을 만들어보세요.
+                </td>
+            </tr>
+            {{/definitions}}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+</body>
+</html>

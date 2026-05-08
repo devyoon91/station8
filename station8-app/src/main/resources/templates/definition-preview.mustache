@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>{{definitionNm}} — Station8 Subway Map</title>
+    <link rel="stylesheet" href="/css/design.css">
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <a href="/line/definitions" class="swe-mute" style="font-size: 13px;">← Lines</a>
+            <h1 class="swe-display-lg" style="margin: var(--space-xs) 0 0;">{{definitionNm}}</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">
+                v{{versionNo}} · {{nodeCount}} 역 · {{edgeCount}} 트랙
+                {{#description}} · {{description}}{{/description}}
+            </p>
+        </div>
+        <div class="swe-row">
+            <a href="/line/definitions" class="swe-btn-tertiary">Back</a>
+            <a href="/line/builder" class="swe-btn-primary">+ New Line</a>
+        </div>
+    </div>
+
+    <div class="swe-subway-frame">
+        <div id="subway-map"></div>
+    </div>
+
+    <p class="swe-caption-sm" style="margin-top: var(--space-md);">
+        ※ 정적 미리보기 (M1). 인스턴스 진행 위치 오버레이는 후속 작업(M2)에서.
+    </p>
+
+</div>
+
+<script id="graph-data" type="application/json">{{{graphJson}}}</script>
+<script src="/js/subway-map.js"></script>
+<script>
+(function () {
+    const raw = document.getElementById('graph-data').textContent;
+    const graph = JSON.parse(raw);
+    Station8SubwayMap.render(document.getElementById('subway-map'), graph);
+})();
+</script>
+</body>
+</html>

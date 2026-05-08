@@ -31,6 +31,17 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public List<LineDefinition> findAllActiveDefinitions() {
+        String sql = """
+                SELECT * FROM U_WF_DEFINITION
+                WHERE DEL_FL = 'N' AND ACTIVE_FL = 'Y'
+                ORDER BY DEFINITION_NM ASC, VERSION_NO DESC
+                """;
+        return jdbcTemplate.query(sql, new DefinitionMapper());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<LineStation> findNodesByDefinition(String definitionId) {
         String sql = "SELECT * FROM U_WF_NODE WHERE DEFINITION_ID = ? AND DEL_FL = 'N'";
         return jdbcTemplate.query(sql, new NodeMapper(), definitionId);
