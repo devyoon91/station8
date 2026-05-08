@@ -3,7 +3,7 @@ package com.station8.engine.entity;
 import java.time.LocalDateTime;
 
 /**
- * U_WF_SCHEDULE 엔티티 — DAG 정의에 cron을 매핑한 정기 실행 스케줄.
+ * U_LINE_SCHEDULE 엔티티 — DAG 정의에 cron을 매핑한 정기 실행 스케줄.
  *
  * <ul>
  *   <li>``cronExpr`` : Spring CronExpression 호환 표현식 (5/6 필드)</li>

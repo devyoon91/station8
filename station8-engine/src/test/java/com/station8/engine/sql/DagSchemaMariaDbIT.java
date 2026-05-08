@@ -63,7 +63,7 @@ class DagSchemaMariaDbIT {
     void mariadbAcceptsSchemaScript() {
         Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables " +
-                        "WHERE table_schema = DATABASE() AND table_name IN ('U_WF_DEFINITION','U_WF_NODE','U_WF_EDGE','U_WF_SCHEDULE')",
+                        "WHERE table_schema = DATABASE() AND table_name IN ('U_LINE_DEFINITION','U_LINE_STATION','U_LINE_TRACK','U_LINE_SCHEDULE')",
                 Integer.class);
         assertThat(count).as("DAG/Schedule 테이블 4종이 모두 생성되어야 함").isEqualTo(4);
     }
@@ -71,27 +71,27 @@ class DagSchemaMariaDbIT {
     @Test
     void canInsertDefinitionWithNodesAndEdges() {
         jdbc.update("""
-                INSERT INTO U_WF_DEFINITION (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, ?, 'Y', 'Y', 'Y', 'N')
                 """, "mdb-def-1", "MariaDbDag", "Testcontainers 검증", 1);
 
         jdbc.update("""
-                INSERT INTO U_WF_NODE (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N')
                 """, "mdb-n-a", "mdb-def-1", "Start", "MIGRATION_WRITE", "{}", 0, 0);
         jdbc.update("""
-                INSERT INTO U_WF_NODE (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N')
                 """, "mdb-n-b", "mdb-def-1", "End", "MIGRATION_WRITE", "{}", 200, 0);
         jdbc.update("""
-                INSERT INTO U_WF_EDGE (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, ?, 'Y', 'Y', 'N')
                 """, "mdb-e-1", "mdb-def-1", "mdb-n-a", "mdb-n-b");
 
         Integer nodes = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM U_WF_NODE WHERE DEFINITION_ID = ?", Integer.class, "mdb-def-1");
+                "SELECT COUNT(*) FROM U_LINE_STATION WHERE DEFINITION_ID = ?", Integer.class, "mdb-def-1");
         Integer edges = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM U_WF_EDGE WHERE DEFINITION_ID = ?", Integer.class, "mdb-def-1");
+                "SELECT COUNT(*) FROM U_LINE_TRACK WHERE DEFINITION_ID = ?", Integer.class, "mdb-def-1");
         assertThat(nodes).isEqualTo(2);
         assertThat(edges).isEqualTo(1);
     }
@@ -99,12 +99,12 @@ class DagSchemaMariaDbIT {
     @Test
     void duplicateDefinitionNameVersionRejected() {
         jdbc.update("""
-                INSERT INTO U_WF_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('mdb-dup-1', 'MdbDup', 1, 'Y', 'Y', 'Y', 'N')
                 """);
 
         assertThatThrownBy(() -> jdbc.update("""
-                INSERT INTO U_WF_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('mdb-dup-2', 'MdbDup', 1, 'Y', 'Y', 'Y', 'N')
                 """))
                 .as("(DEFINITION_NM, VERSION_NO) unique 제약으로 차단되어야 함")

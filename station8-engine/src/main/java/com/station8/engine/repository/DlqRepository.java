@@ -5,7 +5,7 @@ import com.station8.engine.entity.DlqEntry;
 import java.util.List;
 
 /**
- * Dead Letter Queue(H_WF_DLQ) 테이블에 대한 리포지토리 인터페이스.
+ * Dead Letter Queue(H_LINE_DLQ) 테이블에 대한 리포지토리 인터페이스.
  * DLQ 적재, 조회, 재처리(Requeue), 폐기(Discard) 기능을 제공합니다.
  */
 public interface DlqRepository {

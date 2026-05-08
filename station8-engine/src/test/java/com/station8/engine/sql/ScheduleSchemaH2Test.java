@@ -22,7 +22,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * U_WF_SCHEDULE DDL 검증 + JdbcLineScheduleRepository 기본 동작.
+ * U_LINE_SCHEDULE DDL 검증 + JdbcLineScheduleRepository 기본 동작.
  */
 class ScheduleSchemaH2Test {
 
@@ -53,14 +53,14 @@ class ScheduleSchemaH2Test {
 
     @BeforeEach
     void clean() {
-        jdbcTemplate.execute("DELETE FROM U_WF_SCHEDULE");
-        jdbcTemplate.execute("DELETE FROM U_WF_EDGE");
-        jdbcTemplate.execute("DELETE FROM U_WF_NODE");
-        jdbcTemplate.execute("DELETE FROM U_WF_DEFINITION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_SCHEDULE");
+        jdbcTemplate.execute("DELETE FROM U_LINE_TRACK");
+        jdbcTemplate.execute("DELETE FROM U_LINE_STATION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_DEFINITION");
 
         // 테스트용 정의 1개 생성 (FK 제약 만족)
         jdbcTemplate.update("""
-                INSERT INTO U_WF_DEFINITION
+                INSERT INTO U_LINE_DEFINITION
                   (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('def-test', 'TestDef', 1, 'Y', 'Y', 'Y', 'N')
                 """);
@@ -71,25 +71,25 @@ class ScheduleSchemaH2Test {
         boolean found = false;
         try (Connection conn = dataSource.getConnection()) {
             DatabaseMetaData md = conn.getMetaData();
-            try (ResultSet rs = md.getTables(null, "PUBLIC", "U_WF_SCHEDULE", new String[]{"TABLE"})) {
+            try (ResultSet rs = md.getTables(null, "PUBLIC", "U_LINE_SCHEDULE", new String[]{"TABLE"})) {
                 if (rs.next()) found = true;
             }
         }
-        assertTrue(found, "U_WF_SCHEDULE 테이블이 존재해야 함");
+        assertTrue(found, "U_LINE_SCHEDULE 테이블이 존재해야 함");
     }
 
     @Test
     void requiredIndexesExist() throws Exception {
         Set<String> indexes = new HashSet<>();
         try (Connection conn = dataSource.getConnection();
-             ResultSet rs = conn.getMetaData().getIndexInfo(null, "PUBLIC", "U_WF_SCHEDULE", false, false)) {
+             ResultSet rs = conn.getMetaData().getIndexInfo(null, "PUBLIC", "U_LINE_SCHEDULE", false, false)) {
             while (rs.next()) {
                 String name = rs.getString("INDEX_NAME");
                 if (name != null) indexes.add(name.toUpperCase());
             }
         }
-        assertTrue(indexes.contains("U_WF_SCHEDULE_IDX01"), "PAUSED_FL/NEXT_RUN_DT 인덱스 필요");
-        assertTrue(indexes.contains("U_WF_SCHEDULE_IDX02"), "DEFINITION_ID 인덱스 필요");
+        assertTrue(indexes.contains("U_LINE_SCHEDULE_IDX01"), "PAUSED_FL/NEXT_RUN_DT 인덱스 필요");
+        assertTrue(indexes.contains("U_LINE_SCHEDULE_IDX02"), "DEFINITION_ID 인덱스 필요");
     }
 
     @Test

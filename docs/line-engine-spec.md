@@ -42,9 +42,9 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 
 ### 4.1. DAG 정의 모델
 
-* `U_WF_DEFINITION` (라인 정의: 이름, 설명, cron, 활성여부, 버전)
-* `U_WF_NODE` (역: 정의ID, activityName, 입력 파라미터, 캔버스 좌표 x/y)
-* `U_WF_EDGE` (의존성: fromNode, toNode, 조건)
+* `U_LINE_DEFINITION` (라인 정의: 이름, 설명, cron, 활성여부, 버전)
+* `U_LINE_STATION` (역: 정의ID, activityName, 입력 파라미터, 캔버스 좌표 x/y)
+* `U_LINE_TRACK` (의존성: fromNode, toNode, 조건)
 * DAG 검증: 사이클 금지, 시작 역 1개 이상, 미등록 액티비티 참조 금지
 
 ### 4.2. 인터프리터 (분기/병렬)
@@ -57,7 +57,7 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 
 ### 4.3. Cron 스케줄러
 
-* `U_WF_SCHEDULE` (정의ID, cron 표현식, 다음 실행 시각, 일시중지 여부)
+* `U_LINE_SCHEDULE` (정의ID, cron 표현식, 다음 실행 시각, 일시중지 여부)
 * `@Scheduled` 트리거 폴러: 만료된 cron을 찾아 `startLine(definitionId)` 호출.
 * 수동 실행도 동일 경로 (운영자가 UI에서 "지금 실행" 버튼).
 
@@ -69,7 +69,7 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 ### 4.5. Fault Tolerance (기존 유지 + 확장)
 
 * Exponential Backoff 자동 재시도.
-* 최대 재시도 초과 → `H_WF_DLQ` 적재 + Webhook 알림.
+* 최대 재시도 초과 → `H_LINE_DLQ` 적재 + Webhook 알림.
 * DLQ Requeue/Discard.
 
 ### 4.6. Monitoring UI (확장)

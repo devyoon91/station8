@@ -1,13 +1,13 @@
 package com.station8.engine.repository;
 
 import com.station8.engine.entity.LineDefinition;
-import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 
 import java.util.List;
 
 /**
- * DAG 정의(U_WF_DEFINITION/NODE/EDGE) 조회/저장 리포지토리.
+ * DAG 정의(U_LINE_DEFINITION/NODE/EDGE) 조회/저장 리포지토리.
  * M1-2 인터프리터에서 역 의존성 그래프를 탐색할 때 사용한다.
  */
 public interface LineDefinitionRepository {
@@ -22,7 +22,7 @@ public interface LineDefinitionRepository {
     List<LineDefinition> findAllActiveDefinitions();
 
     /**
-     * ``U_WF_NODE.ID``로부터 소속 ``DEFINITION_ID``를 역조회한다.
+     * ``U_LINE_STATION.ID``로부터 소속 ``DEFINITION_ID``를 역조회한다.
      * 인스턴스 → 액티비티 실행 → ``nodeId``를 거쳐 라인 정의를 찾을 때 사용 (#87 M2).
      * 소프트 삭제된 역도 매칭한다 (인스턴스 실행 당시 정의로 거슬러 올라가야 하므로).
      *
@@ -32,13 +32,13 @@ public interface LineDefinitionRepository {
 
     List<LineStation> findNodesByDefinition(String definitionId);
 
-    List<LineEdge> findEdgesByDefinition(String definitionId);
+    List<LineTrack> findEdgesByDefinition(String definitionId);
 
     /** 후행 역 → 선행 역 조회 (fan-in 검사에 사용). */
-    List<LineEdge> findIncomingEdges(String toNodeId);
+    List<LineTrack> findIncomingEdges(String toNodeId);
 
     /** 선행 역 → 후행 역 조회 (fan-out 활성화에 사용). */
-    List<LineEdge> findOutgoingEdges(String fromNodeId);
+    List<LineTrack> findOutgoingEdges(String fromNodeId);
 
     /** 시작 역(들): incoming edge가 0개인 역. */
     List<LineStation> findStartNodes(String definitionId);
@@ -59,7 +59,7 @@ public interface LineDefinitionRepository {
     void softDeleteNodesByDefinition(String definitionId);
 
     /** 엣지 INSERT. */
-    void insertEdge(LineEdge edge);
+    void insertEdge(LineTrack edge);
 
     /** 정의 소속 엣지 일괄 소프트 삭제. */
     void softDeleteEdgesByDefinition(String definitionId);

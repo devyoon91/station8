@@ -38,13 +38,13 @@ class ScheduleApiTest {
         pop.setContinueOnError(true);
         pop.execute(jdbcTemplate.getDataSource());
 
-        jdbcTemplate.execute("DELETE FROM H_WF_DLQ");
-        jdbcTemplate.execute("DELETE FROM H_WF_ACTIVITY_EXECUTION");
-        jdbcTemplate.execute("DELETE FROM U_WF_SCHEDULE");
-        jdbcTemplate.execute("DELETE FROM U_WF_INSTANCE");
-        jdbcTemplate.execute("DELETE FROM U_WF_EDGE");
-        jdbcTemplate.execute("DELETE FROM U_WF_NODE");
-        jdbcTemplate.execute("DELETE FROM U_WF_DEFINITION");
+        jdbcTemplate.execute("DELETE FROM H_LINE_DLQ");
+        jdbcTemplate.execute("DELETE FROM H_LINE_ACTIVITY_EXECUTION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_SCHEDULE");
+        jdbcTemplate.execute("DELETE FROM U_LINE_INSTANCE");
+        jdbcTemplate.execute("DELETE FROM U_LINE_TRACK");
+        jdbcTemplate.execute("DELETE FROM U_LINE_STATION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_DEFINITION");
 
         // 단일 역 정의 — 검증 통과
         defId = definitionService.createDefinition(new DagDefinitionRequest(
@@ -96,7 +96,7 @@ class ScheduleApiTest {
         assertNotNull(instanceId);
 
         Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM U_WF_INSTANCE WHERE ID = ?", Integer.class, instanceId);
+                "SELECT COUNT(*) FROM U_LINE_INSTANCE WHERE ID = ?", Integer.class, instanceId);
         assertEquals(1, count, "즉시 실행은 인스턴스 1개를 생성해야 함");
     }
 

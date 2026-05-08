@@ -3,7 +3,7 @@ package com.station8.engine.entity;
 import java.time.LocalDateTime;
 
 /**
- * U_WF_DEFINITION 엔티티 — 사용자가 정의한 DAG의 본체.
+ * U_LINE_DEFINITION 엔티티 — 사용자가 정의한 DAG의 본체.
  */
 public record LineDefinition(
     String id,

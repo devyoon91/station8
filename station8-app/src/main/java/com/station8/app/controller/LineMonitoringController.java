@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.station8.engine.core.LineExecutor;
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.entity.DlqEntry;
-import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineInstance;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
@@ -184,7 +184,7 @@ public class LineMonitoringController {
 
         List<LineStation> nodes = definitionRepository.findNodesByDefinition(definitionId);
         if (nodes.isEmpty()) return null;
-        List<LineEdge> edges = definitionRepository.findEdgesByDefinition(definitionId);
+        List<LineTrack> edges = definitionRepository.findEdgesByDefinition(definitionId);
 
         Map<String, String> statusByNode = new HashMap<>();
         for (ActivityExecution a : activities) {

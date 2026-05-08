@@ -1,6 +1,6 @@
 package com.station8.engine.core;
 
-import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.exception.ErrorCodes;
 import com.station8.engine.exception.LineEngineException;
@@ -25,7 +25,7 @@ class DagValidatorTest {
         List<LineStation> nodes = List.of(
                 node("n-a", "A"), node("n-b", "B"), node("n-c", "C"), node("n-d", "D")
         );
-        List<LineEdge> edges = List.of(
+        List<LineTrack> edges = List.of(
                 edge("e1", "n-a", "n-b"),
                 edge("e2", "n-a", "n-c"),
                 edge("e3", "n-b", "n-d"),
@@ -57,7 +57,7 @@ class DagValidatorTest {
     void self_loop_throws_SELF_LOOP_and_CYCLE() {
         // A → A
         List<LineStation> nodes = List.of(node("n-a", "A"));
-        List<LineEdge> edges = List.of(edge("e1", "n-a", "n-a"));
+        List<LineTrack> edges = List.of(edge("e1", "n-a", "n-a"));
         LineEngineException ex = assertThrows(LineEngineException.class,
                 () -> validator.validate(nodes, edges, registered));
         assertTrue(ex.getMessage().contains(ErrorCodes.DAG_SELF_LOOP), ex.getMessage());
@@ -67,7 +67,7 @@ class DagValidatorTest {
     @Test
     void unknown_activity_throws_UNKNOWN_ACTIVITY() {
         List<LineStation> nodes = List.of(node("n-a", "A"), node("n-x", "UNREGISTERED"));
-        List<LineEdge> edges = List.of(edge("e1", "n-a", "n-x"));
+        List<LineTrack> edges = List.of(edge("e1", "n-a", "n-x"));
         LineEngineException ex = assertThrows(LineEngineException.class,
                 () -> validator.validate(nodes, edges, registered));
         assertTrue(ex.getMessage().contains(ErrorCodes.DAG_UNKNOWN_ACTIVITY), ex.getMessage());
@@ -84,7 +84,7 @@ class DagValidatorTest {
     @Test
     void dangling_edge_throws_DANGLING_EDGE() {
         List<LineStation> nodes = List.of(node("n-a", "A"));
-        List<LineEdge> edges = List.of(edge("e1", "n-a", "n-ghost"));
+        List<LineTrack> edges = List.of(edge("e1", "n-a", "n-ghost"));
         LineEngineException ex = assertThrows(LineEngineException.class,
                 () -> validator.validate(nodes, edges, registered));
         assertTrue(ex.getMessage().contains(ErrorCodes.DAG_DANGLING_EDGE), ex.getMessage());
@@ -94,7 +94,7 @@ class DagValidatorTest {
     void all_nodes_have_incoming_throws_NO_START_NODE() {
         // A → B → C → A 의 일부만 — A,B,C 모두 incoming≥1
         List<LineStation> nodes = List.of(node("n-a", "A"), node("n-b", "B"), node("n-c", "C"));
-        List<LineEdge> edges = List.of(
+        List<LineTrack> edges = List.of(
                 edge("e1", "n-a", "n-b"),
                 edge("e2", "n-b", "n-c"),
                 edge("e3", "n-c", "n-a")
@@ -116,7 +116,7 @@ class DagValidatorTest {
     void multiple_violations_combined_in_one_exception() {
         // 자기-참조 + 미등록 액티비티 + dangling
         List<LineStation> nodes = List.of(node("n-a", "UNKNOWN1"), node("n-b", "B"));
-        List<LineEdge> edges = List.of(
+        List<LineTrack> edges = List.of(
                 edge("e1", "n-a", "n-a"),         // self-loop
                 edge("e2", "n-b", "n-ghost")      // dangling
         );
@@ -134,14 +134,14 @@ class DagValidatorTest {
                 null, null, null, "Y", "Y", "N", null, null, null, null);
     }
 
-    private LineEdge edge(String id, String from, String to) {
-        return new LineEdge(id, "def-test", from, to, null,
+    private LineTrack edge(String id, String from, String to) {
+        return new LineTrack(id, "def-test", from, to, null,
                 "Y", "Y", "N", null, null, null, null);
     }
 
     /** 테스트 케이스 빌더 */
     private static class WrongCase {
-        record NodeEdge(List<LineStation> nodes, List<LineEdge> edges) {}
+        record NodeEdge(List<LineStation> nodes, List<LineTrack> edges) {}
 
         static List<NodeEdge> cycle() {
             // A → B, B → A
@@ -149,9 +149,9 @@ class DagValidatorTest {
                     null, null, null, "Y", "Y", "N", null, null, null, null);
             LineStation nb = new LineStation("n-b", "def-test", "B-lbl", "B",
                     null, null, null, "Y", "Y", "N", null, null, null, null);
-            LineEdge e1 = new LineEdge("e1", "def-test", "n-a", "n-b", null,
+            LineTrack e1 = new LineTrack("e1", "def-test", "n-a", "n-b", null,
                     "Y", "Y", "N", null, null, null, null);
-            LineEdge e2 = new LineEdge("e2", "def-test", "n-b", "n-a", null,
+            LineTrack e2 = new LineTrack("e2", "def-test", "n-b", "n-a", null,
                     "Y", "Y", "N", null, null, null, null);
             return List.of(new NodeEdge(List.of(na, nb), List.of(e1, e2)));
         }

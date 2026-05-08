@@ -61,11 +61,11 @@ class DagInterpreterTest {
 
     @BeforeEach
     void clean() {
-        jdbcTemplate.execute("DELETE FROM H_WF_ACTIVITY_EXECUTION");
-        jdbcTemplate.execute("DELETE FROM U_WF_EDGE");
-        jdbcTemplate.execute("DELETE FROM U_WF_NODE");
-        jdbcTemplate.execute("DELETE FROM U_WF_INSTANCE");
-        jdbcTemplate.execute("DELETE FROM U_WF_DEFINITION");
+        jdbcTemplate.execute("DELETE FROM H_LINE_ACTIVITY_EXECUTION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_TRACK");
+        jdbcTemplate.execute("DELETE FROM U_LINE_STATION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_INSTANCE");
+        jdbcTemplate.execute("DELETE FROM U_LINE_DEFINITION");
     }
 
     @Test
@@ -222,28 +222,28 @@ class DagInterpreterTest {
 
     private void insertDefinition(String id, String name) {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, 1, 'Y', 'Y', 'Y', 'N')
                 """, id, name);
     }
 
     private void insertNode(String defId, String nodeId, String activityNm) {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_NODE (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, 'Y', 'Y', 'N')
                 """, nodeId, defId, activityNm);
     }
 
     private void insertEdge(String defId, String fromNodeId, String toNodeId) {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_EDGE (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, ?, 'Y', 'Y', 'N')
                 """, "edge-" + fromNodeId + "-" + toNodeId, defId, fromNodeId, toNodeId);
     }
 
     private void insertInstance(String instanceId) {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, 'TestDag', 'RUNNING', 'Y', 'Y', 'N')
                 """, instanceId);
     }
@@ -256,7 +256,7 @@ class DagInterpreterTest {
 
     private void markCompleted(String instanceId, String nodeId) {
         jdbcTemplate.update(
-                "UPDATE H_WF_ACTIVITY_EXECUTION SET STATUS_ST = 'COMPLETED' WHERE INSTANCE_ID = ? AND NODE_ID = ?",
+                "UPDATE H_LINE_ACTIVITY_EXECUTION SET STATUS_ST = 'COMPLETED' WHERE INSTANCE_ID = ? AND NODE_ID = ?",
                 instanceId, nodeId);
     }
 }

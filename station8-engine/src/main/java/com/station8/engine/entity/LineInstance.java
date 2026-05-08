@@ -3,7 +3,7 @@ package com.station8.engine.entity;
 import java.time.LocalDateTime;
 
 /**
- * U_WF_INSTANCE 테이블에 대응하는 엔티티 (Record 사용)
+ * U_LINE_INSTANCE 테이블에 대응하는 엔티티 (Record 사용)
  * 
  * Oracle의 CLOB과 MariaDB의 LONGTEXT를 Java String으로 매핑합니다.
  * 공통 컬럼 규칙(DATABASE_RULE.md)을 준수합니다.

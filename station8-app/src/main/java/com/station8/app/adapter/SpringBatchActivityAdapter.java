@@ -45,7 +45,7 @@ import java.util.Map;
  * 상태 추적 이중성:
  * <ul>
  *   <li>``BATCH_JOB_EXECUTION`` (Spring Batch 자체) — 청크/스텝 단위 상세 진행</li>
- *   <li>``H_WF_ACTIVITY_EXECUTION`` (본 엔진) — Job 호출 단위 상태</li>
+ *   <li>``H_LINE_ACTIVITY_EXECUTION`` (본 엔진) — Job 호출 단위 상태</li>
  * </ul>
  * 두 테이블은 어댑터가 결과 JSON에 기록한 ``jobExecutionId``로 연결된다.
  */

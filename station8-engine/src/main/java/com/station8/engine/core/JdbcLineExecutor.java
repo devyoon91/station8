@@ -40,9 +40,9 @@ public class JdbcLineExecutor implements LineExecutor {
 
         log.info("Starting workflow: {} (Instance ID: {})", workflowName, instanceId);
 
-        // U_WF_INSTANCE 기록 (Aspect에서도 기록되지만, 명시적 호출 대응)
+        // U_LINE_INSTANCE 기록 (Aspect에서도 기록되지만, 명시적 호출 대응)
         jdbcTemplate.update("""
-            INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
             VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, instanceId, workflowName, inputJson);
 
@@ -60,7 +60,7 @@ public class JdbcLineExecutor implements LineExecutor {
 
         // 1. 인스턴스 상태를 RUNNING으로 복구 (FAILED인 경우 대비)
         jdbcTemplate.update("""
-            UPDATE U_WF_INSTANCE 
+            UPDATE U_LINE_INSTANCE 
             SET STATUS_ST = 'RUNNING', EDIT_DT = CURRENT_TIMESTAMP 
             WHERE ID = ?
             """, instanceId);

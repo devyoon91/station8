@@ -15,7 +15,7 @@ import java.util.Optional;
 
 /**
  * TaskExecutor의 JDBC 기반 기본 구현체.
- * - 현재 액티비티의 성공/실패 결과를 DB(H_WF_ACTIVITY_EXECUTION)에 반영
+ * - 현재 액티비티의 성공/실패 결과를 DB(H_LINE_ACTIVITY_EXECUTION)에 반영
  * - 컨텍스트에 지정된 다음 액티비티가 있으면 PENDING으로 생성하여 오케스트레이션
  */
 public class JdbcTaskExecutor implements TaskExecutor {
@@ -120,7 +120,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
 
     @Override
     public void checkpoint(LineContext context, Object stateSnapshot) {
-        // 체크포인트는 인스턴스 레벨( U_WF_INSTANCE.STATE_DATA )에 저장되며,
+        // 체크포인트는 인스턴스 레벨( U_LINE_INSTANCE.STATE_DATA )에 저장되며,
         // 본 구현에서는 컨텍스트가 보유한 스냅샷 직렬화 기능(saveState)을 사용한다.
         context.saveState(stateSnapshot);
     }

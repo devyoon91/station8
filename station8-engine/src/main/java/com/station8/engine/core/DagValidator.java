@@ -1,6 +1,6 @@
 package com.station8.engine.core;
 
-import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.exception.ErrorCodes;
 import com.station8.engine.exception.LineEngineException;
@@ -43,7 +43,7 @@ public class DagValidator {
      * @param registeredActivityNames {@code LineRegistry}가 보유한 액티비티 이름 집합 (검증 생략 시 ``null``)
      */
     public void validate(List<LineStation> nodes,
-                         List<LineEdge> edges,
+                         List<LineTrack> edges,
                          Set<String> registeredActivityNames) {
         List<String> violations = new ArrayList<>();
 
@@ -58,7 +58,7 @@ public class DagValidator {
         Set<String> nodeIds = nodes.stream().map(LineStation::id).collect(Collectors.toSet());
 
         // 2) 자기-참조 + dangling edge
-        for (LineEdge e : edges) {
+        for (LineTrack e : edges) {
             if (e.fromNodeId() != null && e.fromNodeId().equals(e.toNodeId())) {
                 violations.add(ErrorCodes.DAG_SELF_LOOP + ": edgeId=" + e.id() + ", node=" + e.fromNodeId());
             }
@@ -85,7 +85,7 @@ public class DagValidator {
             incoming.put(nid, 0);
             outgoing.put(nid, 0);
         }
-        for (LineEdge e : edges) {
+        for (LineTrack e : edges) {
             if (nodeIds.contains(e.fromNodeId()) && nodeIds.contains(e.toNodeId())
                     && !e.fromNodeId().equals(e.toNodeId())) {
                 outgoing.merge(e.fromNodeId(), 1, Integer::sum);
@@ -103,7 +103,7 @@ public class DagValidator {
 
         // 5) 사이클 검출 (Kahn 위상 정렬)
         // 자기-참조 엣지는 위 카운트에서 제외했지만, 그 역 자체는 사이클이므로 명시 보고
-        for (LineEdge e : edges) {
+        for (LineTrack e : edges) {
             if (e.fromNodeId() != null && e.fromNodeId().equals(e.toNodeId())) {
                 violations.add(ErrorCodes.DAG_CYCLE_DETECTED
                         + ": self-loop를 사이클로 간주, nodeId=" + e.fromNodeId());
@@ -112,7 +112,7 @@ public class DagValidator {
         Map<String, Integer> indegree = new HashMap<>(incoming);
         Map<String, List<String>> adjacency = new HashMap<>();
         for (String nid : nodeIds) adjacency.put(nid, new ArrayList<>());
-        for (LineEdge e : edges) {
+        for (LineTrack e : edges) {
             if (nodeIds.contains(e.fromNodeId()) && nodeIds.contains(e.toNodeId())
                     && !e.fromNodeId().equals(e.toNodeId())) {
                 adjacency.get(e.fromNodeId()).add(e.toNodeId());

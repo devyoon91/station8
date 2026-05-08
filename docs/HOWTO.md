@@ -63,7 +63,7 @@ public String charge(String inputJson) {
 }
 ```
 
-엔진은 RuntimeException 종류를 구분하지 않습니다. retryCount 횟수만큼 시도 후 `H_WF_DLQ`로 이관됩니다 (Webhook 알림 발송).
+엔진은 RuntimeException 종류를 구분하지 않습니다. retryCount 횟수만큼 시도 후 `H_LINE_DLQ`로 이관됩니다 (Webhook 알림 발송).
 
 ---
 
@@ -203,7 +203,7 @@ public class MyBatchConfig {
 
 | 무엇을 보고 싶은가 | 어디에서 |
 |------------------|--------|
-| 역 단위 진행 | ``H_WF_ACTIVITY_EXECUTION`` (우리 엔진) |
+| 역 단위 진행 | ``H_LINE_ACTIVITY_EXECUTION`` (우리 엔진) |
 | Job/Step/청크 진행 | ``BATCH_JOB_EXECUTION`` (Spring Batch 메타) |
 | 둘 연결 | ``OUTPUT_DATA``의 ``jobExecutionId`` |
 
@@ -264,7 +264,7 @@ public class MyBatchConfig {
 - 2개 후행 역 모두 등록 + 각 액티비티 안에서 입력값 검사 후 no-op 처리
 - 또는 단일 액티비티 안에서 조건 분기 후 결과를 다음 역 입력으로 전달
 
-`U_WF_EDGE.CONDITION_EXPR` 컬럼이 보존되어 있어 향후 조건 평가 도입 가능 (이슈 트래커에서 추적).
+`U_LINE_TRACK.CONDITION_EXPR` 컬럼이 보존되어 있어 향후 조건 평가 도입 가능 (이슈 트래커에서 추적).
 
 ### 6.4. 에러 알림
 

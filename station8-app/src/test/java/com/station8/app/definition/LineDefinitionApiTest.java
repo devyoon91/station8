@@ -43,12 +43,12 @@ class LineDefinitionApiTest {
         pop.execute(jdbcTemplate.getDataSource());
 
         // 테스트 격리
-        jdbcTemplate.execute("DELETE FROM H_WF_DLQ");
-        jdbcTemplate.execute("DELETE FROM H_WF_ACTIVITY_EXECUTION");
-        jdbcTemplate.execute("DELETE FROM U_WF_INSTANCE");
-        jdbcTemplate.execute("DELETE FROM U_WF_EDGE");
-        jdbcTemplate.execute("DELETE FROM U_WF_NODE");
-        jdbcTemplate.execute("DELETE FROM U_WF_DEFINITION");
+        jdbcTemplate.execute("DELETE FROM H_LINE_DLQ");
+        jdbcTemplate.execute("DELETE FROM H_LINE_ACTIVITY_EXECUTION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_INSTANCE");
+        jdbcTemplate.execute("DELETE FROM U_LINE_TRACK");
+        jdbcTemplate.execute("DELETE FROM U_LINE_STATION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_DEFINITION");
     }
 
     @Test

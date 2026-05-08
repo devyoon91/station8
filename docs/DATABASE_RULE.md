@@ -17,7 +17,7 @@
 | ``EDIT_DT`` | ``TIMESTAMP``   | ``2026-05-08 12:00`` | N        |         | 수정일시   |
 | ``EDIT_ID`` | ``VARCHAR(32)`` | ``bykim``             | N        |         | 수정자    |
 
-본 저장소의 ``H_WF_*`` 이력 테이블은 ``REG_DT``를 폴링 키로도 사용한다 (``ORDER BY REG_DT ASC``).
+본 저장소의 ``H_LINE_*`` 이력 테이블은 ``REG_DT``를 폴링 키로도 사용한다 (``ORDER BY REG_DT ASC``).
 
 ---
 
@@ -44,14 +44,14 @@
 
 | 접두사 | 의미       | 예                                             |
 |------|----------|----------------------------------------------|
-| ``U_`` | 마스터/구성  | ``U_WF_DEFINITION``, ``U_WF_NODE``, ``U_WF_EDGE``, ``U_WF_INSTANCE``, ``U_WF_SCHEDULE`` |
-| ``H_`` | 이력/실행   | ``H_WF_ACTIVITY_EXECUTION``, ``H_WF_DLQ``     |
+| ``U_`` | 마스터/구성  | ``U_LINE_DEFINITION``, ``U_LINE_STATION``, ``U_LINE_TRACK``, ``U_LINE_INSTANCE``, ``U_LINE_SCHEDULE`` |
+| ``H_`` | 이력/실행   | ``H_LINE_ACTIVITY_EXECUTION``, ``H_LINE_DLQ``     |
 
 다른 접두사(``R_``, ``M_``, ``E_``, ``C_``, ``T_`` 등)나 접미사(``_V``, ``_TP`` 등)는 본 저장소에서 사용하지 않는다. 새 테이블이 마스터/이력 어느 쪽으로도 분류되지 않는다면 PR에서 접두사 정책을 먼저 합의한 뒤 추가한다.
 
 ### 단복수 / 약어
 
-- 단수형. 예: ``U_WF_NODE`` (O), ``U_WF_NODES`` (X).
+- 단수형. 예: ``U_LINE_STATION`` (O), ``U_LINE_STATIONS`` (X).
 - 명확성을 우선. 통용 약어(``WF``, ``DLQ``, ``IDX``)는 허용.
 
 ---
@@ -89,8 +89,8 @@
 ``<TABLE>_IDX<NN>`` (NN은 01부터 시작하는 두 자리 번호).
 
 ```sql
-CREATE INDEX H_WF_ACTIVITY_EXECUTION_IDX01 ON H_WF_ACTIVITY_EXECUTION (STATUS_ST, NEXT_RETRY_DT);
-CREATE INDEX H_WF_ACTIVITY_EXECUTION_IDX02 ON H_WF_ACTIVITY_EXECUTION (INSTANCE_ID);
+CREATE INDEX H_LINE_ACTIVITY_EXECUTION_IDX01 ON H_LINE_ACTIVITY_EXECUTION (STATUS_ST, NEXT_RETRY_DT);
+CREATE INDEX H_LINE_ACTIVITY_EXECUTION_IDX02 ON H_LINE_ACTIVITY_EXECUTION (INSTANCE_ID);
 ```
 
 폴링 핫 패스(``status + next_retry_dt``)나 조인 키(``instance_id``)에 우선 인덱스를 둔다. 본 저장소의 인덱스 목록은 ``schema-mariadb.sql`` 끝부분 참조.
@@ -101,9 +101,9 @@ CREATE INDEX H_WF_ACTIVITY_EXECUTION_IDX02 ON H_WF_ACTIVITY_EXECUTION (INSTANCE_
 
 | 제약       | 형식                  | 예                       |
 |----------|---------------------|-------------------------|
-| **PK**   | ``<TABLE>_PK``       | ``U_WF_DEFINITION_PK``    |
-| **FK**   | ``<TABLE>_FK<NN>``   | ``U_WF_NODE_FK01``        |
-| **Unique** | ``<TABLE>_U<NN>``   | ``U_WF_SCHEDULE_U01``     |
+| **PK**   | ``<TABLE>_PK``       | ``U_LINE_DEFINITION_PK``    |
+| **FK**   | ``<TABLE>_FK<NN>``   | ``U_LINE_STATION_FK01``        |
+| **Unique** | ``<TABLE>_U<NN>``   | ``U_LINE_SCHEDULE_U01``     |
 
 본 저장소 현행 스키마는 PRIMARY KEY를 컬럼 정의에 인라인으로 두고 별도 제약 이름을 부여하지 않는다. 향후 명시적 제약 추가 시 위 형식을 따른다.
 

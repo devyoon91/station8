@@ -3,7 +3,7 @@ package com.station8.engine.entity;
 import java.time.LocalDateTime;
 
 /**
- * H_WF_ACTIVITY_EXECUTION 테이블에 대응하는 엔티티 (Record 사용)
+ * H_LINE_ACTIVITY_EXECUTION 테이블에 대응하는 엔티티 (Record 사용)
  * 
  * Oracle의 CLOB과 MariaDB의 LONGTEXT를 Java String으로 매핑합니다.
  * 공통 컬럼 규칙(DATABASE_RULE.md)을 준수합니다.
@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 public record ActivityExecution(
     String id,                // ID (PK)
     String instanceId,        // INSTANCE_ID (FK)
-    String nodeId,            // NODE_ID (FK to U_WF_NODE, nullable: 레거시 모드는 null)
+    String nodeId,            // NODE_ID (FK to U_LINE_STATION, nullable: 레거시 모드는 null)
     String activityName,      // ACTIVITY_NAME
     String statusSt,          // STATUS_ST (WAITING_DEPENDENCIES, PENDING, RUNNING, COMPLETED, FAILED)
     String inputData,         // INPUT_DATA (CLOB/LONGTEXT - JSON)
