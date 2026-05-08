@@ -5,7 +5,7 @@ plugins {
 }
 
 allprojects {
-    group = 'com.bangrang.workflow'
+    group = 'com.station8'
     version = '0.0.1-SNAPSHOT'
 
     repositories {
@@ -58,14 +58,14 @@ tasks.register('composeUp', Exec) {
 
 tasks.register('composeUpApp', Exec) {
     group = 'docker'
-    description = 'Build app image and start full stack (MariaDB + service-app) — single command'
+    description = 'Build app image and start full stack (MariaDB + station8-app) — single command'
     workingDir = file('docker')
     commandLine 'docker', 'compose', 'up', '--build', '-d'
 }
 
 tasks.register('composeLogsApp', Exec) {
     group = 'docker'
-    description = 'Tail service-app container logs'
+    description = 'Tail station8-app container logs'
     workingDir = file('docker')
     commandLine 'docker', 'compose', 'logs', '-f', 'app'
 }

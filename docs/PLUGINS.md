@@ -47,7 +47,7 @@ Plugin scan complete: 2 loaded, 0 failed
 ```java
 package com.example.plugin;
 
-import com.bangrang.workflow.engine.annotation.Activity;
+import com.station8.engine.annotation.Activity;
 
 public class NotificationPlugin {
 
@@ -75,7 +75,7 @@ plugins {
 
 dependencies {
     // 코어 의존성은 compileOnly — 런타임은 호스트가 제공
-    compileOnly 'com.bangrang.workflow:engine-core:0.0.1-SNAPSHOT'
+    compileOnly 'com.station8:station8-engine:0.0.1-SNAPSHOT'
 }
 
 tasks.jar {

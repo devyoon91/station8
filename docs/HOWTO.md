@@ -15,8 +15,8 @@
 ```java
 package com.example.app;
 
-import com.bangrang.workflow.engine.annotation.Activity;
-import com.bangrang.workflow.engine.annotation.Workflow;
+import com.station8.engine.annotation.Activity;
+import com.station8.engine.annotation.Workflow;
 import org.springframework.stereotype.Component;
 
 @Workflow("OrderFlow")          // 워크플로우 이름 (선택, 클래스 단위 그룹핑)
