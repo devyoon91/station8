@@ -27,7 +27,7 @@
 
 | 코드 | 의미 | 사용자 액션 |
 |------|------|-----------|
-| **WF-E201** `WORKFLOW_NOT_FOUND` | 등록되지 않은 workflowName | `@Line` 어노테이션 + Spring 컴포넌트 스캔 확인 |
+| **WF-E201** `WORKFLOW_NOT_FOUND` | 등록되지 않은 workflowName | `@LineDefinition` 어노테이션 + Spring 컴포넌트 스캔 확인 |
 | **WF-E202** `ACTIVITY_NOT_FOUND` | 등록되지 않은 activityName | `/api/line/activities`에서 등록된 액티비티 목록 확인. `@Activity` 어노테이션 누락 가능성 |
 | **WF-E203** `INVALID_ARGUMENT` | 메서드 호출 시 파라미터 변환 실패 | INPUT_DATA가 메서드 파라미터 타입과 일치하는지 점검 |
 | **WF-E204** `CONTEXT_ATTRIBUTE_MISSING` | LineContext에 필수 attribute 누락 | 워커가 PENDING 처리 시 executionId 주입을 누락한 코드 결함. 운영자 액션 없음, 이슈 보고 |

@@ -1,7 +1,7 @@
 package com.station8.engine.core;
 
 import com.station8.engine.annotation.Activity;
-import com.station8.engine.annotation.Line;
+import com.station8.engine.annotation.LineDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * @Line 및 @Activity가 붙은 빈과 메서드를 스캔하여 관리하는 레지스트리.
+ * @LineDefinition 및 @Activity가 붙은 빈과 메서드를 스캔하여 관리하는 레지스트리.
  * Spring 컨텍스트 로딩이 완료된 후 빈들을 탐색합니다.
  */
 @Component
@@ -40,9 +40,9 @@ public class LineRegistry implements ApplicationListener<ContextRefreshedEvent> 
     }
 
     private void scanLines(ApplicationContext context) {
-        Map<String, Object> beans = context.getBeansWithAnnotation(Line.class);
+        Map<String, Object> beans = context.getBeansWithAnnotation(LineDefinition.class);
         for (Object bean : beans.values()) {
-            Line workflow = AnnotationUtils.findAnnotation(bean.getClass(), Line.class);
+            LineDefinition workflow = AnnotationUtils.findAnnotation(bean.getClass(), LineDefinition.class);
             if (workflow != null) {
                 String name = workflow.value().isEmpty() ? bean.getClass().getSimpleName() : workflow.value();
                 workflowBeans.put(name, bean);

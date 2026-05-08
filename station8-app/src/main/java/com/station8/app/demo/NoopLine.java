@@ -1,7 +1,7 @@
 package com.station8.app.demo;
 
 import com.station8.engine.annotation.Activity;
-import com.station8.engine.annotation.Line;
+import com.station8.engine.annotation.LineDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
  * <p>비주얼 빌더에서 역 팔레트에 자동 노출됨 ({@code LineRegistry} 스캔).</p>
  */
 @Component
-@Line("NoopLine")
+@LineDefinition("NoopLine")
 public class NoopLine {
 
     private static final Logger log = LoggerFactory.getLogger(NoopLine.class);

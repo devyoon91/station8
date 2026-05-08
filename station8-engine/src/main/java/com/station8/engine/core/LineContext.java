@@ -18,7 +18,7 @@ public interface LineContext {
     String instanceId();
 
     /**
-     * 라인 이름 (@Line value 또는 클래스명)
+     * 라인 이름 (@LineDefinition value 또는 클래스명)
      */
     String workflowName();
 

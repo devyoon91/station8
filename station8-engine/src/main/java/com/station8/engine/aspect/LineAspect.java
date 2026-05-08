@@ -1,6 +1,6 @@
 package com.station8.engine.aspect;
 
-import com.station8.engine.annotation.Line;
+import com.station8.engine.annotation.LineDefinition;
 import com.station8.engine.util.JsonUtil;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -25,10 +25,10 @@ public class LineAspect {
         this.jsonUtil = jsonUtil;
     }
 
-    @Around("@within(com.station8.engine.annotation.Line) || @annotation(com.station8.engine.annotation.Line)")
+    @Around("@within(com.station8.engine.annotation.LineDefinition) || @annotation(com.station8.engine.annotation.LineDefinition)")
     public Object profile(ProceedingJoinPoint pjp) throws Throwable {
         MethodSignature signature = (MethodSignature) pjp.getSignature();
-        Line workflow = pjp.getTarget().getClass().getAnnotation(Line.class);
+        LineDefinition workflow = pjp.getTarget().getClass().getAnnotation(LineDefinition.class);
         
         String workflowName = (workflow != null && !workflow.value().isEmpty()) 
             ? workflow.value() : pjp.getTarget().getClass().getSimpleName();

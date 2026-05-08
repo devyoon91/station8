@@ -16,10 +16,10 @@
 package com.example.app;
 
 import com.station8.engine.annotation.Activity;
-import com.station8.engine.annotation.Line;
+import com.station8.engine.annotation.LineDefinition;
 import org.springframework.stereotype.Component;
 
-@Line("OrderFlow")          // 라인 이름 (선택, 클래스 단위 그룹핑)
+@LineDefinition("OrderFlow")          // 라인 이름 (선택, 클래스 단위 그룹핑)
 @Component                       // Spring Bean으로 등록
 public class OrderFlow {
 

@@ -27,7 +27,7 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 ## 3. Multi-Module Architecture
 
 * **`:station8-engine`** — 엔진 SDK
-  * `@Line`, `@Activity` 어노테이션 + AOP/Registry
+  * `@LineDefinition`, `@Activity` 어노테이션 + AOP/Registry
   * DAG 정의/인터프리터 (분기/병렬 fan-out/fan-in)
   * Worker 폴링(SKIP LOCKED), 재시도(Exponential Backoff), DLQ
   * Cron 스케줄러 (DAG 정의 단위 정기 실행)

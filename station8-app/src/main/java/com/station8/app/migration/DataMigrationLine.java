@@ -1,7 +1,7 @@
 package com.station8.app.migration;
 
 import com.station8.engine.annotation.Activity;
-import com.station8.engine.annotation.Line;
+import com.station8.engine.annotation.LineDefinition;
 import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-@Line("DataMigrationLine")
+@LineDefinition("DataMigrationLine")
 @Component
 public class DataMigrationLine {
 

@@ -8,7 +8,7 @@ public interface LineExecutor {
     /**
      * 새로운 라인 인스턴스를 시작합니다.
      * 
-     * @param workflowName 라인 이름 (@Line 어노테이션의 value 또는 클래스명)
+     * @param workflowName 라인 이름 (@LineDefinition 어노테이션의 value 또는 클래스명)
      * @param input 입력 객체(JSON 직렬화 가능한 객체)
      * @return 생성된 인스턴스 ID
      */

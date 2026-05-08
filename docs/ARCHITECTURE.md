@@ -19,7 +19,7 @@ station8/
 
 | 패키지 | 책임 |
 |---|---|
-| `annotation` | `@Line`, `@Activity` |
+| `annotation` | `@LineDefinition`, `@Activity` |
 | `core` | `LineRegistry`, `DagInterpreter`, `DagValidator`, `LineWorker`, `LineScheduler`, `JdbcTaskExecutor`, `DefaultLineContext`, `ExponentialBackoffRetryPolicy` |
 | `repository` | `JdbcActivityRepository`, `JdbcLineDefinitionRepository`, `JdbcLineScheduleRepository`, `JdbcDlqRepository` |
 | `dialect` | `DbDialect` 추상화 (`MariaDbDialect`, `OracleDialect`) |
@@ -37,8 +37,8 @@ station8/
 | `definition` | `LineDefinitionController`, `LineDefinitionService`, `BuilderController` |
 | `schedule` | `ScheduleController`, `ScheduleService` |
 | `catalog` | `ActivityCatalogController` |
-| `migration` | `DataMigrationLine`(@Line), `MigrationInitializer` |
-| `demo` | `NoopLine`(@Line), `DemoSeedRunner` (@Profile demo) |
+| `migration` | `DataMigrationLine`(@LineDefinition), `MigrationInitializer` |
+| `demo` | `NoopLine`(@LineDefinition), `DemoSeedRunner` (@Profile demo) |
 | `adapter` | `SpringBatchActivityAdapter` (@Activity RUN_BATCH_JOB) |
 
 ### e2e-tests

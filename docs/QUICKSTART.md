@@ -94,10 +94,10 @@ open http://localhost:8080/line/dashboard   # macOS
 
 ## 6. 고유 액티비티 직접 만들기
 
-`@Line` + `@Activity` 어노테이션 1쌍이면 끝:
+`@LineDefinition` + `@Activity` 어노테이션 1쌍이면 끝:
 
 ```java
-@Line("MyOrder")
+@LineDefinition("MyOrder")
 @Component
 public class OrderLine {
 
