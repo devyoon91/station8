@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo/station8.svg" alt="Station8" width="320">
+</p>
+
 # Station8
 
 > 8호선을 옆으로 누이면 ∞ — 무한히 반복되는 자동화. 노드는 노선의 한 **역(Station)** 이 된다.
