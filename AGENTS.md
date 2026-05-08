@@ -23,7 +23,11 @@
 1. **이슈 확인/생성** — 작업 전 [Issues](https://github.com/devyoon91/simple-workflow-engine/issues)에서 관련 이슈를 찾거나 만든다. 큰 단위는 `epic`, 실제 작업 단위는 `task` 라벨.
 2. **마일스톤 매핑** — 이슈에 적절한 [Milestone](https://github.com/devyoon91/simple-workflow-engine/milestones)을 설정한다.
 3. **명세 숙지** — [docs/workflow-engine-spec.md](docs/workflow-engine-spec.md), [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md)를 읽고 시작한다.
-4. **브랜치/PR** — `feature/issue-<번호>-<짧은-이름>` 또는 `fix/<짧은-이름>` 컨벤션. PR 본문에 `Closes #N` 명시.
+4. **브랜치 / 커밋 / PR 형식** — [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)의 규정을 따른다. 핵심:
+   - 브랜치 이름은 `<issue#>-<짧은-영문-설명>` (이슈번호가 가장 앞에 옴).
+   - 커밋 / PR은 [.gitmessage](.gitmessage)와 [.github/pull_request_template.md](.github/pull_request_template.md) 템플릿을 따른다.
+   - 커밋 메시지·PR 본문에 도구 어트리뷰션(🤖 Generated with..., Co-Authored-By: Claude 등) **절대 금지**.
+   - PR 본문에 `Closes #N` 필수.
 5. **테스트/문서** — 변경에 영향받는 테스트와 문서(README, spec, HOWTO, ARCHITECTURE)를 함께 갱신.
 6. **이슈 종료** — PR 머지 시 자동 종료. 후속 작업은 새 이슈로 분리.
 
