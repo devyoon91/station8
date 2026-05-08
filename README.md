@@ -55,7 +55,6 @@ docker compose -f docker/docker-compose.yml up --build -d
 - [docs/QUICKSTART.md](docs/QUICKSTART.md) — 5분 설명
 - [docs/workflow-engine-spec.md](docs/workflow-engine-spec.md) — 엔진 명세
 - [docs/HOWTO.md](docs/HOWTO.md) — 사용자 가이드 (워크플로우 작성)
-- [docs/OPERATIONS.md](docs/OPERATIONS.md) — 운영 가이드
 - [docs/PLUGINS.md](docs/PLUGINS.md) — 플러그인 가이드
 - [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md) — DB 규칙
 - [docs/ERROR_CODES.md](docs/ERROR_CODES.md) — 에러 코드

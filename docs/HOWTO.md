@@ -310,4 +310,3 @@ spring.datasource.password=wfpw
 - [workflow-engine-spec.md](workflow-engine-spec.md) — 엔진 명세/아키텍처
 - [DATABASE_RULE.md](DATABASE_RULE.md) — 명명 규칙
 - [ERROR_CODES.md](ERROR_CODES.md) — 에러 코드 카탈로그
-- [OPERATIONS.md](OPERATIONS.md) — 배포/운영
