@@ -1,6 +1,13 @@
-/* Station8 — Subway Map Renderer (#87 M1)
+/* Station8 — Subway Map Renderer (#87 M1·M2)
  *
- * 입력: { definitionId, definitionNm, nodes:[{id,name,activity,x,y}], edges:[{id,from,to}] }
+ * 입력:
+ *   {
+ *     definitionId, definitionNm,
+ *     nodes:[{id,name,activity,x,y}],
+ *     edges:[{id,from,to}],
+ *     statusByNode?: { [nodeId]: 'pending'|'running'|'completed'|'failed'|'untouched' }
+ *   }
+ *
  * 출력: 컨테이너 안에 인라인 SVG로 노선도 한 장.
  *
  * 좌표 처리:
@@ -9,9 +16,15 @@
  *
  * 트랙 곡선:
  *  - 두 역 사이를 cubic bezier로 잇는다. 제어점은 두 역 간 dx의 절반을 수평 오프셋으로.
- *  - 결과적으로 서브웨이 맵 특유의 부드러운 곡선이 된다.
  *
- * M1은 정적 렌더만 한다. 인스턴스 진행 위치/클릭 인터랙션은 M2/M3.
+ * 상태 표시(M2):
+ *  - running:   외곽 후광(halo)이 SMIL ``<animate>``로 점멸
+ *  - completed: 채워진 원 (트랙 색)
+ *  - failed:    채워진 원 (적색)
+ *  - pending:   가벼운 펄스
+ *  - untouched: 기본 외곽선만
+ *
+ * M3(클릭 → 액티비티 상세, 트랙 hover → 의존성)는 후속.
  */
 (function (global) {
   'use strict';
@@ -60,15 +73,39 @@
     });
 
     // 2) 역(노드)
+    const statusByNode = (graph.statusByNode || {});
     graph.nodes.forEach(n => {
       const p = positionsById[n.id];
       if (!p) return;
+      const status = statusByNode[n.id] || 'untouched';
+
+      // running: 외곽 후광(halo) — SMIL <animate>로 r 펄스
+      if (status === 'running') {
+        const halo = document.createElementNS(NS, 'circle');
+        halo.setAttribute('cx', p.x);
+        halo.setAttribute('cy', p.y);
+        halo.setAttribute('r', STATION_R + 4);
+        halo.setAttribute('class', 'swe-subway-station-halo');
+        const anim = document.createElementNS(NS, 'animate');
+        anim.setAttribute('attributeName', 'r');
+        anim.setAttribute('values', `${STATION_R + 2};${STATION_R + 12};${STATION_R + 2}`);
+        anim.setAttribute('dur', '1.4s');
+        anim.setAttribute('repeatCount', 'indefinite');
+        halo.appendChild(anim);
+        const animO = document.createElementNS(NS, 'animate');
+        animO.setAttribute('attributeName', 'opacity');
+        animO.setAttribute('values', '0.55;0;0.55');
+        animO.setAttribute('dur', '1.4s');
+        animO.setAttribute('repeatCount', 'indefinite');
+        halo.appendChild(animO);
+        svg.appendChild(halo);
+      }
 
       const circle = document.createElementNS(NS, 'circle');
       circle.setAttribute('cx', p.x);
       circle.setAttribute('cy', p.y);
       circle.setAttribute('r', STATION_R);
-      circle.setAttribute('class', 'swe-subway-station-circle');
+      circle.setAttribute('class', `swe-subway-station-circle ${status}`);
       svg.appendChild(circle);
 
       const label = document.createElementNS(NS, 'text');

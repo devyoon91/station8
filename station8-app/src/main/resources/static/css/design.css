@@ -557,6 +557,33 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
   stroke: var(--line-pink);
   stroke-width: var(--station-stroke-width);
 }
+/* 상태별 스타일 (#87 M2) — running은 별도 halo 노드가 SMIL로 점멸 */
+.swe-subway-station-circle.completed {
+  fill: var(--accent-green);
+  stroke: var(--accent-green);
+}
+.swe-subway-station-circle.running {
+  fill: var(--accent-yellow);
+  stroke: var(--accent-yellow);
+}
+.swe-subway-station-circle.failed {
+  fill: var(--accent-red);
+  stroke: var(--accent-red);
+}
+.swe-subway-station-circle.pending {
+  fill: var(--station-fill);
+  stroke: var(--mute);
+}
+.swe-subway-station-circle.untouched {
+  fill: var(--station-fill);
+  stroke: var(--line-pink);
+  opacity: 0.55;
+}
+.swe-subway-station-halo {
+  fill: none;
+  stroke: var(--accent-yellow);
+  stroke-width: 3px;
+}
 .swe-subway-station-label {
   fill: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;

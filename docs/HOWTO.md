@@ -217,7 +217,8 @@ public class MyBatchConfig {
 - "Details" → 인스턴스별 timeline 페이지
 
 ### 5.2. Timeline
-- `/line/instance/{id}` — 액티비티 시간순 스택
+- `/line/instance/{id}` — 상단에 노선도(Line view, M2) + 하단 액티비티 시간순 스택
+- 노선도: 각 역에 실행 상태 색상 (running=점멸, completed=초록 채움, failed=적색 채움, pending=무채색 외곽선)
 - status dot 색상 (success/warning/danger/mute)
 - 실패 액티비티는 accent-red 강조 + Error 메시지
 
@@ -237,8 +238,8 @@ public class MyBatchConfig {
 
 ### 5.6. Lines (노선도 미리보기)
 - `/line/definitions` — 활성 라인 정의 목록
-- `/line/definitions/{id}` — 저장된 라인을 서브웨이 맵 스타일 SVG로 미리보기
-  - 정적 렌더(M1). 인스턴스 진행 위치 오버레이는 후속(M2)에서
+- `/line/definitions/{id}` — 저장된 라인을 서브웨이 맵 스타일 SVG로 정적 미리보기 (M1)
+- `/line/instance/{id}` — 같은 렌더러가 인스턴스 진행 위치 오버레이로 동작 (M2)
 
 ---
 
