@@ -104,5 +104,4 @@
 ## 관련 문서
 
 - 엔진 명세: [docs/workflow-engine-spec.md](workflow-engine-spec.md)
-- 운영 가이드: [docs/OPERATIONS.md](OPERATIONS.md)
 - 빠른 시작: [docs/QUICKSTART.md](QUICKSTART.md)

@@ -331,7 +331,6 @@ engine-core        ──▶  Spring Boot starter-jdbc / -aop, Jackson, MariaDB 
 
 - 명세 (Why): [workflow-engine-spec.md](workflow-engine-spec.md)
 - 사용법 (How): [HOWTO.md](HOWTO.md)
-- 운영 (Run): [OPERATIONS.md](OPERATIONS.md)
 - DB 규칙: [DATABASE_RULE.md](DATABASE_RULE.md)
 - 에러 코드: [ERROR_CODES.md](ERROR_CODES.md)
 - 플러그인: [PLUGINS.md](PLUGINS.md)
