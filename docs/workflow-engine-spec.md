@@ -18,11 +18,11 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 
 ## 2. Technical Stack
 
-* **Language:** Java 25+
-* **Framework:** Spring Boot 3.x
+* **Language:** Java 21 (LTS)
+* **Framework:** Spring Boot 3.4.x
 * **Build Tool:** Gradle (Multi-module)
 * **Database:** Oracle / MariaDB (공통 지원)
-* **View Engine:** Mustache + 그래프 빌더(react-flow / vis.js / dagre 중 택1)
+* **View Engine:** Mustache + Drawflow (DAG 빌더 클라이언트)
 
 ## 3. Multi-Module Architecture
 
@@ -81,21 +81,8 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 * **Timeline + Graph View:** 인스턴스 실행을 DAG 그래프로 시각화 (성공/실패/지연 색상).
 * **DLQ Console:** 실패한 액티비티 Requeue/Discard.
 
-## 5. 마일스톤
-
-작업 단위와 진척은 **GitHub Issues / Milestones**로 관리한다.
-
-* **M1 — DAG 정의 모델**: 스키마, 인터프리터(분기/병렬), `WAITING_DEPENDENCIES` 상태, JSON 정의 검증.
-* **M2 — Cron 스케줄러**: `U_WF_SCHEDULE` 테이블, 트리거 폴러, 일시중지/재개 UI.
-* **M3 — 그래프 빌더 UI**: 노드 팔레트, 캔버스(react-flow), 저장/로드, DAG 검증 피드백.
-* **M4 — 액티비티 카탈로그**: `WorkflowRegistry` 메타데이터 노출 API + 카탈로그 페이지.
-* **M5 (선택) — 외부 jar 폴더 스캔**: `plugins/*.jar`를 `URLClassLoader`로 로드하여 액티비티 자동 등록.
-
-## 6. 비범위 (Out of Scope)
+## 5. 비범위 (Out of Scope)
 
 * 웹에서 Java 코드 작성/컴파일.
 * Airflow의 XCom 같은 무거운 노드 간 데이터 전달 (각 노드는 DB 직접 R/W).
 * RBAC/멀티테넌시 (필요 시 후속 마일스톤).
-
----
-[← AGENTS.md로 돌아가기](../AGENTS.md)

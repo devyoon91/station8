@@ -32,19 +32,7 @@ docker compose -f docker/docker-compose.yml up --build -d
 # http://localhost:8080
 ```
 
-상세 가이드는 [docs/QUICKSTART.md](docs/QUICKSTART.md) 참조.
-
-### 사전 조건
-
-- Docker Desktop 24+ (필수)
-- Java 21+ (직접 빌드 시)
-- bash + curl + jq (선택, 시나리오 스크립트용)
-
-### DB 수동 셋업
-
-- Oracle: `engine-core/src/main/resources/sql/schema-oracle.sql`
-- MariaDB: `engine-core/src/main/resources/sql/schema-mariadb.sql`
-- Docker compose 사용 시 `spring.sql.init`이 자동 적용.
+사전 조건(Docker Desktop 24+ 등)과 DB 수동 셋업·트러블슈팅은 [docs/QUICKSTART.md](docs/QUICKSTART.md)에 정리되어 있다.
 
 ## 문서
 

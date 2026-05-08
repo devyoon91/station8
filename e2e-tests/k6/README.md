@@ -49,4 +49,3 @@ k6 run --out cloud load.js
 
 - [scripts/scenarios/](../../scripts/scenarios/) — bash 회귀 시나리오 (기능 검증)
 - [e2e-tests](../) — REST Assured 회귀 테스트 (기능 검증)
-- [GitHub Issue #44](https://github.com/devyoon91/simple-workflow-engine/issues/44) — k6 도입 이슈
