@@ -61,6 +61,13 @@
         {{/instance.inputData}}
     </div>
 
+    {{#hasSubway}}
+    <h2 class="swe-heading-md swe-mb-xl" style="margin-top: 0;">Line view</h2>
+    <div class="swe-subway-frame swe-mb-xl">
+        <div id="subway-map"></div>
+    </div>
+    {{/hasSubway}}
+
     <h2 class="swe-heading-md swe-mb-xl" style="margin-top: 0;">Execution history</h2>
 
     <ul class="swe-timeline">
@@ -106,5 +113,17 @@
     </ul>
 
 </div>
+
+{{#hasSubway}}
+<script id="subway-data" type="application/json">{{{subwayJson}}}</script>
+<script src="/js/subway-map.js"></script>
+<script>
+(function () {
+    const raw = document.getElementById('subway-data').textContent;
+    const graph = JSON.parse(raw);
+    Station8SubwayMap.render(document.getElementById('subway-map'), graph);
+})();
+</script>
+{{/hasSubway}}
 </body>
 </html>

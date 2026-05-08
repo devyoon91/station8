@@ -31,6 +31,17 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public String findDefinitionIdByNodeId(String nodeId) {
+        // 소프트 삭제된 노드도 매칭 — 인스턴스가 실행됐던 당시 정의로 역조회해야 하므로.
+        List<String> rows = jdbcTemplate.query(
+                "SELECT DEFINITION_ID FROM U_WF_NODE WHERE ID = ?",
+                (rs, rowNum) -> rs.getString(1),
+                nodeId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<LineDefinition> findAllActiveDefinitions() {
         String sql = """
                 SELECT * FROM U_WF_DEFINITION

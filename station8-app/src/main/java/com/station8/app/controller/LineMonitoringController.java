@@ -1,11 +1,16 @@
 package com.station8.app.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.station8.engine.core.LineExecutor;
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.entity.DlqEntry;
+import com.station8.engine.entity.LineEdge;
 import com.station8.engine.entity.LineInstance;
+import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.DlqRepository;
+import com.station8.engine.repository.LineDefinitionRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +19,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Controller
@@ -24,13 +31,19 @@ public class LineMonitoringController {
     private final ActivityRepository activityRepository;
     private final LineExecutor workflowExecutor;
     private final DlqRepository dlqRepository;
+    private final LineDefinitionRepository definitionRepository;
+    private final ObjectMapper objectMapper;
 
-    public LineMonitoringController(ActivityRepository activityRepository, 
+    public LineMonitoringController(ActivityRepository activityRepository,
                                         LineExecutor workflowExecutor,
-                                        DlqRepository dlqRepository) {
+                                        DlqRepository dlqRepository,
+                                        LineDefinitionRepository definitionRepository,
+                                        ObjectMapper objectMapper) {
         this.activityRepository = activityRepository;
         this.workflowExecutor = workflowExecutor;
         this.dlqRepository = dlqRepository;
+        this.definitionRepository = definitionRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -129,7 +142,104 @@ public class LineMonitoringController {
         model.addAttribute("activities", actViews);
         model.addAttribute("navDashboard", true);
 
+        // #87 M2 — 인스턴스 진행 위치 오버레이용 노선도 페이로드
+        String subwayJson = buildSubwayPayload(instanceId, activities);
+        if (subwayJson != null) {
+            model.addAttribute("subwayJson", subwayJson);
+            model.addAttribute("hasSubway", true);
+        } else {
+            model.addAttribute("hasSubway", false);
+        }
+
         return "timeline";
+    }
+
+    /**
+     * 인스턴스의 액티비티 실행 이력에서 ``nodeId``를 통해 라인 정의를 역조회하고,
+     * 노선도 SVG 렌더에 필요한 JSON({nodes, edges, statusByNode})을 만든다.
+     *
+     * 레거시 모드(executions의 ``nodeId``가 모두 null)이면 ``null``을 반환하고,
+     * view에서는 노선도 없이 timeline만 보여준다.
+     *
+     * 액티비티 상태 → 서브웨이 상태 매핑:
+     * <ul>
+     *   <li>WAITING_DEPENDENCIES, PENDING → ``pending``</li>
+     *   <li>RUNNING                       → ``running``  (점멸 후광)</li>
+     *   <li>COMPLETED                     → ``completed`` (채움)</li>
+     *   <li>FAILED                        → ``failed`` (적색 채움)</li>
+     *   <li>실행 기록 없음                  → ``untouched`` (기본 외곽선)</li>
+     * </ul>
+     */
+    private String buildSubwayPayload(String instanceId, List<ActivityExecution> activities) {
+        String anchorNodeId = activities.stream()
+                .map(ActivityExecution::nodeId)
+                .filter(id -> id != null && !id.isBlank())
+                .findFirst()
+                .orElse(null);
+        if (anchorNodeId == null) return null;
+
+        String definitionId = definitionRepository.findDefinitionIdByNodeId(anchorNodeId);
+        if (definitionId == null) return null;
+
+        List<LineStation> nodes = definitionRepository.findNodesByDefinition(definitionId);
+        if (nodes.isEmpty()) return null;
+        List<LineEdge> edges = definitionRepository.findEdgesByDefinition(definitionId);
+
+        Map<String, String> statusByNode = new HashMap<>();
+        for (ActivityExecution a : activities) {
+            if (a.nodeId() == null) continue;
+            String mapped = mapActivityStatus(a.statusSt());
+            // 같은 역에 다회 실행이 있으면 더 진행된 상태가 덮어쓴다
+            String prev = statusByNode.get(a.nodeId());
+            if (prev == null || rank(mapped) > rank(prev)) {
+                statusByNode.put(a.nodeId(), mapped);
+            }
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("definitionId", definitionId);
+        payload.put("instanceId", instanceId);
+        payload.put("nodes", nodes.stream().map(n -> Map.of(
+                "id", n.id(),
+                "name", n.nodeNm() == null ? n.activityNm() : n.nodeNm(),
+                "activity", n.activityNm() == null ? "" : n.activityNm(),
+                "x", n.posXNo() == null ? 0 : n.posXNo(),
+                "y", n.posYNo() == null ? 0 : n.posYNo()
+        )).toList());
+        payload.put("edges", edges.stream().map(e -> Map.of(
+                "id", e.id(),
+                "from", e.fromNodeId(),
+                "to", e.toNodeId()
+        )).toList());
+        payload.put("statusByNode", statusByNode);
+
+        try {
+            return objectMapper.writeValueAsString(payload).replace("</", "<\\/");
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("subway payload 직렬화 실패", ex);
+        }
+    }
+
+    private static String mapActivityStatus(String s) {
+        return switch (s == null ? "" : s) {
+            case "COMPLETED" -> "completed";
+            case "RUNNING" -> "running";
+            case "FAILED" -> "failed";
+            case "PENDING", "WAITING_DEPENDENCIES" -> "pending";
+            default -> "untouched";
+        };
+    }
+
+    /** 동일 역 다회 실행 시 더 진행된 상태로 덮어쓰기 위한 순서. */
+    private static int rank(String status) {
+        return switch (status) {
+            case "untouched" -> 0;
+            case "pending"   -> 1;
+            case "running"   -> 2;
+            case "failed"    -> 3;
+            case "completed" -> 4;
+            default          -> 0;
+        };
     }
 
     private static String badgeFor(String status) {

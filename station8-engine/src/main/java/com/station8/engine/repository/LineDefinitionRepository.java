@@ -21,6 +21,15 @@ public interface LineDefinitionRepository {
      */
     List<LineDefinition> findAllActiveDefinitions();
 
+    /**
+     * ``U_WF_NODE.ID``로부터 소속 ``DEFINITION_ID``를 역조회한다.
+     * 인스턴스 → 액티비티 실행 → ``nodeId``를 거쳐 라인 정의를 찾을 때 사용 (#87 M2).
+     * 소프트 삭제된 역도 매칭한다 (인스턴스 실행 당시 정의로 거슬러 올라가야 하므로).
+     *
+     * @return ``DEFINITION_ID`` 또는 ``null``(노드 없음)
+     */
+    String findDefinitionIdByNodeId(String nodeId);
+
     List<LineStation> findNodesByDefinition(String definitionId);
 
     List<LineEdge> findEdgesByDefinition(String definitionId);
