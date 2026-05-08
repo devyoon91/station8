@@ -1,7 +1,7 @@
 package com.station8.app.migration;
 
 import com.station8.engine.annotation.Activity;
-import com.station8.engine.annotation.Workflow;
+import com.station8.engine.annotation.Line;
 import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,16 +10,16 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-@Workflow("DataMigrationWorkflow")
+@Line("DataMigrationLine")
 @Component
-public class DataMigrationWorkflow {
+public class DataMigrationLine {
 
-    private static final Logger log = LoggerFactory.getLogger(DataMigrationWorkflow.class);
+    private static final Logger log = LoggerFactory.getLogger(DataMigrationLine.class);
 
     private final JdbcTemplate jdbcTemplate;
     private final JsonUtil jsonUtil;
 
-    public DataMigrationWorkflow(JdbcTemplate jdbcTemplate, JsonUtil jsonUtil) {
+    public DataMigrationLine(JdbcTemplate jdbcTemplate, JsonUtil jsonUtil) {
         this.jdbcTemplate = jdbcTemplate;
         this.jsonUtil = jsonUtil;
     }

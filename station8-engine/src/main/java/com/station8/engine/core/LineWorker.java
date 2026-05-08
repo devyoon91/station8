@@ -20,24 +20,24 @@ import java.util.List;
  * Spring의 @Scheduled를 이용해 주기적으로 폴링하며, ThreadPoolTaskExecutor를 통해 동시성을 제어합니다.
  */
 @Component
-public class WorkflowWorker {
+public class LineWorker {
 
-    private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
+    private static final Logger log = LoggerFactory.getLogger(LineWorker.class);
 
     private final ActivityRepository activityRepository;
     private final TaskExecutor taskExecutor;
     private final ThreadPoolTaskExecutor workflowTaskExecutor;
-    private final WorkflowRegistry workflowRegistry;
+    private final LineRegistry workflowRegistry;
     private final ExponentialBackoffRetryPolicy retryPolicy;
     private final DlqRepository dlqRepository;
     private final DlqNotifier dlqNotifier;
     private final JsonUtil jsonUtil;
     private final DagInterpreter dagInterpreter;
 
-    public WorkflowWorker(ActivityRepository activityRepository,
+    public LineWorker(ActivityRepository activityRepository,
                           TaskExecutor taskExecutor,
                           ThreadPoolTaskExecutor workflowTaskExecutor,
-                          WorkflowRegistry workflowRegistry,
+                          LineRegistry workflowRegistry,
                           ExponentialBackoffRetryPolicy retryPolicy,
                           DlqRepository dlqRepository,
                           DlqNotifier dlqNotifier,
@@ -79,7 +79,7 @@ public class WorkflowWorker {
      */
     private void processActivity(ActivityExecution activity) {
         // 1. 레지스트리에서 액티비티 메타데이터 조회
-        WorkflowRegistry.ActivityMetadata metadata = workflowRegistry.getActivity(activity.activityName());
+        LineRegistry.ActivityMetadata metadata = workflowRegistry.getActivity(activity.activityName());
         if (metadata == null) {
             log.error("No registered activity found for name: {}", activity.activityName());
             updateActivityAsFailed(activity, new RuntimeException("Activity not found: " + activity.activityName()));
@@ -87,11 +87,11 @@ public class WorkflowWorker {
         }
 
         // 2. 컨텍스트 생성
-        // TODO: ActivityExecution 데이터를 기반으로 정교한 WorkflowContext를 생성하는 ContextFactory 연동 필요
+        // TODO: ActivityExecution 데이터를 기반으로 정교한 LineContext를 생성하는 ContextFactory 연동 필요
         // 현재는 수동으로 생성 (향후 리팩토링 대상)
-        DefaultWorkflowContext context = new DefaultWorkflowContext(
+        DefaultLineContext context = new DefaultLineContext(
             activity.instanceId(),
-            "UNKNOWN", // WorkflowName은 Instance 테이블 조회가 필요할 수 있음
+            "UNKNOWN", // LineName은 Instance 테이블 조회가 필요할 수 있음
             activity.activityName(),
             activity.retryCnt() + 1,
             activity.inputData(),
@@ -144,7 +144,7 @@ public class WorkflowWorker {
      * 리플렉션 호출을 위한 파라미터 바인딩 로직.
      * JSON 입력 데이터를 메서드 파라미터 타입에 맞게 역직렬화합니다.
      */
-    private Object[] resolveArguments(WorkflowRegistry.ActivityMetadata metadata, String inputData) {
+    private Object[] resolveArguments(LineRegistry.ActivityMetadata metadata, String inputData) {
         Class<?>[] parameterTypes = metadata.method().getParameterTypes();
         if (parameterTypes.length == 0) {
             return new Object[0];
@@ -157,10 +157,10 @@ public class WorkflowWorker {
         if (firstParamType == String.class) {
             arg = inputData;
         } else {
-            // station8-engine의 JsonUtil을 사용하여 역직렬화 (WorkflowWorker가 이미 JsonUtil을 간접적으로 사용하거나 주입받을 수 있음)
-            // 현재 구조에서는 WorkflowWorker에 JsonUtil 주입이 누락되어 있으므로, 필요한 경우 추가 주입 필요
+            // station8-engine의 JsonUtil을 사용하여 역직렬화 (LineWorker가 이미 JsonUtil을 간접적으로 사용하거나 주입받을 수 있음)
+            // 현재 구조에서는 LineWorker에 JsonUtil 주입이 누락되어 있으므로, 필요한 경우 추가 주입 필요
             // 여기서는 단순함을 위해 String이 아니면 null 처리하거나 예외를 던질 수 있음
-            // TODO: WorkflowWorker에 JsonUtil 주입 및 정교한 역직렬화 구현
+            // TODO: LineWorker에 JsonUtil 주입 및 정교한 역직렬화 구현
             arg = inputData; 
         }
         
@@ -198,7 +198,7 @@ public class WorkflowWorker {
     /**
      * 최대 재시도 초과 시 DLQ에 적재하고 웹훅 알림을 발송합니다.
      */
-    private void moveToDlq(ActivityExecution activity, DefaultWorkflowContext context, Throwable cause, int maxRetry) {
+    private void moveToDlq(ActivityExecution activity, DefaultLineContext context, Throwable cause, int maxRetry) {
         try {
             String stackTrace = buildStackTraceString(cause);
             DlqEntry entry = new DlqEntry(

@@ -1,6 +1,6 @@
 package com.station8.engine.aspect;
 
-import com.station8.engine.annotation.Workflow;
+import com.station8.engine.annotation.Line;
 import com.station8.engine.util.JsonUtil;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -15,20 +15,20 @@ import java.util.UUID;
 
 @Aspect
 @Component
-public class WorkflowAspect {
-    private static final Logger log = LoggerFactory.getLogger(WorkflowAspect.class);
+public class LineAspect {
+    private static final Logger log = LoggerFactory.getLogger(LineAspect.class);
     private final JdbcTemplate jdbcTemplate;
     private final JsonUtil jsonUtil;
 
-    public WorkflowAspect(JdbcTemplate jdbcTemplate, JsonUtil jsonUtil) {
+    public LineAspect(JdbcTemplate jdbcTemplate, JsonUtil jsonUtil) {
         this.jdbcTemplate = jdbcTemplate;
         this.jsonUtil = jsonUtil;
     }
 
-    @Around("@within(com.station8.engine.annotation.Workflow) || @annotation(com.station8.engine.annotation.Workflow)")
+    @Around("@within(com.station8.engine.annotation.Line) || @annotation(com.station8.engine.annotation.Line)")
     public Object profile(ProceedingJoinPoint pjp) throws Throwable {
         MethodSignature signature = (MethodSignature) pjp.getSignature();
-        Workflow workflow = pjp.getTarget().getClass().getAnnotation(Workflow.class);
+        Line workflow = pjp.getTarget().getClass().getAnnotation(Line.class);
         
         String workflowName = (workflow != null && !workflow.value().isEmpty()) 
             ? workflow.value() : pjp.getTarget().getClass().getSimpleName();

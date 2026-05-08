@@ -7,7 +7,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Workflow {
+public @interface Line {
     String value() default "";
 }
 

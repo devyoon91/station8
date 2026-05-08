@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  *   <li>``inputData`` : 정기 실행 시 인스턴스에 주입할 입력 JSON (nullable)</li>
  * </ul>
  */
-public record WorkflowSchedule(
+public record LineSchedule(
     String id,
     String definitionId,
     String cronExpr,

@@ -2,7 +2,7 @@ package com.station8.engine.repository;
 
 import com.station8.engine.dialect.DbDialect;
 import com.station8.engine.entity.ActivityExecution;
-import com.station8.engine.entity.WorkflowInstance;
+import com.station8.engine.entity.LineInstance;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -66,7 +66,7 @@ public class JdbcActivityRepository implements ActivityRepository {
             );
         }
 
-        // 호출자(WorkflowWorker)가 statusSt에 의존할 수 있으므로 반환 객체를 RUNNING으로 재구성
+        // 호출자(LineWorker)가 statusSt에 의존할 수 있으므로 반환 객체를 RUNNING으로 재구성
         return activities.stream().map(a -> a.withStatus("RUNNING")).toList();
     }
 
@@ -168,16 +168,16 @@ public class JdbcActivityRepository implements ActivityRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkflowInstance> findAllInstances() {
+    public List<LineInstance> findAllInstances() {
         String sql = "SELECT * FROM U_WF_INSTANCE ORDER BY REG_DT DESC";
-        return jdbcTemplate.query(sql, new WorkflowInstanceRowMapper());
+        return jdbcTemplate.query(sql, new LineInstanceRowMapper());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public WorkflowInstance findInstanceById(String instanceId) {
+    public LineInstance findInstanceById(String instanceId) {
         String sql = "SELECT * FROM U_WF_INSTANCE WHERE ID = ?";
-        return jdbcTemplate.queryForObject(sql, new WorkflowInstanceRowMapper(), instanceId);
+        return jdbcTemplate.queryForObject(sql, new LineInstanceRowMapper(), instanceId);
     }
 
     @Override
@@ -202,10 +202,10 @@ public class JdbcActivityRepository implements ActivityRepository {
         jdbcTemplate.update(sql, executionId);
     }
 
-    private static class WorkflowInstanceRowMapper implements RowMapper<WorkflowInstance> {
+    private static class LineInstanceRowMapper implements RowMapper<LineInstance> {
         @Override
-        public WorkflowInstance mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new WorkflowInstance(
+        public LineInstance mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new LineInstance(
                 rs.getString("ID"),
                 rs.getString("WORKFLOW_NAME"),
                 rs.getString("STATUS_ST"),

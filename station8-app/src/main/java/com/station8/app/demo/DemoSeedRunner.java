@@ -1,11 +1,11 @@
 package com.station8.app.demo;
 
 import com.station8.app.definition.DagDefinitionRequest;
-import com.station8.app.definition.WorkflowDefinitionService;
+import com.station8.app.definition.LineDefinitionService;
 import com.station8.app.schedule.ScheduleService;
-import com.station8.engine.entity.WorkflowSchedule;
-import com.station8.engine.repository.WorkflowDefinitionRepository;
-import com.station8.engine.repository.WorkflowScheduleRepository;
+import com.station8.engine.entity.LineSchedule;
+import com.station8.engine.repository.LineDefinitionRepository;
+import com.station8.engine.repository.LineScheduleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -40,15 +40,15 @@ public class DemoSeedRunner implements ApplicationRunner {
     private static final String DEMO_DEFINITION_NM = "DemoMigrationFlow";
     private static final String DEMO_CRON = "0 */5 * * * *"; // 매 5분 0초
 
-    private final WorkflowDefinitionService definitionService;
+    private final LineDefinitionService definitionService;
     private final ScheduleService scheduleService;
-    private final WorkflowDefinitionRepository definitionRepository;
-    private final WorkflowScheduleRepository scheduleRepository;
+    private final LineDefinitionRepository definitionRepository;
+    private final LineScheduleRepository scheduleRepository;
 
-    public DemoSeedRunner(WorkflowDefinitionService definitionService,
+    public DemoSeedRunner(LineDefinitionService definitionService,
                           ScheduleService scheduleService,
-                          WorkflowDefinitionRepository definitionRepository,
-                          WorkflowScheduleRepository scheduleRepository) {
+                          LineDefinitionRepository definitionRepository,
+                          LineScheduleRepository scheduleRepository) {
         this.definitionService = definitionService;
         this.scheduleService = scheduleService;
         this.definitionRepository = definitionRepository;
@@ -77,7 +77,7 @@ public class DemoSeedRunner implements ApplicationRunner {
             log.info("[DemoSeed] DAG 정의 등록: id={}, nm={}", defId, DEMO_DEFINITION_NM);
 
             // 같은 정의가 다른 스케줄로 이미 등록돼 있는지도 확인
-            List<WorkflowSchedule> all = scheduleRepository.findAll();
+            List<LineSchedule> all = scheduleRepository.findAll();
             boolean already = all.stream().anyMatch(s -> defId.equals(s.definitionId()));
             if (!already) {
                 String schId = scheduleService.create(defId, DEMO_CRON, null);

@@ -9,16 +9,16 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class DefaultWorkflowContextTest {
+class DefaultLineContextTest {
 
     private JsonUtil jsonUtil;
-    private DefaultWorkflowContext context;
+    private DefaultLineContext context;
 
     @BeforeEach
     void setUp() {
         jsonUtil = new JsonUtil();
-        context = new DefaultWorkflowContext(
-            "inst-001", "TestWorkflow", "step1", 1, "inputData", null, jsonUtil
+        context = new DefaultLineContext(
+            "inst-001", "TestLine", "step1", 1, "inputData", null, jsonUtil
         );
     }
 
@@ -26,7 +26,7 @@ class DefaultWorkflowContextTest {
     @DisplayName("기본 속성이 올바르게 반환된다")
     void basicProperties() {
         assertEquals("inst-001", context.instanceId());
-        assertEquals("TestWorkflow", context.workflowName());
+        assertEquals("TestLine", context.workflowName());
         assertEquals("step1", context.currentActivityName());
         assertEquals(1, context.attempt());
         assertEquals("inputData", context.input());
@@ -36,7 +36,7 @@ class DefaultWorkflowContextTest {
     @Test
     @DisplayName("previousOutput이 주입되면 Optional로 반환된다")
     void previousOutput_present() {
-        var ctx = new DefaultWorkflowContext(
+        var ctx = new DefaultLineContext(
             "inst-002", "WF", "step2", 2, null, "prevResult", jsonUtil
         );
         assertTrue(ctx.previousOutput().isPresent());

@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
  * Oracle의 CLOB과 MariaDB의 LONGTEXT를 Java String으로 매핑합니다.
  * 공통 컬럼 규칙(DATABASE_RULE.md)을 준수합니다.
  */
-public record WorkflowInstance(
+public record LineInstance(
     String id,                // ID (PK)
     String workflowName,      // WORKFLOW_NAME
     String statusSt,          // STATUS_ST (RUNNING, COMPLETED, FAILED, TERMINATED)
@@ -27,8 +27,8 @@ public record WorkflowInstance(
     LocalDateTime editDt,     // EDIT_DT
     String editId             // EDIT_ID
 ) {
-    public static WorkflowInstance create(String id, String workflowName, String inputData) {
-        return new WorkflowInstance(
+    public static LineInstance create(String id, String workflowName, String inputData) {
+        return new LineInstance(
             id,
             workflowName,
             "RUNNING",

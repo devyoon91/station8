@@ -60,7 +60,7 @@ public class JdbcActivityRepositoryTest {
         String instanceId = UUID.randomUUID().toString();
         // 인스턴스 먼저 생성 (FK 제약은 여기서는 무시하거나 생성)
         jdbcTemplate.update("INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, REG_DT) VALUES (?, ?, ?, ?)",
-                instanceId, "TestWorkflow", "RUNNING", LocalDateTime.now());
+                instanceId, "TestLine", "RUNNING", LocalDateTime.now());
 
         repository.createPending(instanceId, "Activity1", "{\"key\":\"val\"}", null);
 
@@ -76,7 +76,7 @@ public class JdbcActivityRepositoryTest {
         String executionId = UUID.randomUUID().toString();
         
         jdbcTemplate.update("INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, REG_DT) VALUES (?, ?, ?, ?)",
-                instanceId, "TestWorkflow", "RUNNING", LocalDateTime.now());
+                instanceId, "TestLine", "RUNNING", LocalDateTime.now());
         
         jdbcTemplate.update("INSERT INTO H_WF_ACTIVITY_EXECUTION (ID, INSTANCE_ID, ACTIVITY_NAME, STATUS_ST, REG_DT) VALUES (?, ?, ?, ?, ?)",
                 executionId, instanceId, "Activity1", "RUNNING", LocalDateTime.now());

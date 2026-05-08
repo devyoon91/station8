@@ -1,8 +1,8 @@
 package com.station8.engine.repository;
 
-import com.station8.engine.entity.WorkflowDefinition;
-import com.station8.engine.entity.WorkflowEdge;
-import com.station8.engine.entity.WorkflowNode;
+import com.station8.engine.entity.LineDefinition;
+import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineStation;
 
 import java.util.List;
 
@@ -10,25 +10,25 @@ import java.util.List;
  * DAG 정의(U_WF_DEFINITION/NODE/EDGE) 조회/저장 리포지토리.
  * M1-2 인터프리터에서 노드 의존성 그래프를 탐색할 때 사용한다.
  */
-public interface WorkflowDefinitionRepository {
+public interface LineDefinitionRepository {
 
-    WorkflowDefinition findDefinitionById(String definitionId);
+    LineDefinition findDefinitionById(String definitionId);
 
-    List<WorkflowNode> findNodesByDefinition(String definitionId);
+    List<LineStation> findNodesByDefinition(String definitionId);
 
-    List<WorkflowEdge> findEdgesByDefinition(String definitionId);
+    List<LineEdge> findEdgesByDefinition(String definitionId);
 
     /** 후행 노드 → 선행 노드 조회 (fan-in 검사에 사용). */
-    List<WorkflowEdge> findIncomingEdges(String toNodeId);
+    List<LineEdge> findIncomingEdges(String toNodeId);
 
     /** 선행 노드 → 후행 노드 조회 (fan-out 활성화에 사용). */
-    List<WorkflowEdge> findOutgoingEdges(String fromNodeId);
+    List<LineEdge> findOutgoingEdges(String fromNodeId);
 
     /** 시작 노드(들): incoming edge가 0개인 노드. */
-    List<WorkflowNode> findStartNodes(String definitionId);
+    List<LineStation> findStartNodes(String definitionId);
 
     /** 정의 INSERT. */
-    void insertDefinition(WorkflowDefinition definition);
+    void insertDefinition(LineDefinition definition);
 
     /** 정의 메타(DESC/ACTIVE_FL) 업데이트. */
     void updateDefinitionMeta(String definitionId, String description, String activeFl);
@@ -37,13 +37,13 @@ public interface WorkflowDefinitionRepository {
     void softDeleteDefinition(String definitionId);
 
     /** 노드 INSERT. */
-    void insertNode(WorkflowNode node);
+    void insertNode(LineStation node);
 
     /** 정의 소속 노드 일괄 소프트 삭제. */
     void softDeleteNodesByDefinition(String definitionId);
 
     /** 엣지 INSERT. */
-    void insertEdge(WorkflowEdge edge);
+    void insertEdge(LineEdge edge);
 
     /** 정의 소속 엣지 일괄 소프트 삭제. */
     void softDeleteEdgesByDefinition(String definitionId);

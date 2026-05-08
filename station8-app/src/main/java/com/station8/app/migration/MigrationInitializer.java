@@ -54,7 +54,7 @@ public class MigrationInitializer implements CommandLineRunner {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
             INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, 'DataMigrationWorkflow', 'RUNNING', NULL, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, 'DataMigrationLine', 'RUNNING', NULL, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """, instanceId);
 
         // 3) SRC_DATA에서 아직 마이그레이션 안 된 데이터 조회 후, 각 건에 대해 PENDING 생성
@@ -69,7 +69,7 @@ public class MigrationInitializer implements CommandLineRunner {
 
         log.info("Seeded {} pending migration activities for instance {}", rows.size(), instanceId);
 
-        // 참고: content에 "Second"가 포함된 항목은 DataMigrationWorkflow에서 강제로 실패를 던져
+        // 참고: content에 "Second"가 포함된 항목은 DataMigrationLine에서 강제로 실패를 던져
         // 백오프 재시도 로직(엔진의 TaskExecutor.fail) 동작을 확인할 수 있다.
     }
 }

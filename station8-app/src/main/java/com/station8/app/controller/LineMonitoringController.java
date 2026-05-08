@@ -1,9 +1,9 @@
 package com.station8.app.controller;
 
-import com.station8.engine.core.WorkflowExecutor;
+import com.station8.engine.core.LineExecutor;
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.entity.DlqEntry;
-import com.station8.engine.entity.WorkflowInstance;
+import com.station8.engine.entity.LineInstance;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.DlqRepository;
 import org.springframework.stereotype.Controller;
@@ -19,14 +19,14 @@ import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/workflow")
-public class WorkflowMonitoringController {
+public class LineMonitoringController {
 
     private final ActivityRepository activityRepository;
-    private final WorkflowExecutor workflowExecutor;
+    private final LineExecutor workflowExecutor;
     private final DlqRepository dlqRepository;
 
-    public WorkflowMonitoringController(ActivityRepository activityRepository, 
-                                        WorkflowExecutor workflowExecutor,
+    public LineMonitoringController(ActivityRepository activityRepository, 
+                                        LineExecutor workflowExecutor,
                                         DlqRepository dlqRepository) {
         this.activityRepository = activityRepository;
         this.workflowExecutor = workflowExecutor;
@@ -41,10 +41,10 @@ public class WorkflowMonitoringController {
                             @RequestParam(value = "statusSt", required = false) String statusSt,
                             @RequestParam(value = "instanceId", required = false) String instanceId,
                             Model model) {
-        List<WorkflowInstance> instances = activityRepository.findAllInstances();
+        List<LineInstance> instances = activityRepository.findAllInstances();
         
         // 필터링 적용 (메모리 필터링 - 소규모 앱용)
-        List<WorkflowInstance> filtered = instances.stream()
+        List<LineInstance> filtered = instances.stream()
                 .filter(i -> workflowName == null || workflowName.isEmpty() || i.workflowName().contains(workflowName))
                 .filter(i -> statusSt == null || statusSt.isEmpty() || i.statusSt().equals(statusSt))
                 .filter(i -> instanceId == null || instanceId.isEmpty() || i.id().contains(instanceId))
@@ -98,7 +98,7 @@ public class WorkflowMonitoringController {
      */
     @GetMapping("/instance/{id}")
     public String timeline(@PathVariable("id") String instanceId, Model model) {
-        WorkflowInstance instance = activityRepository.findInstanceById(instanceId);
+        LineInstance instance = activityRepository.findInstanceById(instanceId);
         List<ActivityExecution> activities = activityRepository.findActivitiesByInstanceId(instanceId);
 
         // Mustache view용 — derived 필드를 미리 계산
@@ -155,7 +155,7 @@ public class WorkflowMonitoringController {
      */
     @PostMapping("/instance/{id}/resume")
     public String resume(@PathVariable("id") String instanceId) {
-        workflowExecutor.resumeWorkflow(instanceId);
+        workflowExecutor.resumeLine(instanceId);
         return "redirect:/workflow/instance/" + instanceId;
     }
 

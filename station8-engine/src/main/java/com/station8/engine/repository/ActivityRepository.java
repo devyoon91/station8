@@ -66,12 +66,12 @@ public interface ActivityRepository {
     /**
      * 워크플로우 인스턴스 목록을 조회합니다.
      */
-    List<com.station8.engine.entity.WorkflowInstance> findAllInstances();
+    List<com.station8.engine.entity.LineInstance> findAllInstances();
 
     /**
      * 특정 인스턴스의 상세 정보를 조회합니다.
      */
-    com.station8.engine.entity.WorkflowInstance findInstanceById(String instanceId);
+    com.station8.engine.entity.LineInstance findInstanceById(String instanceId);
 
     /**
      * 특정 인스턴스에 속한 액티비티 실행 이력을 조회합니다.

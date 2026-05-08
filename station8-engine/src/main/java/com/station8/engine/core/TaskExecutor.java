@@ -13,7 +13,7 @@ public interface TaskExecutor {
     /**
      * 컨텍스트의 현재 액티비티를 실행한다. 구현체는 @Activity 메타데이터나 재시도 룰을 해석할 수 있다.
      */
-    void executeCurrent(WorkflowContext context);
+    void executeCurrent(LineContext context);
 
     /**
      * 다음 액티비티를 스케줄링한다. 보통 현재 트랜잭션 커밋 이후 비동기로 실행되도록 위임된다.
@@ -22,7 +22,7 @@ public interface TaskExecutor {
      * @param nextActivityName 다음 액티비티 이름
      * @param input 다음 액티비티 입력
      */
-    void scheduleNext(WorkflowContext context, String nextActivityName, Object input);
+    void scheduleNext(LineContext context, String nextActivityName, Object input);
 
     /**
      * 현재 액티비티를 성공 처리하고 결과를 컨텍스트/히스토리에 반영한다.
@@ -30,7 +30,7 @@ public interface TaskExecutor {
      * @param context 실행 컨텍스트
      * @param output 출력 결과(직렬화 가능)
      */
-    void complete(WorkflowContext context, Object output);
+    void complete(LineContext context, Object output);
 
     /**
      * 현재 액티비티를 실패 처리하고, 재시도가 필요한 경우 backoff 지연을 반영한다.
@@ -39,11 +39,11 @@ public interface TaskExecutor {
      * @param error 실패 원인
      * @param nextBackoff 재시도 대기 시간(없으면 즉시 또는 정책 기본값 적용)
      */
-    void fail(WorkflowContext context, Throwable error, Duration nextBackoff);
+    void fail(LineContext context, Throwable error, Duration nextBackoff);
 
     /**
      * 체크포인트 스냅샷을 영속 저장한다. 구현체는 JSON 직렬화 등 구체 방식은 자유롭게 선택한다.
      */
-    void checkpoint(WorkflowContext context, Object stateSnapshot);
+    void checkpoint(LineContext context, Object stateSnapshot);
 }
 

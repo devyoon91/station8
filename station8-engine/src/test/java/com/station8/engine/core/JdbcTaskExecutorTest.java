@@ -1,7 +1,7 @@
 package com.station8.engine.core;
 
 import com.station8.engine.entity.ActivityExecution;
-import com.station8.engine.entity.WorkflowInstance;
+import com.station8.engine.entity.LineInstance;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.util.JsonUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,8 +29,8 @@ class JdbcTaskExecutorTest {
         taskExecutor = new JdbcTaskExecutor(activityRepository, jsonUtil);
     }
 
-    private DefaultWorkflowContext createContext(String instanceId, String activityName, int attempt, Object input) {
-        var ctx = new DefaultWorkflowContext(instanceId, "TestWF", activityName, attempt, input, null, jsonUtil);
+    private DefaultLineContext createContext(String instanceId, String activityName, int attempt, Object input) {
+        var ctx = new DefaultLineContext(instanceId, "TestWF", activityName, attempt, input, null, jsonUtil);
         ctx.attributes().put("executionId", "exec-001");
         ctx.attributes().put("instanceId", instanceId);
         return ctx;
@@ -237,12 +237,12 @@ class JdbcTaskExecutorTest {
         }
 
         @Override
-        public List<WorkflowInstance> findAllInstances() {
+        public List<LineInstance> findAllInstances() {
             return List.of();
         }
 
         @Override
-        public WorkflowInstance findInstanceById(String instanceId) {
+        public LineInstance findInstanceById(String instanceId) {
             return null;
         }
 

@@ -1,7 +1,7 @@
 package com.station8.engine.core;
 
 import com.station8.engine.annotation.Activity;
-import com.station8.engine.annotation.Workflow;
+import com.station8.engine.annotation.Line;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -18,13 +18,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * @Workflow 및 @Activity가 붙은 빈과 메서드를 스캔하여 관리하는 레지스트리.
+ * @Line 및 @Activity가 붙은 빈과 메서드를 스캔하여 관리하는 레지스트리.
  * Spring 컨텍스트 로딩이 완료된 후 빈들을 탐색합니다.
  */
 @Component
-public class WorkflowRegistry implements ApplicationListener<ContextRefreshedEvent> {
+public class LineRegistry implements ApplicationListener<ContextRefreshedEvent> {
 
-    private static final Logger log = LoggerFactory.getLogger(WorkflowRegistry.class);
+    private static final Logger log = LoggerFactory.getLogger(LineRegistry.class);
 
     // key: workflowName, value: Bean Object
     private final Map<String, Object> workflowBeans = new ConcurrentHashMap<>();
@@ -35,18 +35,18 @@ public class WorkflowRegistry implements ApplicationListener<ContextRefreshedEve
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
         ApplicationContext context = event.getApplicationContext();
-        scanWorkflows(context);
+        scanLines(context);
         scanActivities(context);
     }
 
-    private void scanWorkflows(ApplicationContext context) {
-        Map<String, Object> beans = context.getBeansWithAnnotation(Workflow.class);
+    private void scanLines(ApplicationContext context) {
+        Map<String, Object> beans = context.getBeansWithAnnotation(Line.class);
         for (Object bean : beans.values()) {
-            Workflow workflow = AnnotationUtils.findAnnotation(bean.getClass(), Workflow.class);
+            Line workflow = AnnotationUtils.findAnnotation(bean.getClass(), Line.class);
             if (workflow != null) {
                 String name = workflow.value().isEmpty() ? bean.getClass().getSimpleName() : workflow.value();
                 workflowBeans.put(name, bean);
-                log.info("Registered Workflow: {} -> {}", name, bean.getClass().getName());
+                log.info("Registered Line: {} -> {}", name, bean.getClass().getName());
             }
         }
     }
@@ -87,7 +87,7 @@ public class WorkflowRegistry implements ApplicationListener<ContextRefreshedEve
         activityMap.put(name, new ActivityMetadata(bean, method, annotation));
     }
 
-    public Object getWorkflowBean(String name) {
+    public Object getLineBean(String name) {
         return workflowBeans.get(name);
     }
 

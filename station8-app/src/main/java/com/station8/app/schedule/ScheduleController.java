@@ -1,6 +1,6 @@
 package com.station8.app.schedule;
 
-import com.station8.engine.entity.WorkflowSchedule;
+import com.station8.engine.entity.LineSchedule;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.support.CronExpression;
@@ -41,7 +41,7 @@ public class ScheduleController {
 
     @GetMapping("/workflow/schedules")
     public String list(Model model) {
-        List<WorkflowSchedule> all = scheduleService.listAll();
+        List<LineSchedule> all = scheduleService.listAll();
         // Mustache view용 — isPaused boolean을 미리 계산 (helper 미지원 회피)
         List<java.util.Map<String, Object>> view = all.stream().map(s -> {
             java.util.Map<String, Object> m = new java.util.HashMap<>();
@@ -74,13 +74,13 @@ public class ScheduleController {
 
     @ResponseBody
     @GetMapping("/api/workflow/schedules")
-    public List<WorkflowSchedule> listJson() {
+    public List<LineSchedule> listJson() {
         return scheduleService.listAll();
     }
 
     @ResponseBody
     @GetMapping("/api/workflow/schedules/{id}")
-    public WorkflowSchedule get(@PathVariable("id") String id) {
+    public LineSchedule get(@PathVariable("id") String id) {
         return scheduleService.findById(id);
     }
 

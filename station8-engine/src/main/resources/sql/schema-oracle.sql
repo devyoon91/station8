@@ -1,11 +1,11 @@
--- Workflow Instance Table (Master)
+-- Line Instance Table (Master)
 CREATE TABLE U_WF_INSTANCE (
     ID VARCHAR2(50),
     WORKFLOW_NAME VARCHAR2(100) NOT NULL,
     STATUS_ST VARCHAR2(20) NOT NULL, -- RUNNING, COMPLETED, FAILED, TERMINATED
     INPUT_DATA CLOB, -- JSON format
     OUTPUT_DATA CLOB, -- JSON format
-    STATE_DATA CLOB, -- JSON format (Workflow Context State)
+    STATE_DATA CLOB, -- JSON format (Line Context State)
     START_DT DATE,
     END_DT DATE,
     USE_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,
@@ -85,7 +85,7 @@ CREATE INDEX H_WF_DLQ_IDX02 ON H_WF_DLQ (INSTANCE_ID);
 -- DAG Definition Tables (M1-1: 워크플로우를 데이터로 정의)
 -- ============================================================================
 
--- Workflow Definition Table (Master) - 사용자가 정의한 DAG의 본체
+-- Line Definition Table (Master) - 사용자가 정의한 DAG의 본체
 CREATE TABLE U_WF_DEFINITION (
     ID VARCHAR2(50),
     DEFINITION_NM VARCHAR2(100) NOT NULL,
@@ -105,7 +105,7 @@ CREATE TABLE U_WF_DEFINITION (
 
 CREATE INDEX U_WF_DEFINITION_IDX01 ON U_WF_DEFINITION (ACTIVE_FL, DEL_FL);
 
--- Workflow Node Table (Master) - DAG 정의 내 노드(=액티비티 호출 단위)
+-- Line Node Table (Master) - DAG 정의 내 노드(=액티비티 호출 단위)
 CREATE TABLE U_WF_NODE (
     ID VARCHAR2(50),
     DEFINITION_ID VARCHAR2(50) NOT NULL,
@@ -128,7 +128,7 @@ CREATE TABLE U_WF_NODE (
 CREATE INDEX U_WF_NODE_IDX01 ON U_WF_NODE (DEFINITION_ID);
 CREATE INDEX U_WF_NODE_IDX02 ON U_WF_NODE (ACTIVITY_NM);
 
--- Workflow Edge Table (Master) - DAG 의존성 (FROM_NODE 완료 후 TO_NODE 활성화)
+-- Line Edge Table (Master) - DAG 의존성 (FROM_NODE 완료 후 TO_NODE 활성화)
 CREATE TABLE U_WF_EDGE (
     ID VARCHAR2(50),
     DEFINITION_ID VARCHAR2(50) NOT NULL,
@@ -161,7 +161,7 @@ ALTER TABLE H_WF_ACTIVITY_EXECUTION
 -- Cron Schedule Table (M2-1: 정기 실행 스케줄)
 -- ============================================================================
 
--- Workflow Schedule Table (Master) - Oracle
+-- Line Schedule Table (Master) - Oracle
 CREATE TABLE U_WF_SCHEDULE (
     ID VARCHAR2(50),
     DEFINITION_ID VARCHAR2(50) NOT NULL,

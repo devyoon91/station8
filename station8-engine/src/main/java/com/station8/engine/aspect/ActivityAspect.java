@@ -1,7 +1,7 @@
 package com.station8.engine.aspect;
 
 import com.station8.engine.annotation.Activity;
-import com.station8.engine.core.WorkflowContext;
+import com.station8.engine.core.LineContext;
 import com.station8.engine.util.JsonUtil;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -30,7 +30,7 @@ public class ActivityAspect {
 
     @Around("@annotation(com.station8.engine.annotation.Activity)")
     public Object profile(ProceedingJoinPoint pjp) throws Throwable {
-        // TODO: 호출 컨텍스트(WorkflowContext)를 ThreadLocal 등으로 참조할 수 있는지 검토
+        // TODO: 호출 컨텍스트(LineContext)를 ThreadLocal 등으로 참조할 수 있는지 검토
         // 현재는 단순한 실행 로그를 남기는 수준으로 구현
         
         String methodName = pjp.getSignature().getName();

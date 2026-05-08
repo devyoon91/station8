@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 /**
  * U_WF_DEFINITION 엔티티 — 사용자가 정의한 DAG의 본체.
  */
-public record WorkflowDefinition(
+public record LineDefinition(
     String id,
     String definitionNm,
     String description,

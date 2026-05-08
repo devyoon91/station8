@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>DLQ Entry — Workflow Engine</title>
+    <title>DLQ Entry — Line Engine</title>
     <link rel="stylesheet" href="/css/design.css">
 </head>
 <body>
@@ -32,7 +32,7 @@
         <table class="swe-table" style="border-radius: 0;">
             <tbody>
             <tr><td style="width: 180px; color: var(--mute);">ID</td><td><code>{{entry.id}}</code></td></tr>
-            <tr><td style="color: var(--mute);">Workflow</td><td>{{entry.workflowName}}</td></tr>
+            <tr><td style="color: var(--mute);">Line</td><td>{{entry.workflowName}}</td></tr>
             <tr><td style="color: var(--mute);">Activity</td><td>{{entry.activityName}}</td></tr>
             <tr><td style="color: var(--mute);">Status</td><td><span class="swe-badge swe-badge-mute">{{entry.dlqStatusSt}}</span></td></tr>
             <tr><td style="color: var(--mute);">Instance</td><td><a href="/workflow/instance/{{entry.instanceId}}" class="swe-ink"><code>{{entry.instanceId}}</code></a></td></tr>

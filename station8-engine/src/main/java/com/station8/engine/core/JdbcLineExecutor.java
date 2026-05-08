@@ -13,18 +13,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * WorkflowExecutor 인터페이스의 실구현체.
+ * LineExecutor 인터페이스의 실구현체.
  */
 @Service
-public class JdbcWorkflowExecutor implements WorkflowExecutor {
+public class JdbcLineExecutor implements LineExecutor {
 
-    private static final Logger log = LoggerFactory.getLogger(JdbcWorkflowExecutor.class);
+    private static final Logger log = LoggerFactory.getLogger(JdbcLineExecutor.class);
 
     private final JdbcTemplate jdbcTemplate;
     private final ActivityRepository activityRepository;
     private final JsonUtil jsonUtil;
 
-    public JdbcWorkflowExecutor(JdbcTemplate jdbcTemplate, 
+    public JdbcLineExecutor(JdbcTemplate jdbcTemplate, 
                                 ActivityRepository activityRepository, 
                                 JsonUtil jsonUtil) {
         this.jdbcTemplate = jdbcTemplate;
@@ -34,7 +34,7 @@ public class JdbcWorkflowExecutor implements WorkflowExecutor {
 
     @Override
     @Transactional
-    public String startWorkflow(String workflowName, Object input) {
+    public String startLine(String workflowName, Object input) {
         String instanceId = UUID.randomUUID().toString();
         String inputJson = jsonUtil.toJson(input);
 
@@ -47,7 +47,7 @@ public class JdbcWorkflowExecutor implements WorkflowExecutor {
             """, instanceId, workflowName, inputJson);
 
         // 첫 번째 액티비티를 찾는 로직이 필요할 수 있으나, 
-        // 현재 엔진은 개발자가 Workflow 로직 내에서 첫 Activity를 호출하거나
+        // 현재 엔진은 개발자가 Line 로직 내에서 첫 Activity를 호출하거나
         // 외부에서 첫 Activity PENDING을 넣어주는 방식으로 동작함.
         
         return instanceId;
@@ -55,7 +55,7 @@ public class JdbcWorkflowExecutor implements WorkflowExecutor {
 
     @Override
     @Transactional
-    public void resumeWorkflow(String instanceId) {
+    public void resumeLine(String instanceId) {
         log.info("Resuming workflow instance: {}", instanceId);
 
         // 1. 인스턴스 상태를 RUNNING으로 복구 (FAILED인 경우 대비)

@@ -1,7 +1,7 @@
 package com.station8.engine.util;
 
 import com.station8.engine.exception.ErrorCodes;
-import com.station8.engine.exception.WorkflowEngineException;
+import com.station8.engine.exception.LineEngineException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -21,7 +21,7 @@ public class JsonUtil {
         try {
             return objectMapper.writeValueAsString(object);
         } catch (JsonProcessingException e) {
-            throw new WorkflowEngineException(ErrorCodes.JSON_SERIALIZATION_ERROR, "JSON serialization error", e);
+            throw new LineEngineException(ErrorCodes.JSON_SERIALIZATION_ERROR, "JSON serialization error", e);
         }
     }
 
@@ -30,7 +30,7 @@ public class JsonUtil {
         try {
             return objectMapper.readValue(json, clazz);
         } catch (JsonProcessingException e) {
-            throw new WorkflowEngineException(ErrorCodes.JSON_DESERIALIZATION_ERROR, "JSON deserialization error", e);
+            throw new LineEngineException(ErrorCodes.JSON_DESERIALIZATION_ERROR, "JSON deserialization error", e);
         }
     }
 }

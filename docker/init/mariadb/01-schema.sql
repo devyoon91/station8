@@ -1,14 +1,14 @@
--- Workflow Engine Schema (MariaDB)
+-- Line Engine Schema (MariaDB)
 -- (Copied from engine-core/src/main/resources/sql/schema-mariadb.sql)
 
--- Workflow Instance Table (Master) - MariaDB
+-- Line Instance Table (Master) - MariaDB
 CREATE TABLE IF NOT EXISTS U_WF_INSTANCE (
     ID VARCHAR(50),
     WORKFLOW_NAME VARCHAR(100) NOT NULL,
     STATUS_ST VARCHAR(20) NOT NULL, -- RUNNING, COMPLETED, FAILED, TERMINATED
     INPUT_DATA LONGTEXT, -- JSON format
     OUTPUT_DATA LONGTEXT, -- JSON format
-    STATE_DATA LONGTEXT, -- JSON format (Workflow Context State)
+    STATE_DATA LONGTEXT, -- JSON format (Line Context State)
     START_DT DATETIME,
     END_DT DATETIME,
     USE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,

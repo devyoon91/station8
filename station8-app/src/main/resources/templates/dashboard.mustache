@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard — Workflow Engine</title>
+    <title>Dashboard — Line Engine</title>
     <link rel="stylesheet" href="/css/design.css">
 </head>
 <body>
@@ -42,7 +42,7 @@
     <div class="swe-card-elevated swe-mb-xl">
         <form method="get" action="/workflow/dashboard" class="swe-grid swe-grid-3">
             <div>
-                <label for="workflowName">Workflow Name</label>
+                <label for="workflowName">Line Name</label>
                 <input type="text" id="workflowName" name="workflowName" class="swe-input"
                        value="{{#workflowName}}{{workflowName}}{{/workflowName}}" placeholder="Name substring">
             </div>
@@ -74,7 +74,7 @@
             <thead>
             <tr>
                 <th>ID</th>
-                <th>Workflow</th>
+                <th>Line</th>
                 <th>Status</th>
                 <th>Started</th>
                 <th>Ended</th>

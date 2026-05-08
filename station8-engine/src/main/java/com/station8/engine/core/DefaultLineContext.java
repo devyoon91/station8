@@ -7,9 +7,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * WorkflowContext의 기본 구현체.
+ * LineContext의 기본 구현체.
  */
-public class DefaultWorkflowContext implements WorkflowContext {
+public class DefaultLineContext implements LineContext {
 
     private final String instanceId;
     private final String workflowName;
@@ -24,7 +24,7 @@ public class DefaultWorkflowContext implements WorkflowContext {
     private Object nextActivityInput;
     private String stateSnapshotJson;
 
-    public DefaultWorkflowContext(String instanceId, 
+    public DefaultLineContext(String instanceId, 
                                   String workflowName, 
                                   String currentActivityName, 
                                   int attempt, 

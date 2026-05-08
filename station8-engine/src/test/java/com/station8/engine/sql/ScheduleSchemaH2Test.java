@@ -1,8 +1,8 @@
 package com.station8.engine.sql;
 
 import com.station8.engine.dialect.DbDialect;
-import com.station8.engine.entity.WorkflowSchedule;
-import com.station8.engine.repository.JdbcWorkflowScheduleRepository;
+import com.station8.engine.entity.LineSchedule;
+import com.station8.engine.repository.JdbcLineScheduleRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,13 +22,13 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * U_WF_SCHEDULE DDL 검증 + JdbcWorkflowScheduleRepository 기본 동작.
+ * U_WF_SCHEDULE DDL 검증 + JdbcLineScheduleRepository 기본 동작.
  */
 class ScheduleSchemaH2Test {
 
     private static DriverManagerDataSource dataSource;
     private static JdbcTemplate jdbcTemplate;
-    private static JdbcWorkflowScheduleRepository repository;
+    private static JdbcLineScheduleRepository repository;
 
     private static final DbDialect H2_DIALECT = new DbDialect() {
         @Override public String limit(int limit) { return " FETCH FIRST " + limit + " ROWS ONLY"; }
@@ -48,7 +48,7 @@ class ScheduleSchemaH2Test {
         populator.execute(dataSource);
 
         jdbcTemplate = new JdbcTemplate(dataSource);
-        repository = new JdbcWorkflowScheduleRepository(jdbcTemplate, H2_DIALECT);
+        repository = new JdbcLineScheduleRepository(jdbcTemplate, H2_DIALECT);
     }
 
     @BeforeEach
@@ -94,14 +94,14 @@ class ScheduleSchemaH2Test {
 
     @Test
     void insertAndFindById() {
-        WorkflowSchedule s = new WorkflowSchedule(
+        LineSchedule s = new LineSchedule(
                 "sch-1", "def-test", "0 */5 * * * *",
                 LocalDateTime.now().plusMinutes(5), null,
                 "N", null, "Y", "Y", "N", null, "test", null, null
         );
         repository.insert(s);
 
-        WorkflowSchedule found = repository.findById("sch-1");
+        LineSchedule found = repository.findById("sch-1");
         assertNotNull(found);
         assertEquals("def-test", found.definitionId());
         assertEquals("0 */5 * * * *", found.cronExpr());
@@ -111,29 +111,29 @@ class ScheduleSchemaH2Test {
     @Test
     void findDueWithLock_returns_only_expired_and_not_paused() {
         // 만료 (포함되어야 함)
-        repository.insert(new WorkflowSchedule(
+        repository.insert(new LineSchedule(
                 "sch-due", "def-test", "* * * * * *",
                 LocalDateTime.now().minusMinutes(1), null,
                 "N", null, "Y", "Y", "N", null, "test", null, null));
         // 미래 (제외)
-        repository.insert(new WorkflowSchedule(
+        repository.insert(new LineSchedule(
                 "sch-future", "def-test", "* * * * * *",
                 LocalDateTime.now().plusHours(1), null,
                 "N", null, "Y", "Y", "N", null, "test", null, null));
         // 일시중지 (제외)
-        repository.insert(new WorkflowSchedule(
+        repository.insert(new LineSchedule(
                 "sch-paused", "def-test", "* * * * * *",
                 LocalDateTime.now().minusMinutes(5), null,
                 "Y", null, "Y", "Y", "N", null, "test", null, null));
 
-        List<WorkflowSchedule> due = repository.findDueWithLock(10);
+        List<LineSchedule> due = repository.findDueWithLock(10);
         assertEquals(1, due.size());
         assertEquals("sch-due", due.get(0).id());
     }
 
     @Test
     void markRun_updates_next_and_last() {
-        repository.insert(new WorkflowSchedule(
+        repository.insert(new LineSchedule(
                 "sch-mr", "def-test", "* * * * * *",
                 LocalDateTime.now().minusMinutes(1), null,
                 "N", null, "Y", "Y", "N", null, "test", null, null));
@@ -142,7 +142,7 @@ class ScheduleSchemaH2Test {
         LocalDateTime lastRun = LocalDateTime.now();
         repository.markRun("sch-mr", nextRun, lastRun);
 
-        WorkflowSchedule s = repository.findById("sch-mr");
+        LineSchedule s = repository.findById("sch-mr");
         assertNotNull(s.nextRunDt());
         assertNotNull(s.lastRunDt());
         assertTrue(s.nextRunDt().isAfter(LocalDateTime.now()));
@@ -150,7 +150,7 @@ class ScheduleSchemaH2Test {
 
     @Test
     void setPaused_toggles_flag() {
-        repository.insert(new WorkflowSchedule(
+        repository.insert(new LineSchedule(
                 "sch-p", "def-test", "* * * * * *",
                 null, null, "N", null,
                 "Y", "Y", "N", null, "test", null, null));
@@ -164,7 +164,7 @@ class ScheduleSchemaH2Test {
 
     @Test
     void softDelete_removes_from_findAll_and_findById() {
-        repository.insert(new WorkflowSchedule(
+        repository.insert(new LineSchedule(
                 "sch-d", "def-test", "* * * * * *",
                 null, null, "N", null,
                 "Y", "Y", "N", null, "test", null, null));

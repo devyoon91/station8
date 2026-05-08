@@ -1,7 +1,7 @@
 package com.station8.app.demo;
 
 import com.station8.engine.annotation.Activity;
-import com.station8.engine.annotation.Workflow;
+import com.station8.engine.annotation.Line;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,13 +18,13 @@ import org.springframework.stereotype.Component;
  *   <li>{@code NOOP_FAIL_ONCE} — 첫 시도에서 실패하고, 재시도 시 성공한다 (재시도 정책 시연용).</li>
  * </ul>
  *
- * <p>비주얼 빌더에서 노드 팔레트에 자동 노출됨 ({@code WorkflowRegistry} 스캔).</p>
+ * <p>비주얼 빌더에서 노드 팔레트에 자동 노출됨 ({@code LineRegistry} 스캔).</p>
  */
 @Component
-@Workflow("NoopWorkflow")
-public class NoopWorkflow {
+@Line("NoopLine")
+public class NoopLine {
 
-    private static final Logger log = LoggerFactory.getLogger(NoopWorkflow.class);
+    private static final Logger log = LoggerFactory.getLogger(NoopLine.class);
 
     private static final java.util.concurrent.ConcurrentMap<String, Integer> attemptCounter =
             new java.util.concurrent.ConcurrentHashMap<>();

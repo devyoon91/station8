@@ -6,7 +6,7 @@ package com.station8.engine.exception;
  * <p>코드 체계: ``WF-E<영역><번호>``</p>
  * <ul>
  *   <li>1xx — JSON / 직렬화</li>
- *   <li>2xx — Registry / Context / Activity / Workflow 실행 컨텍스트</li>
+ *   <li>2xx — Registry / Context / Activity / Line 실행 컨텍스트</li>
  *   <li>3xx — DAG 정의/검증</li>
  *   <li>4xx — Schedule / Cron</li>
  *   <li>5xx — Definition 저장소 / 라이프사이클</li>

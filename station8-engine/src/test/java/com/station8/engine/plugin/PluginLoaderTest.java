@@ -1,6 +1,6 @@
 package com.station8.engine.plugin;
 
-import com.station8.engine.core.WorkflowRegistry;
+import com.station8.engine.core.LineRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -27,14 +27,14 @@ class PluginLoaderTest {
     void loadsActivityFromJarAndRegisters(@TempDir Path tempDir) throws Exception {
         File jar = buildFixtureJar(tempDir, GreeterFixture.class);
 
-        WorkflowRegistry registry = new WorkflowRegistry();
+        LineRegistry registry = new LineRegistry();
         PluginLoader loader = new PluginLoader(registry);
 
         int count = loader.scanAndRegister(jar);
 
         assertThat(count).as("등록된 액티비티 개수").isEqualTo(1);
         assertThat(registry.getActivityNames()).contains("GREET");
-        WorkflowRegistry.ActivityMetadata md = registry.getActivity("GREET");
+        LineRegistry.ActivityMetadata md = registry.getActivity("GREET");
         assertThat(md).isNotNull();
         assertThat(md.method().getName()).isEqualTo("greet");
     }
@@ -43,7 +43,7 @@ class PluginLoaderTest {
     void duplicateNameIsSkippedWithWarning(@TempDir Path tempDir) throws Exception {
         File jar = buildFixtureJar(tempDir, GreeterFixture.class);
 
-        WorkflowRegistry registry = new WorkflowRegistry();
+        LineRegistry registry = new LineRegistry();
         PluginLoader loader = new PluginLoader(registry);
 
         // 첫 호출 → 등록

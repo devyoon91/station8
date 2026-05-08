@@ -1,7 +1,7 @@
 package com.station8.engine.plugin;
 
 import com.station8.engine.annotation.Activity;
-import com.station8.engine.core.WorkflowRegistry;
+import com.station8.engine.core.LineRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,7 +50,7 @@ public class PluginLoader {
 
     private static final Logger log = LoggerFactory.getLogger(PluginLoader.class);
 
-    private final WorkflowRegistry registry;
+    private final LineRegistry registry;
 
     @Value("${engine.plugins.enabled:false}")
     private boolean enabled;
@@ -58,13 +58,13 @@ public class PluginLoader {
     @Value("${engine.plugins.dir:plugins}")
     private String pluginsDir;
 
-    public PluginLoader(WorkflowRegistry registry) {
+    public PluginLoader(LineRegistry registry) {
         this.registry = registry;
     }
 
     /**
      * Spring 컨텍스트가 모두 준비된 ApplicationReady 시점에 플러그인 스캔.
-     * (WorkflowRegistry가 ContextRefreshed에서 빈 스캔을 끝내야 하므로 이후 단계에서 수행)
+     * (LineRegistry가 ContextRefreshed에서 빈 스캔을 끝내야 하므로 이후 단계에서 수행)
      */
     @EventListener(ApplicationReadyEvent.class)
     public void loadPlugins() {

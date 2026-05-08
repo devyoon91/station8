@@ -1,6 +1,6 @@
 package com.station8.app.catalog;
 
-import com.station8.engine.core.WorkflowRegistry;
+import com.station8.engine.core.LineRegistry;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -29,9 +29,9 @@ import java.util.Map;
 @RequestMapping
 public class ActivityCatalogController {
 
-    private final WorkflowRegistry workflowRegistry;
+    private final LineRegistry workflowRegistry;
 
-    public ActivityCatalogController(WorkflowRegistry workflowRegistry) {
+    public ActivityCatalogController(LineRegistry workflowRegistry) {
         this.workflowRegistry = workflowRegistry;
     }
 
@@ -63,7 +63,7 @@ public class ActivityCatalogController {
     @ResponseBody
     @GetMapping("/api/workflow/activities/{name}")
     public ResponseEntity<?> getByName(@PathVariable("name") String name) {
-        WorkflowRegistry.ActivityMetadata meta = workflowRegistry.getActivity(name);
+        LineRegistry.ActivityMetadata meta = workflowRegistry.getActivity(name);
         if (meta == null) {
             return ResponseEntity.status(404)
                     .body(Map.of("message", "등록되지 않은 activityName: " + name));
@@ -71,7 +71,7 @@ public class ActivityCatalogController {
         return ResponseEntity.ok(toEntry(name, meta));
     }
 
-    private ActivityCatalogEntry toEntry(String activityName, WorkflowRegistry.ActivityMetadata meta) {
+    private ActivityCatalogEntry toEntry(String activityName, LineRegistry.ActivityMetadata meta) {
         Method m = meta.method();
         Class<?> beanClass = meta.bean().getClass();
         // Spring AOP 프록시인 경우 원본 클래스명을 사용

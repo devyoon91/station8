@@ -1,8 +1,8 @@
 package com.station8.engine.repository;
 
-import com.station8.engine.entity.WorkflowDefinition;
-import com.station8.engine.entity.WorkflowEdge;
-import com.station8.engine.entity.WorkflowNode;
+import com.station8.engine.entity.LineDefinition;
+import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineStation;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -13,53 +13,53 @@ import java.sql.SQLException;
 import java.util.List;
 
 @Repository
-public class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepository {
+public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public JdbcWorkflowDefinitionRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcLineDefinitionRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public WorkflowDefinition findDefinitionById(String definitionId) {
+    public LineDefinition findDefinitionById(String definitionId) {
         String sql = "SELECT * FROM U_WF_DEFINITION WHERE ID = ?";
-        List<WorkflowDefinition> rows = jdbcTemplate.query(sql, new DefinitionMapper(), definitionId);
+        List<LineDefinition> rows = jdbcTemplate.query(sql, new DefinitionMapper(), definitionId);
         return rows.isEmpty() ? null : rows.get(0);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkflowNode> findNodesByDefinition(String definitionId) {
+    public List<LineStation> findNodesByDefinition(String definitionId) {
         String sql = "SELECT * FROM U_WF_NODE WHERE DEFINITION_ID = ? AND DEL_FL = 'N'";
         return jdbcTemplate.query(sql, new NodeMapper(), definitionId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkflowEdge> findEdgesByDefinition(String definitionId) {
+    public List<LineEdge> findEdgesByDefinition(String definitionId) {
         String sql = "SELECT * FROM U_WF_EDGE WHERE DEFINITION_ID = ? AND DEL_FL = 'N'";
         return jdbcTemplate.query(sql, new EdgeMapper(), definitionId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkflowEdge> findIncomingEdges(String toNodeId) {
+    public List<LineEdge> findIncomingEdges(String toNodeId) {
         String sql = "SELECT * FROM U_WF_EDGE WHERE TO_NODE_ID = ? AND DEL_FL = 'N'";
         return jdbcTemplate.query(sql, new EdgeMapper(), toNodeId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkflowEdge> findOutgoingEdges(String fromNodeId) {
+    public List<LineEdge> findOutgoingEdges(String fromNodeId) {
         String sql = "SELECT * FROM U_WF_EDGE WHERE FROM_NODE_ID = ? AND DEL_FL = 'N'";
         return jdbcTemplate.query(sql, new EdgeMapper(), fromNodeId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkflowNode> findStartNodes(String definitionId) {
+    public List<LineStation> findStartNodes(String definitionId) {
         String sql = """
                 SELECT n.* FROM U_WF_NODE n
                 WHERE n.DEFINITION_ID = ? AND n.DEL_FL = 'N'
@@ -73,7 +73,7 @@ public class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepos
 
     @Override
     @Transactional
-    public void insertDefinition(WorkflowDefinition definition) {
+    public void insertDefinition(LineDefinition definition) {
         jdbcTemplate.update("""
                 INSERT INTO U_WF_DEFINITION
                   (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
@@ -106,7 +106,7 @@ public class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepos
 
     @Override
     @Transactional
-    public void insertNode(WorkflowNode node) {
+    public void insertNode(LineStation node) {
         jdbcTemplate.update("""
                 INSERT INTO U_WF_NODE
                   (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO,
@@ -128,7 +128,7 @@ public class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepos
 
     @Override
     @Transactional
-    public void insertEdge(WorkflowEdge edge) {
+    public void insertEdge(LineEdge edge) {
         jdbcTemplate.update("""
                 INSERT INTO U_WF_EDGE
                   (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, CONDITION_EXPR,
@@ -157,10 +157,10 @@ public class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepos
         return max != null ? max : 0;
     }
 
-    private static class DefinitionMapper implements RowMapper<WorkflowDefinition> {
+    private static class DefinitionMapper implements RowMapper<LineDefinition> {
         @Override
-        public WorkflowDefinition mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new WorkflowDefinition(
+        public LineDefinition mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new LineDefinition(
                 rs.getString("ID"),
                 rs.getString("DEFINITION_NM"),
                 rs.getString("DESCRIPTION"),
@@ -177,14 +177,14 @@ public class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepos
         }
     }
 
-    private static class NodeMapper implements RowMapper<WorkflowNode> {
+    private static class NodeMapper implements RowMapper<LineStation> {
         @Override
-        public WorkflowNode mapRow(ResultSet rs, int rowNum) throws SQLException {
+        public LineStation mapRow(ResultSet rs, int rowNum) throws SQLException {
             int posX = rs.getInt("POS_X_NO");
             Integer posXVal = rs.wasNull() ? null : posX;
             int posY = rs.getInt("POS_Y_NO");
             Integer posYVal = rs.wasNull() ? null : posY;
-            return new WorkflowNode(
+            return new LineStation(
                 rs.getString("ID"),
                 rs.getString("DEFINITION_ID"),
                 rs.getString("NODE_NM"),
@@ -203,10 +203,10 @@ public class JdbcWorkflowDefinitionRepository implements WorkflowDefinitionRepos
         }
     }
 
-    private static class EdgeMapper implements RowMapper<WorkflowEdge> {
+    private static class EdgeMapper implements RowMapper<LineEdge> {
         @Override
-        public WorkflowEdge mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new WorkflowEdge(
+        public LineEdge mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new LineEdge(
                 rs.getString("ID"),
                 rs.getString("DEFINITION_ID"),
                 rs.getString("FROM_NODE_ID"),

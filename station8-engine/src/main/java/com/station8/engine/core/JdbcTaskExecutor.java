@@ -4,7 +4,7 @@ import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.util.JsonUtil;
 import com.station8.engine.exception.ErrorCodes;
-import com.station8.engine.exception.WorkflowEngineException;
+import com.station8.engine.exception.LineEngineException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +22,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(JdbcTaskExecutor.class);
 
-    private static final String CTX_KEY_EXECUTION_ID = "executionId"; // WorkflowWorker가 컨텍스트에 주입해야 함
+    private static final String CTX_KEY_EXECUTION_ID = "executionId"; // LineWorker가 컨텍스트에 주입해야 함
     private static final String CTX_KEY_INSTANCE_ID = "instanceId";   // 필요 시 주입(없으면 context.instanceId() 사용)
 
     private final ActivityRepository activityRepository;
@@ -34,14 +34,14 @@ public class JdbcTaskExecutor implements TaskExecutor {
     }
 
     @Override
-    public void executeCurrent(WorkflowContext context) {
-        // 실제 비즈니스 메서드 호출은 WorkflowWorker/Invoker 레이어에서 수행.
+    public void executeCurrent(LineContext context) {
+        // 실제 비즈니스 메서드 호출은 LineWorker/Invoker 레이어에서 수행.
         // 본 구현체는 실행 결과를 반영하고 다음 단계 오케스트레이션에 해당하므로, 여기서는 별도 동작 없음.
         log.debug("executeCurrent called for activity: {}", context.currentActivityName());
     }
 
     @Override
-    public void scheduleNext(WorkflowContext context, String nextActivityName, Object input) {
+    public void scheduleNext(LineContext context, String nextActivityName, Object input) {
         String instanceId = resolveInstanceId(context);
         String inputJson = jsonUtil.toJson(input);
         activityRepository.createPending(instanceId, nextActivityName, inputJson, null);
@@ -49,7 +49,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
     }
 
     @Override
-    public void complete(WorkflowContext context, Object output) {
+    public void complete(LineContext context, Object output) {
         String executionId = resolveExecutionId(context);
         String outputJson = jsonUtil.toJson(output);
         ActivityExecution updated = new ActivityExecution(
@@ -73,7 +73,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
         activityRepository.updateStatus(updated);
 
         // 컨텍스트에 next 힌트가 존재하면 레거시(선형) 오케스트레이션
-        // DAG 모드에서는 WorkflowWorker가 인터프리터에 onNodeCompleted를 위임함
+        // DAG 모드에서는 LineWorker가 인터프리터에 onNodeCompleted를 위임함
         context.nextActivityName().ifPresent(name -> {
             Object nextInput = context.nextActivityInput().orElse(null);
             scheduleNext(context, name, nextInput);
@@ -81,7 +81,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
     }
 
     @Override
-    public void fail(WorkflowContext context, Throwable error, Duration nextBackoff) {
+    public void fail(LineContext context, Throwable error, Duration nextBackoff) {
         String executionId = resolveExecutionId(context);
         String errorMessage = error.getMessage();
         String stackTrace = buildStackTrace(error);
@@ -119,19 +119,19 @@ public class JdbcTaskExecutor implements TaskExecutor {
     }
 
     @Override
-    public void checkpoint(WorkflowContext context, Object stateSnapshot) {
+    public void checkpoint(LineContext context, Object stateSnapshot) {
         // 체크포인트는 인스턴스 레벨( U_WF_INSTANCE.STATE_DATA )에 저장되며,
         // 본 구현에서는 컨텍스트가 보유한 스냅샷 직렬화 기능(saveState)을 사용한다.
         context.saveState(stateSnapshot);
     }
 
-    private String resolveExecutionId(WorkflowContext context) {
+    private String resolveExecutionId(LineContext context) {
         return Optional.ofNullable(context.attributes().get(CTX_KEY_EXECUTION_ID))
                 .map(Object::toString)
-                .orElseThrow(() -> new WorkflowEngineException(ErrorCodes.CONTEXT_ATTRIBUTE_MISSING, "Missing executionId in WorkflowContext.attributes"));
+                .orElseThrow(() -> new LineEngineException(ErrorCodes.CONTEXT_ATTRIBUTE_MISSING, "Missing executionId in LineContext.attributes"));
     }
 
-    private String resolveInstanceId(WorkflowContext context) {
+    private String resolveInstanceId(LineContext context) {
         Object v = context.attributes().get(CTX_KEY_INSTANCE_ID);
         return v != null ? v.toString() : context.instanceId();
     }

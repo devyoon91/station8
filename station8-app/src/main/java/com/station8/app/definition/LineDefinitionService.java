@@ -2,11 +2,11 @@ package com.station8.app.definition;
 
 import com.station8.engine.core.DagInterpreter;
 import com.station8.engine.core.DagValidator;
-import com.station8.engine.core.WorkflowRegistry;
-import com.station8.engine.entity.WorkflowDefinition;
-import com.station8.engine.entity.WorkflowEdge;
-import com.station8.engine.entity.WorkflowNode;
-import com.station8.engine.repository.WorkflowDefinitionRepository;
+import com.station8.engine.core.LineRegistry;
+import com.station8.engine.entity.LineDefinition;
+import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineStation;
+import com.station8.engine.repository.LineDefinitionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,19 +21,19 @@ import java.util.UUID;
  * 검증은 {@link DagValidator}, 그래프 시작은 {@link DagInterpreter}에 위임한다.
  */
 @Service
-public class WorkflowDefinitionService {
+public class LineDefinitionService {
 
-    private static final Logger log = LoggerFactory.getLogger(WorkflowDefinitionService.class);
+    private static final Logger log = LoggerFactory.getLogger(LineDefinitionService.class);
 
-    private final WorkflowDefinitionRepository definitionRepository;
+    private final LineDefinitionRepository definitionRepository;
     private final DagValidator dagValidator;
-    private final WorkflowRegistry workflowRegistry;
+    private final LineRegistry workflowRegistry;
     private final DagInterpreter dagInterpreter;
     private final JdbcTemplate jdbcTemplate;
 
-    public WorkflowDefinitionService(WorkflowDefinitionRepository definitionRepository,
+    public LineDefinitionService(LineDefinitionRepository definitionRepository,
                                      DagValidator dagValidator,
-                                     WorkflowRegistry workflowRegistry,
+                                     LineRegistry workflowRegistry,
                                      DagInterpreter dagInterpreter,
                                      JdbcTemplate jdbcTemplate) {
         this.definitionRepository = definitionRepository;
@@ -61,28 +61,28 @@ public class WorkflowDefinitionService {
         int nextVersion = definitionRepository.findMaxVersionByName(req.definitionNm()) + 1;
 
         // 검증을 위한 엔티티 변환 (저장 전에 위반 여부 확인)
-        List<WorkflowNode> nodes = req.nodes().stream().map(n -> new WorkflowNode(
+        List<LineStation> nodes = req.nodes().stream().map(n -> new LineStation(
                 n.nodeId(), definitionId, n.nodeNm(), n.activityNm(), n.inputParams(),
                 n.posX(), n.posY(), "Y", "Y", "N", null, null, null, null
         )).toList();
-        List<WorkflowEdge> edges = req.edges() == null ? List.of()
-                : req.edges().stream().map(e -> new WorkflowEdge(
+        List<LineEdge> edges = req.edges() == null ? List.of()
+                : req.edges().stream().map(e -> new LineEdge(
                 e.edgeId(), definitionId, e.fromNodeId(), e.toNodeId(), e.conditionExpr(),
                 "Y", "Y", "N", null, null, null, null
         )).toList();
 
-        // 검증 — 위반 시 WorkflowEngineException(DAG_INVALID) 으로 실패
+        // 검증 — 위반 시 LineEngineException(DAG_INVALID) 으로 실패
         dagValidator.validate(nodes, edges, workflowRegistry.getActivityNames());
 
         // 정의 + 노드 + 엣지 저장
-        WorkflowDefinition def = new WorkflowDefinition(
+        LineDefinition def = new LineDefinition(
                 definitionId, req.definitionNm(), req.description(),
                 nextVersion, "Y", "Y", "Y", "N",
                 null, "api", null, null
         );
         definitionRepository.insertDefinition(def);
-        for (WorkflowNode n : nodes) definitionRepository.insertNode(n);
-        for (WorkflowEdge e : edges) definitionRepository.insertEdge(e);
+        for (LineStation n : nodes) definitionRepository.insertNode(n);
+        for (LineEdge e : edges) definitionRepository.insertEdge(e);
 
         log.info("DAG 정의 등록: id={}, nm={}, version={}, nodes={}, edges={}",
                 definitionId, req.definitionNm(), nextVersion, nodes.size(), edges.size());
@@ -91,12 +91,12 @@ public class WorkflowDefinitionService {
 
     @Transactional(readOnly = true)
     public DagDefinitionResponse getDefinition(String definitionId) {
-        WorkflowDefinition def = definitionRepository.findDefinitionById(definitionId);
+        LineDefinition def = definitionRepository.findDefinitionById(definitionId);
         if (def == null || "Y".equals(def.delFl())) {
             throw new IllegalArgumentException("정의를 찾을 수 없습니다: " + definitionId);
         }
-        List<WorkflowNode> nodes = definitionRepository.findNodesByDefinition(definitionId);
-        List<WorkflowEdge> edges = definitionRepository.findEdgesByDefinition(definitionId);
+        List<LineStation> nodes = definitionRepository.findNodesByDefinition(definitionId);
+        List<LineEdge> edges = definitionRepository.findEdgesByDefinition(definitionId);
         return new DagDefinitionResponse(
                 def.id(), def.definitionNm(), def.description(),
                 def.versionNo(), def.activeFl(),
@@ -114,16 +114,16 @@ public class WorkflowDefinitionService {
      */
     @Transactional
     public void replaceDefinition(String definitionId, DagDefinitionRequest req) {
-        WorkflowDefinition existing = definitionRepository.findDefinitionById(definitionId);
+        LineDefinition existing = definitionRepository.findDefinitionById(definitionId);
         if (existing == null || "Y".equals(existing.delFl())) {
             throw new IllegalArgumentException("정의를 찾을 수 없습니다: " + definitionId);
         }
-        List<WorkflowNode> nodes = req.nodes().stream().map(n -> new WorkflowNode(
+        List<LineStation> nodes = req.nodes().stream().map(n -> new LineStation(
                 n.nodeId(), definitionId, n.nodeNm(), n.activityNm(), n.inputParams(),
                 n.posX(), n.posY(), "Y", "Y", "N", null, null, null, null
         )).toList();
-        List<WorkflowEdge> edges = req.edges() == null ? List.of()
-                : req.edges().stream().map(e -> new WorkflowEdge(
+        List<LineEdge> edges = req.edges() == null ? List.of()
+                : req.edges().stream().map(e -> new LineEdge(
                 e.edgeId(), definitionId, e.fromNodeId(), e.toNodeId(), e.conditionExpr(),
                 "Y", "Y", "N", null, null, null, null
         )).toList();
@@ -132,15 +132,15 @@ public class WorkflowDefinitionService {
         definitionRepository.updateDefinitionMeta(definitionId, req.description(), null);
         definitionRepository.softDeleteEdgesByDefinition(definitionId);
         definitionRepository.softDeleteNodesByDefinition(definitionId);
-        for (WorkflowNode n : nodes) definitionRepository.insertNode(n);
-        for (WorkflowEdge e : edges) definitionRepository.insertEdge(e);
+        for (LineStation n : nodes) definitionRepository.insertNode(n);
+        for (LineEdge e : edges) definitionRepository.insertEdge(e);
 
         log.info("DAG 정의 교체: id={}, nodes={}, edges={}", definitionId, nodes.size(), edges.size());
     }
 
     @Transactional
     public void deleteDefinition(String definitionId) {
-        WorkflowDefinition existing = definitionRepository.findDefinitionById(definitionId);
+        LineDefinition existing = definitionRepository.findDefinitionById(definitionId);
         if (existing == null || "Y".equals(existing.delFl())) {
             return; // 멱등 삭제
         }
@@ -157,7 +157,7 @@ public class WorkflowDefinitionService {
      */
     @Transactional
     public String runDefinition(String definitionId, String inputData) {
-        WorkflowDefinition def = definitionRepository.findDefinitionById(definitionId);
+        LineDefinition def = definitionRepository.findDefinitionById(definitionId);
         if (def == null || "Y".equals(def.delFl())) {
             throw new IllegalArgumentException("정의를 찾을 수 없습니다: " + definitionId);
         }

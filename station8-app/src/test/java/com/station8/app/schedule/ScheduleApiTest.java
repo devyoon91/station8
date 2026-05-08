@@ -2,8 +2,8 @@ package com.station8.app.schedule;
 
 import com.station8.app.Application;
 import com.station8.app.definition.DagDefinitionRequest;
-import com.station8.app.definition.WorkflowDefinitionService;
-import com.station8.engine.entity.WorkflowSchedule;
+import com.station8.app.definition.LineDefinitionService;
+import com.station8.engine.entity.LineSchedule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ScheduleApiTest {
 
     @Autowired ScheduleService scheduleService;
-    @Autowired WorkflowDefinitionService definitionService;
+    @Autowired LineDefinitionService definitionService;
     @Autowired JdbcTemplate jdbcTemplate;
 
     private String defId;
@@ -58,7 +58,7 @@ class ScheduleApiTest {
     @Test
     void create_schedule_with_valid_cron_sets_nextRunDt_in_future() {
         String id = scheduleService.create(defId, "0 */5 * * * *", null);
-        WorkflowSchedule s = scheduleService.findById(id);
+        LineSchedule s = scheduleService.findById(id);
         assertNotNull(s.nextRunDt());
         assertTrue(s.nextRunDt().isAfter(LocalDateTime.now()), "nextRunDt 미래여야 함");
         assertEquals("N", s.pausedFl());
@@ -125,7 +125,7 @@ class ScheduleApiTest {
         String id2 = scheduleService.create(defId, "0 30 * * * *", null);
         scheduleService.delete(id1);
 
-        List<WorkflowSchedule> all = scheduleService.listAll();
+        List<LineSchedule> all = scheduleService.listAll();
         assertEquals(1, all.size());
         assertEquals(id2, all.get(0).id());
     }

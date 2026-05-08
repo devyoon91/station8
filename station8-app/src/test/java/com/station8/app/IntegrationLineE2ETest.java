@@ -1,7 +1,7 @@
 package com.station8.app;
 
-import com.station8.app.migration.DataMigrationWorkflow;
-import com.station8.engine.core.DefaultWorkflowContext;
+import com.station8.app.migration.DataMigrationLine;
+import com.station8.engine.core.DefaultLineContext;
 import com.station8.engine.core.ExponentialBackoffRetryPolicy;
 import com.station8.engine.core.TaskExecutor;
 import com.station8.engine.entity.ActivityExecution;
@@ -24,7 +24,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = Application.class)
-public class IntegrationWorkflowE2ETest {
+public class IntegrationLineE2ETest {
 
     @Autowired
     JdbcTemplate jdbcTemplate;
@@ -35,7 +35,7 @@ public class IntegrationWorkflowE2ETest {
     @Autowired
     JsonUtil jsonUtil;
     @Autowired
-    DataMigrationWorkflow dataMigrationWorkflow;
+    DataMigrationLine dataMigrationLine;
     @Autowired
     ExponentialBackoffRetryPolicy retryPolicy;
 
@@ -61,7 +61,7 @@ public class IntegrationWorkflowE2ETest {
         instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
             INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, 'DataMigrationWorkflow', 'RUNNING', NULL, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, 'DataMigrationLine', 'RUNNING', NULL, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """, instanceId);
 
         // Create three pending activities with known payloads
@@ -82,9 +82,9 @@ public class IntegrationWorkflowE2ETest {
         // Process each by simulating worker invocation + TaskExecutor callbacks
         for (ActivityExecution exec : locked) {
             String inputJson = exec.inputData();
-            DefaultWorkflowContext ctx = new DefaultWorkflowContext(
+            DefaultLineContext ctx = new DefaultLineContext(
                     instanceId,
-                    "DataMigrationWorkflow",
+                    "DataMigrationLine",
                     "MIGRATION_WRITE",
                     exec.retryCnt() == 0 ? 1 : exec.retryCnt() + 1,
                     inputJson,
@@ -96,7 +96,7 @@ public class IntegrationWorkflowE2ETest {
             ctx.attributes().put("instanceId", exec.instanceId());
 
             try {
-                String output = dataMigrationWorkflow.migrateItem(inputJson);
+                String output = dataMigrationLine.migrateItem(inputJson);
                 taskExecutor.complete(ctx, output);
             } catch (RuntimeException ex) {
                 // backoff for attempt 1 with base 5s as per @Activity(backoffSeconds=5)

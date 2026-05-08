@@ -10,7 +10,7 @@ import java.util.Optional;
  * - 특정 DB 기술(JPA 등)에 의존하지 않는 순수 POJO 기반 계약입니다.
  * - 엔진 구현체는 본 인터페이스를 통해 컨텍스트를 주입/교환합니다.
  */
-public interface WorkflowContext {
+public interface LineContext {
 
     /**
      * 워크플로우 인스턴스 식별자
@@ -18,7 +18,7 @@ public interface WorkflowContext {
     String instanceId();
 
     /**
-     * 워크플로우 이름 (@Workflow value 또는 클래스명)
+     * 워크플로우 이름 (@Line value 또는 클래스명)
      */
     String workflowName();
 

@@ -1,11 +1,11 @@
--- Workflow Instance Table (Master) - MariaDB
+-- Line Instance Table (Master) - MariaDB
 CREATE TABLE U_WF_INSTANCE (
     ID VARCHAR(50),
     WORKFLOW_NAME VARCHAR(100) NOT NULL,
     STATUS_ST VARCHAR(20) NOT NULL, -- RUNNING, COMPLETED, FAILED, TERMINATED
     INPUT_DATA LONGTEXT, -- JSON format
     OUTPUT_DATA LONGTEXT, -- JSON format
-    STATE_DATA LONGTEXT, -- JSON format (Workflow Context State)
+    STATE_DATA LONGTEXT, -- JSON format (Line Context State)
     START_DT DATETIME,
     END_DT DATETIME,
     USE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
@@ -85,7 +85,7 @@ CREATE INDEX H_WF_DLQ_IDX02 ON H_WF_DLQ (INSTANCE_ID);
 -- DAG Definition Tables (M1-1: 워크플로우를 데이터로 정의)
 -- ============================================================================
 
--- Workflow Definition Table (Master) - MariaDB
+-- Line Definition Table (Master) - MariaDB
 CREATE TABLE U_WF_DEFINITION (
     ID VARCHAR(50),
     DEFINITION_NM VARCHAR(100) NOT NULL,
@@ -105,7 +105,7 @@ CREATE TABLE U_WF_DEFINITION (
 
 CREATE INDEX U_WF_DEFINITION_IDX01 ON U_WF_DEFINITION (ACTIVE_FL, DEL_FL);
 
--- Workflow Node Table (Master) - MariaDB
+-- Line Node Table (Master) - MariaDB
 CREATE TABLE U_WF_NODE (
     ID VARCHAR(50),
     DEFINITION_ID VARCHAR(50) NOT NULL,
@@ -128,7 +128,7 @@ CREATE TABLE U_WF_NODE (
 CREATE INDEX U_WF_NODE_IDX01 ON U_WF_NODE (DEFINITION_ID);
 CREATE INDEX U_WF_NODE_IDX02 ON U_WF_NODE (ACTIVITY_NM);
 
--- Workflow Edge Table (Master) - MariaDB
+-- Line Edge Table (Master) - MariaDB
 CREATE TABLE U_WF_EDGE (
     ID VARCHAR(50),
     DEFINITION_ID VARCHAR(50) NOT NULL,
@@ -161,7 +161,7 @@ ALTER TABLE H_WF_ACTIVITY_EXECUTION
 -- Cron Schedule Table (M2-1: 정기 실행 스케줄)
 -- ============================================================================
 
--- Workflow Schedule Table (Master) - MariaDB
+-- Line Schedule Table (Master) - MariaDB
 CREATE TABLE U_WF_SCHEDULE (
     ID VARCHAR(50),
     DEFINITION_ID VARCHAR(50) NOT NULL,

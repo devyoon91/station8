@@ -1,6 +1,6 @@
 package com.station8.app.definition;
 
-import com.station8.engine.exception.WorkflowEngineException;
+import com.station8.engine.exception.LineEngineException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,15 +18,15 @@ import java.util.Map;
  *   <li>POST   /api/workflow/definitions/{id}/run — 즉시 실행 (인스턴스 생성)</li>
  * </ul>
  *
- * 검증 실패는 {@code 400 Bad Request} + {@code WorkflowEngineException} 메시지로 응답.
+ * 검증 실패는 {@code 400 Bad Request} + {@code LineEngineException} 메시지로 응답.
  */
 @RestController
 @RequestMapping("/api/workflow/definitions")
-public class WorkflowDefinitionController {
+public class LineDefinitionController {
 
-    private final WorkflowDefinitionService service;
+    private final LineDefinitionService service;
 
-    public WorkflowDefinitionController(WorkflowDefinitionService service) {
+    public LineDefinitionController(LineDefinitionService service) {
         this.service = service;
     }
 
@@ -66,8 +66,8 @@ public class WorkflowDefinitionController {
 
     // === 예외 매핑 ===
 
-    @ExceptionHandler(WorkflowEngineException.class)
-    public ResponseEntity<Map<String, String>> handleEngineException(WorkflowEngineException e) {
+    @ExceptionHandler(LineEngineException.class)
+    public ResponseEntity<Map<String, String>> handleEngineException(LineEngineException e) {
         return ResponseEntity.badRequest()
                 .body(Map.of("errorCode", e.getErrorCode(), "message", e.getMessage()));
     }

@@ -2,10 +2,10 @@ package com.station8.engine.core;
 
 import com.station8.engine.dialect.DbDialect;
 import com.station8.engine.entity.ActivityExecution;
-import com.station8.engine.entity.WorkflowSchedule;
+import com.station8.engine.entity.LineSchedule;
 import com.station8.engine.repository.JdbcActivityRepository;
-import com.station8.engine.repository.JdbcWorkflowDefinitionRepository;
-import com.station8.engine.repository.JdbcWorkflowScheduleRepository;
+import com.station8.engine.repository.JdbcLineDefinitionRepository;
+import com.station8.engine.repository.JdbcLineScheduleRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * WorkflowScheduler 통합 테스트 — H2 + 실제 schema 적용.
+ * LineScheduler 통합 테스트 — H2 + 실제 schema 적용.
  *
  * 시나리오:
  *  - 만료된 스케줄 1건 → 인스턴스 생성 + 시작 노드 PENDING + nextRunDt 갱신
@@ -32,15 +32,15 @@ import static org.junit.jupiter.api.Assertions.*;
  *  - 미래 nextRunDt는 폴링 무시
  *  - 잘못된 cron은 1시간 뒤로 fallback (테스트는 nextFromCron 단독 검증)
  */
-class WorkflowSchedulerTest {
+class LineSchedulerTest {
 
     private static DriverManagerDataSource dataSource;
     private static JdbcTemplate jdbcTemplate;
     private static JdbcActivityRepository activityRepo;
-    private static JdbcWorkflowDefinitionRepository defRepo;
-    private static JdbcWorkflowScheduleRepository scheduleRepo;
+    private static JdbcLineDefinitionRepository defRepo;
+    private static JdbcLineScheduleRepository scheduleRepo;
     private static DagInterpreter interpreter;
-    private static WorkflowScheduler scheduler;
+    private static LineScheduler scheduler;
     private static TransactionTemplate tx;
 
     private static final DbDialect H2_DIALECT = new DbDialect() {
@@ -62,15 +62,15 @@ class WorkflowSchedulerTest {
 
         jdbcTemplate = new JdbcTemplate(dataSource);
         activityRepo = new JdbcActivityRepository(jdbcTemplate, H2_DIALECT);
-        defRepo = new JdbcWorkflowDefinitionRepository(jdbcTemplate);
-        scheduleRepo = new JdbcWorkflowScheduleRepository(jdbcTemplate, H2_DIALECT);
+        defRepo = new JdbcLineDefinitionRepository(jdbcTemplate);
+        scheduleRepo = new JdbcLineScheduleRepository(jdbcTemplate, H2_DIALECT);
 
         DagValidator validator = new DagValidator();
-        WorkflowRegistry stubRegistry = new WorkflowRegistry() {
+        LineRegistry stubRegistry = new LineRegistry() {
             @Override public Set<String> getActivityNames() { return Set.of("A"); }
         };
         interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry);
-        scheduler = new WorkflowScheduler(scheduleRepo, interpreter, jdbcTemplate);
+        scheduler = new LineScheduler(scheduleRepo, interpreter, jdbcTemplate);
 
         // SKIP LOCKED + @Transactional이 동작하도록 트랜잭션 관리자 준비
         PlatformTransactionManager tm = new DataSourceTransactionManager(dataSource);
@@ -101,7 +101,7 @@ class WorkflowSchedulerTest {
 
     @Test
     void due_schedule_triggers_instance_and_advances_nextRun() {
-        scheduleRepo.insert(new WorkflowSchedule(
+        scheduleRepo.insert(new LineSchedule(
                 "sch-due", "def-sched", "0 */1 * * * *",
                 LocalDateTime.now().minusMinutes(1), null,
                 "N", null, "Y", "Y", "N", null, "test", null, null));
@@ -118,7 +118,7 @@ class WorkflowSchedulerTest {
         assertEquals("n-only", activities.get(0).nodeId());
 
         // nextRunDt가 미래로 갱신
-        WorkflowSchedule after = scheduleRepo.findById("sch-due");
+        LineSchedule after = scheduleRepo.findById("sch-due");
         assertNotNull(after.nextRunDt());
         assertTrue(after.nextRunDt().isAfter(LocalDateTime.now()),
                 "nextRunDt가 현재 이후여야 함: " + after.nextRunDt());
@@ -127,11 +127,11 @@ class WorkflowSchedulerTest {
 
     @Test
     void paused_and_future_schedules_are_skipped() {
-        scheduleRepo.insert(new WorkflowSchedule(
+        scheduleRepo.insert(new LineSchedule(
                 "sch-paused", "def-sched", "* * * * * *",
                 LocalDateTime.now().minusMinutes(1), null,
                 "Y", null, "Y", "Y", "N", null, "test", null, null));
-        scheduleRepo.insert(new WorkflowSchedule(
+        scheduleRepo.insert(new LineSchedule(
                 "sch-future", "def-sched", "* * * * * *",
                 LocalDateTime.now().plusHours(1), null,
                 "N", null, "Y", "Y", "N", null, "test", null, null));
@@ -143,7 +143,7 @@ class WorkflowSchedulerTest {
     @Test
     void invalid_cron_falls_back_to_one_hour_later() {
         LocalDateTime base = LocalDateTime.of(2026, 5, 7, 10, 0, 0);
-        LocalDateTime next = WorkflowScheduler.nextFromCron("not a cron expr", base);
+        LocalDateTime next = LineScheduler.nextFromCron("not a cron expr", base);
         assertEquals(base.plusHours(1), next);
     }
 
@@ -151,14 +151,14 @@ class WorkflowSchedulerTest {
     void cron_expression_parses_to_correct_next() {
         // "0 */5 * * * *" — 매 5분 0초
         LocalDateTime base = LocalDateTime.of(2026, 5, 7, 10, 0, 30);
-        LocalDateTime next = WorkflowScheduler.nextFromCron("0 */5 * * * *", base);
+        LocalDateTime next = LineScheduler.nextFromCron("0 */5 * * * *", base);
         assertEquals(LocalDateTime.of(2026, 5, 7, 10, 5, 0), next);
     }
 
     @Test
     void multiple_due_schedules_are_all_triggered() {
         for (int i = 0; i < 3; i++) {
-            scheduleRepo.insert(new WorkflowSchedule(
+            scheduleRepo.insert(new LineSchedule(
                     "sch-batch-" + i, "def-sched", "0 */10 * * * *",
                     LocalDateTime.now().minusSeconds(10 + i), null,
                     "N", null, "Y", "Y", "N", null, "test", null, null));
@@ -171,7 +171,7 @@ class WorkflowSchedulerTest {
     @Test
     void limit_caps_batch_size() {
         for (int i = 0; i < 5; i++) {
-            scheduleRepo.insert(new WorkflowSchedule(
+            scheduleRepo.insert(new LineSchedule(
                     "sch-cap-" + i, "def-sched", "* * * * * *",
                     LocalDateTime.now().minusSeconds(10 + i), null,
                     "N", null, "Y", "Y", "N", null, "test", null, null));

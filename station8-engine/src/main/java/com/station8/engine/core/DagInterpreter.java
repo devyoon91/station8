@@ -1,10 +1,10 @@
 package com.station8.engine.core;
 
 import com.station8.engine.entity.ActivityExecution;
-import com.station8.engine.entity.WorkflowEdge;
-import com.station8.engine.entity.WorkflowNode;
+import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
-import com.station8.engine.repository.WorkflowDefinitionRepository;
+import com.station8.engine.repository.LineDefinitionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -37,15 +37,15 @@ public class DagInterpreter {
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_COMPLETED = "COMPLETED";
 
-    private final WorkflowDefinitionRepository definitionRepository;
+    private final LineDefinitionRepository definitionRepository;
     private final ActivityRepository activityRepository;
     private final DagValidator dagValidator;
-    private final WorkflowRegistry workflowRegistry;
+    private final LineRegistry workflowRegistry;
 
-    public DagInterpreter(WorkflowDefinitionRepository definitionRepository,
+    public DagInterpreter(LineDefinitionRepository definitionRepository,
                           ActivityRepository activityRepository,
                           DagValidator dagValidator,
-                          WorkflowRegistry workflowRegistry) {
+                          LineRegistry workflowRegistry) {
         this.definitionRepository = definitionRepository;
         this.activityRepository = activityRepository;
         this.dagValidator = dagValidator;
@@ -62,19 +62,19 @@ public class DagInterpreter {
      */
     @Transactional
     public void startInstance(String definitionId, String instanceId, String inputData) {
-        List<WorkflowNode> nodes = definitionRepository.findNodesByDefinition(definitionId);
-        List<WorkflowEdge> edges = definitionRepository.findEdgesByDefinition(definitionId);
+        List<LineStation> nodes = definitionRepository.findNodesByDefinition(definitionId);
+        List<LineEdge> edges = definitionRepository.findEdgesByDefinition(definitionId);
 
         // 실행 직전 안전망 검증 (정의 저장 시점에 이미 검증되어야 하지만 이중 방어)
         dagValidator.validate(nodes, edges, workflowRegistry.getActivityNames());
 
-        List<WorkflowNode> startNodes = definitionRepository.findStartNodes(definitionId);
+        List<LineStation> startNodes = definitionRepository.findStartNodes(definitionId);
         if (startNodes.isEmpty()) {
             // dagValidator.validate에서 DAG_NO_START_NODE를 이미 잡지만, 정의/엣지 데이터 정합성 비상 가드
             throw new IllegalStateException("DAG 정의에 시작 노드(incoming edge 0개)가 없습니다: definitionId=" + definitionId);
         }
 
-        for (WorkflowNode node : nodes) {
+        for (LineStation node : nodes) {
             boolean isStart = startNodes.stream().anyMatch(s -> s.id().equals(node.id()));
             String status = isStart ? STATUS_PENDING : STATUS_WAITING;
             String nodeInput = isStart ? mergeInput(node.inputParams(), inputData) : node.inputParams();
@@ -92,13 +92,13 @@ public class DagInterpreter {
      */
     @Transactional
     public void onNodeCompleted(String instanceId, String completedNodeId) {
-        List<WorkflowEdge> outgoing = definitionRepository.findOutgoingEdges(completedNodeId);
+        List<LineEdge> outgoing = definitionRepository.findOutgoingEdges(completedNodeId);
         if (outgoing.isEmpty()) {
             log.debug("Terminal node completed: instanceId={}, nodeId={}", instanceId, completedNodeId);
             return;
         }
 
-        for (WorkflowEdge edge : outgoing) {
+        for (LineEdge edge : outgoing) {
             String successorId = edge.toNodeId();
             if (allPredecessorsCompleted(instanceId, successorId)) {
                 ActivityExecution successorExec = activityRepository.findByInstanceAndNode(instanceId, successorId);
@@ -116,8 +116,8 @@ public class DagInterpreter {
     }
 
     private boolean allPredecessorsCompleted(String instanceId, String nodeId) {
-        List<WorkflowEdge> incoming = definitionRepository.findIncomingEdges(nodeId);
-        for (WorkflowEdge edge : incoming) {
+        List<LineEdge> incoming = definitionRepository.findIncomingEdges(nodeId);
+        for (LineEdge edge : incoming) {
             ActivityExecution predExec = activityRepository.findByInstanceAndNode(instanceId, edge.fromNodeId());
             if (predExec == null || !STATUS_COMPLETED.equals(predExec.statusSt())) {
                 return false;

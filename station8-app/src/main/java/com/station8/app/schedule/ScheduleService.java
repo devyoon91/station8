@@ -1,11 +1,11 @@
 package com.station8.app.schedule;
 
-import com.station8.app.definition.WorkflowDefinitionService;
-import com.station8.engine.core.WorkflowScheduler;
-import com.station8.engine.entity.WorkflowDefinition;
-import com.station8.engine.entity.WorkflowSchedule;
-import com.station8.engine.repository.WorkflowDefinitionRepository;
-import com.station8.engine.repository.WorkflowScheduleRepository;
+import com.station8.app.definition.LineDefinitionService;
+import com.station8.engine.core.LineScheduler;
+import com.station8.engine.entity.LineDefinition;
+import com.station8.engine.entity.LineSchedule;
+import com.station8.engine.repository.LineDefinitionRepository;
+import com.station8.engine.repository.LineScheduleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.support.CronExpression;
@@ -26,13 +26,13 @@ public class ScheduleService {
 
     private static final Logger log = LoggerFactory.getLogger(ScheduleService.class);
 
-    private final WorkflowScheduleRepository scheduleRepository;
-    private final WorkflowDefinitionRepository definitionRepository;
-    private final WorkflowDefinitionService definitionService;
+    private final LineScheduleRepository scheduleRepository;
+    private final LineDefinitionRepository definitionRepository;
+    private final LineDefinitionService definitionService;
 
-    public ScheduleService(WorkflowScheduleRepository scheduleRepository,
-                           WorkflowDefinitionRepository definitionRepository,
-                           WorkflowDefinitionService definitionService) {
+    public ScheduleService(LineScheduleRepository scheduleRepository,
+                           LineDefinitionRepository definitionRepository,
+                           LineDefinitionService definitionService) {
         this.scheduleRepository = scheduleRepository;
         this.definitionRepository = definitionRepository;
         this.definitionService = definitionService;
@@ -41,7 +41,7 @@ public class ScheduleService {
     /** 신규 등록. cron 표현식이 잘못되면 IllegalArgumentException. */
     @Transactional
     public String create(String definitionId, String cronExpr, String inputData) {
-        WorkflowDefinition def = definitionRepository.findDefinitionById(definitionId);
+        LineDefinition def = definitionRepository.findDefinitionById(definitionId);
         if (def == null || "Y".equals(def.delFl())) {
             throw new IllegalArgumentException("정의를 찾을 수 없습니다: " + definitionId);
         }
@@ -55,8 +55,8 @@ public class ScheduleService {
         }
 
         String id = UUID.randomUUID().toString();
-        LocalDateTime nextRun = WorkflowScheduler.nextFromCron(cronExpr, LocalDateTime.now());
-        WorkflowSchedule s = new WorkflowSchedule(
+        LocalDateTime nextRun = LineScheduler.nextFromCron(cronExpr, LocalDateTime.now());
+        LineSchedule s = new LineSchedule(
                 id, definitionId, cronExpr, nextRun, null,
                 "N", inputData, "Y", "Y", "N", null, "api", null, null
         );
@@ -66,13 +66,13 @@ public class ScheduleService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkflowSchedule> listAll() {
+    public List<LineSchedule> listAll() {
         return scheduleRepository.findAll();
     }
 
     @Transactional(readOnly = true)
-    public WorkflowSchedule findById(String id) {
-        WorkflowSchedule s = scheduleRepository.findById(id);
+    public LineSchedule findById(String id) {
+        LineSchedule s = scheduleRepository.findById(id);
         if (s == null) throw new IllegalArgumentException("스케줄을 찾을 수 없습니다: " + id);
         return s;
     }
@@ -97,7 +97,7 @@ public class ScheduleService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("유효하지 않은 cron 표현식: " + cronExpr, e);
         }
-        LocalDateTime nextRun = WorkflowScheduler.nextFromCron(cronExpr, LocalDateTime.now());
+        LocalDateTime nextRun = LineScheduler.nextFromCron(cronExpr, LocalDateTime.now());
         scheduleRepository.updateCron(id, cronExpr, nextRun);
     }
 
@@ -113,12 +113,12 @@ public class ScheduleService {
      */
     @Transactional
     public String runNow(String id) {
-        WorkflowSchedule s = ensureExists(id);
+        LineSchedule s = ensureExists(id);
         return definitionService.runDefinition(s.definitionId(), s.inputData());
     }
 
-    private WorkflowSchedule ensureExists(String id) {
-        WorkflowSchedule s = scheduleRepository.findById(id);
+    private LineSchedule ensureExists(String id) {
+        LineSchedule s = scheduleRepository.findById(id);
         if (s == null) throw new IllegalArgumentException("스케줄을 찾을 수 없습니다: " + id);
         return s;
     }

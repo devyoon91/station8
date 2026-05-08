@@ -3,7 +3,7 @@ package com.station8.engine.core;
 import com.station8.engine.dialect.DbDialect;
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.repository.JdbcActivityRepository;
-import com.station8.engine.repository.JdbcWorkflowDefinitionRepository;
+import com.station8.engine.repository.JdbcLineDefinitionRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +28,7 @@ class DagInterpreterTest {
     private static JdbcTemplate jdbcTemplate;
     private static DagInterpreter interpreter;
     private static JdbcActivityRepository activityRepo;
-    private static JdbcWorkflowDefinitionRepository defRepo;
+    private static JdbcLineDefinitionRepository defRepo;
 
     private static final DbDialect H2_DIALECT = new DbDialect() {
         @Override public String limit(int limit) { return " FETCH FIRST " + limit + " ROWS ONLY"; }
@@ -49,11 +49,11 @@ class DagInterpreterTest {
 
         jdbcTemplate = new JdbcTemplate(dataSource);
         activityRepo = new JdbcActivityRepository(jdbcTemplate, H2_DIALECT);
-        defRepo = new JdbcWorkflowDefinitionRepository(jdbcTemplate);
+        defRepo = new JdbcLineDefinitionRepository(jdbcTemplate);
 
         DagValidator validator = new DagValidator();
         // 본 인터프리터 테스트는 검증을 우회 (모든 activity 이름이 등록된 것으로 가정)
-        WorkflowRegistry stubRegistry = new WorkflowRegistry() {
+        LineRegistry stubRegistry = new LineRegistry() {
             @Override public Set<String> getActivityNames() { return Set.of("A", "B", "C", "D"); }
         };
         interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry);

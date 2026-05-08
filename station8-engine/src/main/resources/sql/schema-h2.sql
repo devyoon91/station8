@@ -1,4 +1,4 @@
--- Workflow Instance Table (Master) - H2
+-- Line Instance Table (Master) - H2
 CREATE TABLE IF NOT EXISTS U_WF_INSTANCE (
     ID VARCHAR(50),
     WORKFLOW_NAME VARCHAR(100) NOT NULL,
@@ -83,7 +83,7 @@ CREATE INDEX IF NOT EXISTS H_WF_DLQ_IDX02 ON H_WF_DLQ (INSTANCE_ID);
 -- DAG Definition Tables (M1-1: 워크플로우를 데이터로 정의)
 -- ============================================================================
 
--- Workflow Definition Table (Master) - H2
+-- Line Definition Table (Master) - H2
 CREATE TABLE IF NOT EXISTS U_WF_DEFINITION (
     ID VARCHAR(50),
     DEFINITION_NM VARCHAR(100) NOT NULL,
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS U_WF_DEFINITION (
 
 CREATE INDEX IF NOT EXISTS U_WF_DEFINITION_IDX01 ON U_WF_DEFINITION (ACTIVE_FL, DEL_FL);
 
--- Workflow Node Table (Master) - H2
+-- Line Node Table (Master) - H2
 CREATE TABLE IF NOT EXISTS U_WF_NODE (
     ID VARCHAR(50),
     DEFINITION_ID VARCHAR(50) NOT NULL,
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS U_WF_NODE (
 CREATE INDEX IF NOT EXISTS U_WF_NODE_IDX01 ON U_WF_NODE (DEFINITION_ID);
 CREATE INDEX IF NOT EXISTS U_WF_NODE_IDX02 ON U_WF_NODE (ACTIVITY_NM);
 
--- Workflow Edge Table (Master) - H2
+-- Line Edge Table (Master) - H2
 CREATE TABLE IF NOT EXISTS U_WF_EDGE (
     ID VARCHAR(50),
     DEFINITION_ID VARCHAR(50) NOT NULL,
@@ -159,7 +159,7 @@ ALTER TABLE H_WF_ACTIVITY_EXECUTION
 -- Cron Schedule Table (M2-1: 정기 실행 스케줄)
 -- ============================================================================
 
--- Workflow Schedule Table (Master) - H2
+-- Line Schedule Table (Master) - H2
 -- DAG 정의에 cron 표현식을 매핑하여 정기적으로 인스턴스를 시작한다.
 -- PAUSED_FL='Y'면 폴러가 무시.
 CREATE TABLE IF NOT EXISTS U_WF_SCHEDULE (

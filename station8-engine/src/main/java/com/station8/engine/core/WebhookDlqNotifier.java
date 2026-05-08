@@ -35,7 +35,7 @@ public class WebhookDlqNotifier implements DlqNotifier {
     @Override
     public void notify(DlqEntry entry) {
         if (webhookUrl == null || webhookUrl.isBlank()) {
-            log.warn("[DLQ] 웹훅 URL 미설정 — 콘솔 알림으로 대체. DLQ ID={}, Activity={}, Workflow={}",
+            log.warn("[DLQ] 웹훅 URL 미설정 — 콘솔 알림으로 대체. DLQ ID={}, Activity={}, Line={}",
                 entry.id(), entry.activityName(), entry.workflowName());
             return;
         }

@@ -26,9 +26,9 @@ import static org.junit.jupiter.api.Assertions.*;
  *  - DELETE 후 조회 실패
  */
 @SpringBootTest(classes = Application.class)
-class WorkflowDefinitionApiTest {
+class LineDefinitionApiTest {
 
-    @Autowired WorkflowDefinitionService service;
+    @Autowired LineDefinitionService service;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired ActivityRepository activityRepository;
     @Autowired JsonUtil jsonUtil;

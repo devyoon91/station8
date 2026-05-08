@@ -1,7 +1,7 @@
 package com.station8.engine.repository;
 
 import com.station8.engine.dialect.DbDialect;
-import com.station8.engine.entity.WorkflowSchedule;
+import com.station8.engine.entity.LineSchedule;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -13,19 +13,19 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public class JdbcWorkflowScheduleRepository implements WorkflowScheduleRepository {
+public class JdbcLineScheduleRepository implements LineScheduleRepository {
 
     private final JdbcTemplate jdbcTemplate;
     private final DbDialect dbDialect;
 
-    public JdbcWorkflowScheduleRepository(JdbcTemplate jdbcTemplate, DbDialect dbDialect) {
+    public JdbcLineScheduleRepository(JdbcTemplate jdbcTemplate, DbDialect dbDialect) {
         this.jdbcTemplate = jdbcTemplate;
         this.dbDialect = dbDialect;
     }
 
     @Override
     @Transactional
-    public void insert(WorkflowSchedule s) {
+    public void insert(LineSchedule s) {
         jdbcTemplate.update("""
                 INSERT INTO U_WF_SCHEDULE
                   (ID, DEFINITION_ID, CRON_EXPR, NEXT_RUN_DT, LAST_RUN_DT,
@@ -40,8 +40,8 @@ public class JdbcWorkflowScheduleRepository implements WorkflowScheduleRepositor
 
     @Override
     @Transactional(readOnly = true)
-    public WorkflowSchedule findById(String id) {
-        List<WorkflowSchedule> rows = jdbcTemplate.query(
+    public LineSchedule findById(String id) {
+        List<LineSchedule> rows = jdbcTemplate.query(
                 "SELECT * FROM U_WF_SCHEDULE WHERE ID = ? AND DEL_FL = 'N'",
                 new ScheduleMapper(), id);
         return rows.isEmpty() ? null : rows.get(0);
@@ -49,7 +49,7 @@ public class JdbcWorkflowScheduleRepository implements WorkflowScheduleRepositor
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkflowSchedule> findAll() {
+    public List<LineSchedule> findAll() {
         return jdbcTemplate.query(
                 "SELECT * FROM U_WF_SCHEDULE WHERE DEL_FL = 'N' ORDER BY REG_DT DESC",
                 new ScheduleMapper());
@@ -57,7 +57,7 @@ public class JdbcWorkflowScheduleRepository implements WorkflowScheduleRepositor
 
     @Override
     @Transactional
-    public List<WorkflowSchedule> findDueWithLock(int limit) {
+    public List<LineSchedule> findDueWithLock(int limit) {
         // M2-2 폴러가 사용. PAUSED_FL='N' AND NEXT_RUN_DT <= NOW() 조건 + SKIP LOCKED
         String sql = String.format("""
                 SELECT * FROM U_WF_SCHEDULE
@@ -113,10 +113,10 @@ public class JdbcWorkflowScheduleRepository implements WorkflowScheduleRepositor
                 """, scheduleId);
     }
 
-    private static class ScheduleMapper implements RowMapper<WorkflowSchedule> {
+    private static class ScheduleMapper implements RowMapper<LineSchedule> {
         @Override
-        public WorkflowSchedule mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new WorkflowSchedule(
+        public LineSchedule mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new LineSchedule(
                     rs.getString("ID"),
                     rs.getString("DEFINITION_ID"),
                     rs.getString("CRON_EXPR"),

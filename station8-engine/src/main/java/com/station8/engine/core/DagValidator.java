@@ -1,9 +1,9 @@
 package com.station8.engine.core;
 
-import com.station8.engine.entity.WorkflowEdge;
-import com.station8.engine.entity.WorkflowNode;
+import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineStation;
 import com.station8.engine.exception.ErrorCodes;
-import com.station8.engine.exception.WorkflowEngineException;
+import com.station8.engine.exception.LineEngineException;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayDeque;
@@ -40,10 +40,10 @@ public class DagValidator {
      *
      * @param nodes 정의의 모든 노드
      * @param edges 정의의 모든 엣지
-     * @param registeredActivityNames {@code WorkflowRegistry}가 보유한 액티비티 이름 집합 (검증 생략 시 ``null``)
+     * @param registeredActivityNames {@code LineRegistry}가 보유한 액티비티 이름 집합 (검증 생략 시 ``null``)
      */
-    public void validate(List<WorkflowNode> nodes,
-                         List<WorkflowEdge> edges,
+    public void validate(List<LineStation> nodes,
+                         List<LineEdge> edges,
                          Set<String> registeredActivityNames) {
         List<String> violations = new ArrayList<>();
 
@@ -55,10 +55,10 @@ public class DagValidator {
             return;
         }
 
-        Set<String> nodeIds = nodes.stream().map(WorkflowNode::id).collect(Collectors.toSet());
+        Set<String> nodeIds = nodes.stream().map(LineStation::id).collect(Collectors.toSet());
 
         // 2) 자기-참조 + dangling edge
-        for (WorkflowEdge e : edges) {
+        for (LineEdge e : edges) {
             if (e.fromNodeId() != null && e.fromNodeId().equals(e.toNodeId())) {
                 violations.add(ErrorCodes.DAG_SELF_LOOP + ": edgeId=" + e.id() + ", node=" + e.fromNodeId());
             }
@@ -70,7 +70,7 @@ public class DagValidator {
 
         // 3) 미등록 액티비티 참조
         if (registeredActivityNames != null) {
-            for (WorkflowNode n : nodes) {
+            for (LineStation n : nodes) {
                 if (!registeredActivityNames.contains(n.activityNm())) {
                     violations.add(ErrorCodes.DAG_UNKNOWN_ACTIVITY
                             + ": nodeId=" + n.id() + ", activityNm=" + n.activityNm());
@@ -85,7 +85,7 @@ public class DagValidator {
             incoming.put(nid, 0);
             outgoing.put(nid, 0);
         }
-        for (WorkflowEdge e : edges) {
+        for (LineEdge e : edges) {
             if (nodeIds.contains(e.fromNodeId()) && nodeIds.contains(e.toNodeId())
                     && !e.fromNodeId().equals(e.toNodeId())) {
                 outgoing.merge(e.fromNodeId(), 1, Integer::sum);
@@ -103,7 +103,7 @@ public class DagValidator {
 
         // 5) 사이클 검출 (Kahn 위상 정렬)
         // 자기-참조 엣지는 위 카운트에서 제외했지만, 그 노드 자체는 사이클이므로 명시 보고
-        for (WorkflowEdge e : edges) {
+        for (LineEdge e : edges) {
             if (e.fromNodeId() != null && e.fromNodeId().equals(e.toNodeId())) {
                 violations.add(ErrorCodes.DAG_CYCLE_DETECTED
                         + ": self-loop를 사이클로 간주, nodeId=" + e.fromNodeId());
@@ -112,7 +112,7 @@ public class DagValidator {
         Map<String, Integer> indegree = new HashMap<>(incoming);
         Map<String, List<String>> adjacency = new HashMap<>();
         for (String nid : nodeIds) adjacency.put(nid, new ArrayList<>());
-        for (WorkflowEdge e : edges) {
+        for (LineEdge e : edges) {
             if (nodeIds.contains(e.fromNodeId()) && nodeIds.contains(e.toNodeId())
                     && !e.fromNodeId().equals(e.toNodeId())) {
                 adjacency.get(e.fromNodeId()).add(e.toNodeId());
@@ -150,6 +150,6 @@ public class DagValidator {
         if (violations.isEmpty()) return;
         String message = "DAG 검증 실패 (" + violations.size() + "건): "
                 + String.join(" | ", violations);
-        throw new WorkflowEngineException(ErrorCodes.DAG_INVALID, message);
+        throw new LineEngineException(ErrorCodes.DAG_INVALID, message);
     }
 }

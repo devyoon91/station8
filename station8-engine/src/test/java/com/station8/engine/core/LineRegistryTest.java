@@ -8,7 +8,7 @@ import java.lang.reflect.Method;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * WorkflowRegistry의 멱등 등록 동작 검증.
+ * LineRegistry의 멱등 등록 동작 검증.
  *
  * <p>회귀 방지 컨텍스트: CGLIB 프록시 빈을 스캔할 때 ``ReflectionUtils.doWithMethods``가
  * 프록시 클래스 + 부모(원본) 클래스를 모두 방문해 동일 ``@Activity``가 두 번 등록되던
@@ -16,13 +16,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * ``activityMap.containsKey`` 멱등 가드.</p>
  *
  * <p>본 테스트는 ``registerActivity()`` public API 레벨에서 멱등성을 확인한다. 전체 Spring
- * AOP 시나리오는 e2e 테스트(NoopWorkflow 등록 로그)에서 검증.</p>
+ * AOP 시나리오는 e2e 테스트(NoopLine 등록 로그)에서 검증.</p>
  */
-class WorkflowRegistryTest {
+class LineRegistryTest {
 
     @Test
     void registerActivity_skipsDuplicateName() throws Exception {
-        WorkflowRegistry registry = new WorkflowRegistry();
+        LineRegistry registry = new LineRegistry();
         ProbeBean bean = new ProbeBean();
         Method m = ProbeBean.class.getMethod("doStuff", String.class);
         Activity ann = m.getAnnotation(Activity.class);
@@ -37,7 +37,7 @@ class WorkflowRegistryTest {
 
     @Test
     void getActivities_returnsUnmodifiableMap() {
-        WorkflowRegistry registry = new WorkflowRegistry();
+        LineRegistry registry = new LineRegistry();
         // 빈 상태에서도 unmodifiable 보장
         assertThat(registry.getActivities()).isEmpty();
         org.junit.jupiter.api.Assertions.assertThrows(

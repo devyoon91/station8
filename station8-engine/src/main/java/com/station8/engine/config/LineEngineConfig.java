@@ -20,7 +20,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  */
 @Configuration
 @EnableScheduling
-public class WorkflowEngineConfig {
+public class LineEngineConfig {
 
     /**
      * 액티비티 실행을 담당하는 스레드 풀 설정.

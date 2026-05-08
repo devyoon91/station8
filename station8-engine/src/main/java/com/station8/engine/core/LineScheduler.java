@@ -1,7 +1,7 @@
 package com.station8.engine.core;
 
-import com.station8.engine.entity.WorkflowSchedule;
-import com.station8.engine.repository.WorkflowScheduleRepository;
+import com.station8.engine.entity.LineSchedule;
+import com.station8.engine.repository.LineScheduleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,16 +24,16 @@ import java.util.UUID;
  * ``markRun`` 시 새 ``NEXT_RUN_DT``는 ``now`` 기준 cron.next(now)로 계산되므로 누락은 1회로 한정된다.</p>
  */
 @Component
-public class WorkflowScheduler {
+public class LineScheduler {
 
-    private static final Logger log = LoggerFactory.getLogger(WorkflowScheduler.class);
+    private static final Logger log = LoggerFactory.getLogger(LineScheduler.class);
     private static final int DEFAULT_BATCH_LIMIT = 20;
 
-    private final WorkflowScheduleRepository scheduleRepository;
+    private final LineScheduleRepository scheduleRepository;
     private final DagInterpreter dagInterpreter;
     private final JdbcTemplate jdbcTemplate;
 
-    public WorkflowScheduler(WorkflowScheduleRepository scheduleRepository,
+    public LineScheduler(LineScheduleRepository scheduleRepository,
                              DagInterpreter dagInterpreter,
                              JdbcTemplate jdbcTemplate) {
         this.scheduleRepository = scheduleRepository;
@@ -56,7 +56,7 @@ public class WorkflowScheduler {
      */
     @Transactional
     public List<String> pollOnce(int limit) {
-        List<WorkflowSchedule> due = scheduleRepository.findDueWithLock(limit);
+        List<LineSchedule> due = scheduleRepository.findDueWithLock(limit);
         if (due.isEmpty()) {
             log.trace("No due schedules");
             return List.of();
@@ -66,7 +66,7 @@ public class WorkflowScheduler {
         return due.stream().map(this::triggerOne).toList();
     }
 
-    private String triggerOne(WorkflowSchedule s) {
+    private String triggerOne(LineSchedule s) {
         String instanceId = UUID.randomUUID().toString();
         try {
             // 1) 인스턴스 INSERT
