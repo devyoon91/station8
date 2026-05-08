@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard — Line Engine</title>
+    <link rel="stylesheet" href="/css/design.css">
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <h1 class="swe-display-lg" style="margin: 0;">Dashboard</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">라인 인스턴스 모니터링 + 재개</p>
+        </div>
+        <a href="/line/dashboard?auto=1" class="swe-btn-tertiary">↻ Refresh</a>
+    </div>
+
+    <!-- 통계 -->
+    <div class="swe-grid swe-grid-4 swe-mb-xl">
+        <div class="swe-stat-card">
+            <div class="swe-stat-label">Total</div>
+            <div class="swe-stat-value">{{totalCount}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-yellow);">Running</div>
+            <div class="swe-stat-value">{{runningCount}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-green);">Completed</div>
+            <div class="swe-stat-value">{{completedCount}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-red);">Failed</div>
+            <div class="swe-stat-value">{{failedCount}}</div>
+        </div>
+    </div>
+
+    <!-- 검색/필터 -->
+    <div class="swe-card-elevated swe-mb-xl">
+        <form method="get" action="/line/dashboard" class="swe-grid swe-grid-3">
+            <div>
+                <label for="workflowName">Line Name</label>
+                <input type="text" id="workflowName" name="workflowName" class="swe-input"
+                       value="{{#workflowName}}{{workflowName}}{{/workflowName}}" placeholder="Name substring">
+            </div>
+            <div>
+                <label for="statusSt">Status</label>
+                <select class="swe-input" id="statusSt" name="statusSt">
+                    <option value="">All</option>
+                    <option value="RUNNING" {{#selectedRunning}}selected{{/selectedRunning}}>RUNNING</option>
+                    <option value="COMPLETED" {{#selectedCompleted}}selected{{/selectedCompleted}}>COMPLETED</option>
+                    <option value="FAILED" {{#selectedFailed}}selected{{/selectedFailed}}>FAILED</option>
+                    <option value="TERMINATED" {{#selectedTerminated}}selected{{/selectedTerminated}}>TERMINATED</option>
+                </select>
+            </div>
+            <div>
+                <label for="instanceId">Instance ID</label>
+                <input type="text" id="instanceId" name="instanceId" class="swe-input"
+                       value="{{#instanceId}}{{instanceId}}{{/instanceId}}" placeholder="UUID substring">
+            </div>
+            <div style="grid-column: 1 / -1; display: flex; gap: var(--space-md); justify-content: flex-end;">
+                <a href="/line/dashboard" class="swe-btn-secondary">Reset</a>
+                <button type="submit" class="swe-btn-primary">Apply</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 인스턴스 테이블 -->
+    <div class="swe-card" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Line</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th>Ended</th>
+                <th class="swe-text-right">Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#instances}}
+            <tr>
+                <td class="swe-id-cell" title="{{id}}">{{id}}</td>
+                <td>{{workflowName}}</td>
+                <td>
+                    <span class="swe-badge swe-badge-{{badgeClass}}">{{statusSt}}</span>
+                </td>
+                <td class="swe-mute">{{startDt}}</td>
+                <td class="swe-mute">{{#endDt}}{{endDt}}{{/endDt}}{{^endDt}}—{{/endDt}}</td>
+                <td class="swe-text-right">
+                    <a href="/line/instance/{{id}}" class="swe-btn-tertiary swe-btn-sm">Details</a>
+                </td>
+            </tr>
+            {{/instances}}
+            {{^instances}}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    No instances. Use <a href="/line/schedules" class="swe-ink">Schedules</a> to create one.
+                </td>
+            </tr>
+            {{/instances}}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+</body>
+</html>

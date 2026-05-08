@@ -9,7 +9,7 @@ services:
       MARIADB_PASSWORD: wfpw
     ports:
       - "3307:3306"
-    # 스키마는 service-app이 부팅 시 schema-mariadb.sql로 적용 (single source of truth)
+    # 스키마는 station8-app이 부팅 시 schema-mariadb.sql로 적용 (single source of truth)
     # docker init scripts는 drift 위험이 있어 제거
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpw"]

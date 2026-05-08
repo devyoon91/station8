@@ -17,7 +17,7 @@ engine.plugins.dir=plugins
 
 ```
 work-dir/
-├── service-app.jar
+├── station8-app.jar
 ├── application.properties
 └── plugins/
     ├── notification-plugin.jar
@@ -35,7 +35,7 @@ Registered plugin activity: SEND_EMAIL -> NotificationPlugin.sendEmail
 Plugin scan complete: 2 loaded, 0 failed
 ```
 
-`/workflow/activities`에서 등록된 액티비티를 확인할 수 있다.
+`/line/activities`에서 등록된 액티비티를 확인할 수 있다.
 
 ## 2. 플러그인 jar 작성 규칙
 
@@ -47,7 +47,7 @@ Plugin scan complete: 2 loaded, 0 failed
 ```java
 package com.example.plugin;
 
-import com.bangrang.workflow.engine.annotation.Activity;
+import com.station8.engine.annotation.Activity;
 
 public class NotificationPlugin {
 
@@ -75,7 +75,7 @@ plugins {
 
 dependencies {
     // 코어 의존성은 compileOnly — 런타임은 호스트가 제공
-    compileOnly 'com.bangrang.workflow:engine-core:0.0.1-SNAPSHOT'
+    compileOnly 'com.station8:station8-engine:0.0.1-SNAPSHOT'
 }
 
 tasks.jar {
@@ -96,7 +96,7 @@ tasks.jar {
 - 부팅 로그에서 다음 경고 확인:
 
 ```
-WARN  c.b.w.engine.core.WorkflowRegistry - Activity name conflict: SEND_SLACK already registered → 플러그인 등록 스킵
+WARN  c.b.w.engine.core.LineRegistry - Activity name conflict: SEND_SLACK already registered → 플러그인 등록 스킵
 ```
 
 운영자 액션:
@@ -109,8 +109,8 @@ WARN  c.b.w.engine.core.WorkflowRegistry - Activity name conflict: SEND_SLACK al
 1. 운영 호스트의 `plugins/` 디렉토리에 jar 업로드.
 2. `systemctl restart workflow-engine` (또는 `docker compose restart app`).
 3. 부팅 로그에서 등록 확인.
-4. `/workflow/activities` 페이지에서 노출 확인.
-5. 비주얼 빌더에서 신규 액티비티를 노드로 추가 가능.
+4. `/line/activities` 페이지에서 노출 확인.
+5. 비주얼 빌더에서 신규 액티비티를 역로 추가 가능.
 
 ### 5-2. 플러그인 비활성화
 
@@ -137,7 +137,7 @@ engine.plugins.enabled=false
 
 플러그인이 사용하는 라이브러리가 코어에 없을 때 발생. 해결책:
 - jar 안에 의존성을 포함(uber/shadow jar).
-- 또는 해당 라이브러리를 `service-app/build.gradle`에 추가.
+- 또는 해당 라이브러리를 `station8-app/build.gradle`에 추가.
 
 ### 동일 라이브러리 버전 충돌
 
@@ -154,4 +154,4 @@ engine.plugins.enabled=false
 ## 8. 관련 문서
 
 - [HOWTO.md](HOWTO.md) — 액티비티 작성 일반 가이드
-- [workflow-engine-spec.md](workflow-engine-spec.md) — `PluginLoader` 아키텍처
+- [line-engine-spec.md](line-engine-spec.md) — `PluginLoader` 아키텍처

@@ -1,0 +1,114 @@
+package com.station8.engine.core;
+
+import com.station8.engine.annotation.Activity;
+import com.station8.engine.annotation.LineDefinition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationListener;
+import org.springframework.aop.support.AopUtils;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.stereotype.Component;
+import org.springframework.util.ReflectionUtils;
+
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * @LineDefinition 및 @Activity가 붙은 빈과 메서드를 스캔하여 관리하는 레지스트리.
+ * Spring 컨텍스트 로딩이 완료된 후 빈들을 탐색합니다.
+ */
+@Component
+public class LineRegistry implements ApplicationListener<ContextRefreshedEvent> {
+
+    private static final Logger log = LoggerFactory.getLogger(LineRegistry.class);
+
+    // key: workflowName, value: Bean Object
+    private final Map<String, Object> workflowBeans = new ConcurrentHashMap<>();
+    
+    // key: activityName, value: ActivityMetadata (Bean + Method)
+    private final Map<String, ActivityMetadata> activityMap = new ConcurrentHashMap<>();
+
+    @Override
+    public void onApplicationEvent(ContextRefreshedEvent event) {
+        ApplicationContext context = event.getApplicationContext();
+        scanLines(context);
+        scanActivities(context);
+    }
+
+    private void scanLines(ApplicationContext context) {
+        Map<String, Object> beans = context.getBeansWithAnnotation(LineDefinition.class);
+        for (Object bean : beans.values()) {
+            LineDefinition workflow = AnnotationUtils.findAnnotation(bean.getClass(), LineDefinition.class);
+            if (workflow != null) {
+                String name = workflow.value().isEmpty() ? bean.getClass().getSimpleName() : workflow.value();
+                workflowBeans.put(name, bean);
+                log.info("Registered Line: {} -> {}", name, bean.getClass().getName());
+            }
+        }
+    }
+
+    private void scanActivities(ApplicationContext context) {
+        String[] beanNames = context.getBeanDefinitionNames();
+        for (String beanName : beanNames) {
+            Object bean = context.getBean(beanName);
+            // CGLIB 프록시는 사용자 클래스를 상속하므로 ReflectionUtils.doWithMethods가
+            // (1) 프록시 자체에 합성된 메서드와 (2) 부모(원본) 클래스의 메서드를 모두 방문해
+            // 동일 @Activity가 두 번 등록되는 결함이 발생한다.
+            // → AopUtils.getTargetClass()로 원본 클래스만 직접 스캔.
+            Class<?> targetClass = AopUtils.getTargetClass(bean);
+
+            ReflectionUtils.doWithMethods(targetClass, method -> {
+                Activity activity = AnnotationUtils.findAnnotation(method, Activity.class);
+                if (activity != null) {
+                    String name = activity.value().isEmpty() ? method.getName() : activity.value();
+                    if (activityMap.containsKey(name)) {
+                        return; // 같은 이름은 한 번만 등록 (멱등)
+                    }
+                    activityMap.put(name, new ActivityMetadata(bean, method, activity));
+                    log.info("Registered Activity: {} -> {}.{}", name, targetClass.getSimpleName(), method.getName());
+                }
+            });
+        }
+    }
+
+    /**
+     * 외부 플러그인 로더가 동적으로 액티비티를 등록할 때 사용.
+     * 이미 동일 이름이 존재하면 경고 로그 후 무시 (코어 빈 우선).
+     */
+    public void registerActivity(String name, Object bean, Method method, Activity annotation) {
+        if (activityMap.containsKey(name)) {
+            log.warn("Activity name conflict: {} already registered → 플러그인 등록 스킵", name);
+            return;
+        }
+        activityMap.put(name, new ActivityMetadata(bean, method, annotation));
+    }
+
+    public Object getLineBean(String name) {
+        return workflowBeans.get(name);
+    }
+
+    public ActivityMetadata getActivity(String name) {
+        return activityMap.get(name);
+    }
+
+    /** 등록된 액티비티 이름 전체 (DAG 검증/카탈로그용 읽기 전용 뷰). */
+    public java.util.Set<String> getActivityNames() {
+        return java.util.Collections.unmodifiableSet(activityMap.keySet());
+    }
+
+    /** 등록된 액티비티 메타데이터 전체 (카탈로그 API용 읽기 전용 뷰). */
+    public java.util.Map<String, ActivityMetadata> getActivities() {
+        return java.util.Collections.unmodifiableMap(activityMap);
+    }
+
+    /**
+     * 액티비티 실행에 필요한 메타데이터 (대상 빈, 실행 메서드, 어노테이션 정보)
+     */
+    public record ActivityMetadata(Object bean, Method method, Activity annotation) {
+    }
+}
+

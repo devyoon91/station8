@@ -26,7 +26,7 @@ export default function () {
     edges: [],
   });
 
-  const defRes = http.post(`${BASE_URL}/api/workflow/definitions`, defPayload, {
+  const defRes = http.post(`${BASE_URL}/api/line/definitions`, defPayload, {
     headers: { 'Content-Type': 'application/json' },
   });
   check(defRes, {
@@ -35,7 +35,7 @@ export default function () {
   const definitionId = defRes.json('definitionId');
 
   // 2) 즉시 실행
-  const runRes = http.post(`${BASE_URL}/api/workflow/definitions/${definitionId}/run`,
+  const runRes = http.post(`${BASE_URL}/api/line/definitions/${definitionId}/run`,
     JSON.stringify({ input: 'smoke' }),
     { headers: { 'Content-Type': 'application/json' } }
   );
@@ -45,7 +45,7 @@ export default function () {
   });
 
   // 3) 대시보드 페이지 응답
-  const dashRes = http.get(`${BASE_URL}/workflow/dashboard`);
+  const dashRes = http.get(`${BASE_URL}/line/dashboard`);
   check(dashRes, {
     'dashboard 200': (r) => r.status === 200,
   });

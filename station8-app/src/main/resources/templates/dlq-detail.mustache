@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>DLQ Entry — Line Engine</title>
+    <link rel="stylesheet" href="/css/design.css">
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <a href="/line/dlq" class="swe-caption swe-mute" style="text-decoration: none;">← DLQ</a>
+            <h1 class="swe-display-lg" style="margin: var(--space-xs) 0 0;">DLQ Entry</h1>
+        </div>
+        {{#entry.isNew}}
+        <div class="swe-row">
+            <form action="/line/dlq/{{entry.id}}/requeue" method="post">
+                <button type="submit" class="swe-btn-primary">Requeue</button>
+            </form>
+            <form action="/line/dlq/{{entry.id}}/discard" method="post">
+                <button type="submit" class="swe-btn-tertiary swe-btn-danger">Discard</button>
+            </form>
+        </div>
+        {{/entry.isNew}}
+    </div>
+
+    <!-- Meta -->
+    <div class="swe-card swe-mb-xl">
+        <table class="swe-table" style="border-radius: 0;">
+            <tbody>
+            <tr><td style="width: 180px; color: var(--mute);">ID</td><td><code>{{entry.id}}</code></td></tr>
+            <tr><td style="color: var(--mute);">Line</td><td>{{entry.workflowName}}</td></tr>
+            <tr><td style="color: var(--mute);">Activity</td><td>{{entry.activityName}}</td></tr>
+            <tr><td style="color: var(--mute);">Status</td><td><span class="swe-badge swe-badge-mute">{{entry.dlqStatusSt}}</span></td></tr>
+            <tr><td style="color: var(--mute);">Instance</td><td><a href="/line/instance/{{entry.instanceId}}" class="swe-ink"><code>{{entry.instanceId}}</code></a></td></tr>
+            <tr><td style="color: var(--mute);">Execution</td><td><code>{{entry.executionId}}</code></td></tr>
+            <tr><td style="color: var(--mute);">Retry</td><td>{{entry.retryCnt}} / {{entry.maxRetryCnt}}</td></tr>
+            <tr><td style="color: var(--mute);">Failed at</td><td>{{entry.failedAtDt}}</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Error -->
+    <div class="swe-card swe-mb-xl">
+        <h2 class="swe-heading-md" style="margin: 0 0 var(--space-md);">Error message</h2>
+        <pre style="margin: 0; padding: var(--space-lg); background: var(--surface-card); border-radius: var(--radius-md); color: var(--accent-red); font-size: 13px; overflow-x: auto;">{{entry.errorMessage}}</pre>
+    </div>
+
+    <!-- Stack -->
+    <div class="swe-card">
+        <h2 class="swe-heading-md" style="margin: 0 0 var(--space-md);">Stack trace</h2>
+        <pre style="margin: 0; padding: var(--space-lg); background: var(--surface-card); border-radius: var(--radius-md); color: var(--body); font-size: 12px; max-height: 480px; overflow: auto;">{{entry.stackTrace}}</pre>
+    </div>
+
+</div>
+</body>
+</html>

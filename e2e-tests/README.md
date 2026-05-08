@@ -8,7 +8,7 @@ REST Assured + JUnit5 + Awaitility 기반 정식 회귀 테스트 모듈.
 
 ## 실행 방법
 
-### 1) docker compose로 service-app 띄우기
+### 1) docker compose로 station8-app 띄우기
 
 ```bash
 ./gradlew composeUpApp
@@ -35,10 +35,10 @@ SWE_E2E_HOST=localhost:8080 ./gradlew :e2e-tests:test
 
 | 클래스 | 검증 시나리오 |
 |--------|--------------|
-| `CreateDagTest` | DAG 정의 등록 → GET 조회 (POST 201, 노드 1개) |
+| `CreateDagTest` | DAG 정의 등록 → GET 조회 (POST 201, 역 1개) |
 | `RunNowTest` | 정의 즉시 실행 → 인스턴스 생성 (POST 201) |
 | `CronFlowTest` | 스케줄 등록 + run-now (nextRunDt 미래값) |
-| `DlqTest` | `/workflow/dlq` 200 응답 |
+| `DlqTest` | `/line/dlq` 200 응답 |
 | `ValidationErrorsTest` | 사이클 → WF-E305, 미등록 액티비티 → WF-E307 |
 
 ## bash 시나리오와의 관계
@@ -54,7 +54,7 @@ SWE_E2E_HOST=localhost:8080 ./gradlew :e2e-tests:test
 
 ## 헬스체크
 
-`E2EBaseTest.@BeforeAll`에서 `/actuator/health`를 30초간 폴링합니다. service-app이 부팅되지 않은 경우 `ConditionTimeoutException`으로 빠르게 실패합니다.
+`E2EBaseTest.@BeforeAll`에서 `/actuator/health`를 30초간 폴링합니다. station8-app이 부팅되지 않은 경우 `ConditionTimeoutException`으로 빠르게 실패합니다.
 
 ## 부하 테스트 (k6)
 
@@ -70,5 +70,5 @@ k6 run k6/stress.js    # ramp 50→200 VU
 
 - [docs/QUICKSTART.md](../docs/QUICKSTART.md) — docker compose 셋업
 - [scripts/scenarios/](../scripts/scenarios/) — bash 회귀 스크립트
-- [docs/HOWTO.md](../docs/HOWTO.md) — 워크플로우 정의 가이드
+- [docs/HOWTO.md](../docs/HOWTO.md) — 라인 정의 가이드
 - [k6/README.md](k6/README.md) — 부하 테스트 시나리오
