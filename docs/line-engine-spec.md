@@ -75,10 +75,11 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 ### 4.6. Monitoring UI (확장)
 
 * **Dashboard:** 인스턴스 목록/통계/검색·필터.
+* **Lines (서브웨이 맵):** 라인 정의 목록 + 정의별 정적 노선도 미리보기. 인스턴스 상세에서는 같은 노선도가 진행 위치 오버레이(running 점멸 / completed 채움 / failed 적색)로 동작. 역 hover→인접 트랙 강조, 클릭→해당 timeline 카드로 스크롤·강조.
 * **DAG Builder:** 역 팔레트 + 캔버스 (드래그·드롭, 저장/로드).
 * **Schedule Manager:** cron 등록/일시중지/즉시 실행.
 * **Activity Catalog:** 등록된 `@Activity` 메타데이터 노출.
-* **Timeline + Graph View:** 인스턴스 실행을 DAG 그래프로 시각화 (성공/실패/지연 색상).
+* **Timeline:** 인스턴스 액티비티 실행 이력(시간순 카드 + status dot).
 * **DLQ Console:** 실패한 액티비티 Requeue/Discard.
 
 ## 5. 비범위 (Out of Scope)
