@@ -41,7 +41,7 @@ class DagSchemaH2Test {
 
     @Test
     void allDagDefinitionTablesExist() throws Exception {
-        Set<String> required = new HashSet<>(Set.of("U_WF_DEFINITION", "U_WF_NODE", "U_WF_EDGE"));
+        Set<String> required = new HashSet<>(Set.of("U_LINE_DEFINITION", "U_LINE_STATION", "U_LINE_TRACK"));
         Set<String> found = new HashSet<>();
         try (Connection conn = dataSource.getConnection()) {
             DatabaseMetaData md = conn.getMetaData();
@@ -63,28 +63,28 @@ class DagSchemaH2Test {
         String edge = "edge-ab";
 
         jdbcTemplate.update("""
-                INSERT INTO U_WF_DEFINITION (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, ?, 'Y', 'Y', 'Y', 'N')
                 """, defId, "TestDag", "사이클 없는 단순 DAG", 1);
 
         jdbcTemplate.update("""
-                INSERT INTO U_WF_NODE (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N')
                 """, nodeA, defId, "Start", "MIGRATION_WRITE", "{}", 100, 100);
         jdbcTemplate.update("""
-                INSERT INTO U_WF_NODE (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N')
                 """, nodeB, defId, "End", "MIGRATION_WRITE", "{}", 300, 100);
 
         jdbcTemplate.update("""
-                INSERT INTO U_WF_EDGE (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
                 VALUES (?, ?, ?, ?, 'Y', 'Y', 'N')
                 """, edge, defId, nodeA, nodeB);
 
         Integer nodeCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM U_WF_NODE WHERE DEFINITION_ID = ?", Integer.class, defId);
+                "SELECT COUNT(*) FROM U_LINE_STATION WHERE DEFINITION_ID = ?", Integer.class, defId);
         Integer edgeCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM U_WF_EDGE WHERE DEFINITION_ID = ?", Integer.class, defId);
+                "SELECT COUNT(*) FROM U_LINE_TRACK WHERE DEFINITION_ID = ?", Integer.class, defId);
 
         assertEquals(2, nodeCount);
         assertEquals(1, edgeCount);
@@ -93,14 +93,14 @@ class DagSchemaH2Test {
     @Test
     void duplicateNameAndVersionIsRejected() {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('dup-1', 'DupDag', 1, 'Y', 'Y', 'Y', 'N')
                 """);
 
         boolean threw = false;
         try {
             jdbcTemplate.update("""
-                    INSERT INTO U_WF_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
+                    INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                     VALUES ('dup-2', 'DupDag', 1, 'Y', 'Y', 'Y', 'N')
                     """);
         } catch (Exception e) {
@@ -112,26 +112,26 @@ class DagSchemaH2Test {
     @Test
     void duplicateEdgeIsRejected() {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('dup-edge-def', 'DupEdgeDag', 1, 'Y', 'Y', 'Y', 'N')
                 """);
         jdbcTemplate.update("""
-                INSERT INTO U_WF_NODE (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('n-1', 'dup-edge-def', 'A', 'Y', 'Y', 'N')
                 """);
         jdbcTemplate.update("""
-                INSERT INTO U_WF_NODE (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('n-2', 'dup-edge-def', 'B', 'Y', 'Y', 'N')
                 """);
         jdbcTemplate.update("""
-                INSERT INTO U_WF_EDGE (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
+                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('e-1', 'dup-edge-def', 'n-1', 'n-2', 'Y', 'Y', 'N')
                 """);
 
         boolean threw = false;
         try {
             jdbcTemplate.update("""
-                    INSERT INTO U_WF_EDGE (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
+                    INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
                     VALUES ('e-2', 'dup-edge-def', 'n-1', 'n-2', 'Y', 'Y', 'N')
                     """);
         } catch (Exception e) {

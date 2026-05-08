@@ -29,14 +29,14 @@ public class JdbcActivityRepositoryTest {
         jdbcTemplate = new JdbcTemplate(dataSource);
 
         // 테이블 생성 (H2 용)
-        jdbcTemplate.execute("CREATE TABLE U_WF_INSTANCE (" +
+        jdbcTemplate.execute("CREATE TABLE U_LINE_INSTANCE (" +
                 "ID VARCHAR(50), WORKFLOW_NAME VARCHAR(100), STATUS_ST VARCHAR(20), " +
                 "INPUT_DATA CLOB, OUTPUT_DATA CLOB, STATE_DATA CLOB, " +
                 "START_DT TIMESTAMP, END_DT TIMESTAMP, USE_FL VARCHAR(1), VIEW_FL VARCHAR(1), " +
                 "DEL_FL VARCHAR(1), REG_DT TIMESTAMP, REG_ID VARCHAR(32), EDIT_DT TIMESTAMP, EDIT_ID VARCHAR(32), " +
                 "PRIMARY KEY (ID))");
 
-        jdbcTemplate.execute("CREATE TABLE H_WF_ACTIVITY_EXECUTION (" +
+        jdbcTemplate.execute("CREATE TABLE H_LINE_ACTIVITY_EXECUTION (" +
                 "ID VARCHAR(50), INSTANCE_ID VARCHAR(50), NODE_ID VARCHAR(50), " +
                 "ACTIVITY_NAME VARCHAR(100), STATUS_ST VARCHAR(30), " +
                 "INPUT_DATA CLOB, OUTPUT_DATA CLOB, ERROR_MESSAGE CLOB, STACK_TRACE CLOB, " +
@@ -51,15 +51,15 @@ public class JdbcActivityRepositoryTest {
             @Override public String limit(int limit) { return " FETCH FIRST " + limit + " ROWS ONLY"; }
             @Override public String currentTimestamp() { return "CURRENT_TIMESTAMP"; }
         });
-        jdbcTemplate.execute("DELETE FROM H_WF_ACTIVITY_EXECUTION");
-        jdbcTemplate.execute("DELETE FROM U_WF_INSTANCE");
+        jdbcTemplate.execute("DELETE FROM H_LINE_ACTIVITY_EXECUTION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_INSTANCE");
     }
 
     @Test
     void testCreateAndFindPendingWithLock() {
         String instanceId = UUID.randomUUID().toString();
         // 인스턴스 먼저 생성 (FK 제약은 여기서는 무시하거나 생성)
-        jdbcTemplate.update("INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, REG_DT) VALUES (?, ?, ?, ?)",
+        jdbcTemplate.update("INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, REG_DT) VALUES (?, ?, ?, ?)",
                 instanceId, "TestLine", "RUNNING", LocalDateTime.now());
 
         repository.createPending(instanceId, "Activity1", "{\"key\":\"val\"}", null);
@@ -75,10 +75,10 @@ public class JdbcActivityRepositoryTest {
         String instanceId = UUID.randomUUID().toString();
         String executionId = UUID.randomUUID().toString();
         
-        jdbcTemplate.update("INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, REG_DT) VALUES (?, ?, ?, ?)",
+        jdbcTemplate.update("INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, REG_DT) VALUES (?, ?, ?, ?)",
                 instanceId, "TestLine", "RUNNING", LocalDateTime.now());
         
-        jdbcTemplate.update("INSERT INTO H_WF_ACTIVITY_EXECUTION (ID, INSTANCE_ID, ACTIVITY_NAME, STATUS_ST, REG_DT) VALUES (?, ?, ?, ?, ?)",
+        jdbcTemplate.update("INSERT INTO H_LINE_ACTIVITY_EXECUTION (ID, INSTANCE_ID, ACTIVITY_NAME, STATUS_ST, REG_DT) VALUES (?, ?, ?, ?, ?)",
                 executionId, instanceId, "Activity1", "RUNNING", LocalDateTime.now());
 
         ActivityExecution update = new ActivityExecution(

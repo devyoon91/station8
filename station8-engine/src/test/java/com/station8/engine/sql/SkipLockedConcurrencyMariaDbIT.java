@@ -70,8 +70,8 @@ class SkipLockedConcurrencyMariaDbIT {
 
     @BeforeEach
     void cleanup() {
-        jdbc.update("DELETE FROM H_WF_ACTIVITY_EXECUTION");
-        jdbc.update("DELETE FROM U_WF_INSTANCE WHERE ID LIKE 'concurrency-%'");
+        jdbc.update("DELETE FROM H_LINE_ACTIVITY_EXECUTION");
+        jdbc.update("DELETE FROM U_LINE_INSTANCE WHERE ID LIKE 'concurrency-%'");
     }
 
     @Test
@@ -79,14 +79,14 @@ class SkipLockedConcurrencyMariaDbIT {
         // 1) 인스턴스 + PENDING 액티비티 30건 시드
         String instId = "concurrency-" + UUID.randomUUID();
         jdbc.update("""
-                INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, REG_DT)
+                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, REG_DT)
                 VALUES (?, 'TestFlow', 'RUNNING', 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
                 """, instId);
 
         int rowCount = 30;
         for (int i = 0; i < rowCount; i++) {
             jdbc.update("""
-                    INSERT INTO H_WF_ACTIVITY_EXECUTION (
+                    INSERT INTO H_LINE_ACTIVITY_EXECUTION (
                         ID, INSTANCE_ID, ACTIVITY_NAME, STATUS_ST, RETRY_CNT,
                         USE_FL, VIEW_FL, DEL_FL, REG_DT
                     ) VALUES (?, ?, 'noop', 'PENDING', 0, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
@@ -134,7 +134,7 @@ class SkipLockedConcurrencyMariaDbIT {
 
         // DB에 RUNNING으로 업데이트되었는지 확인
         Integer running = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM H_WF_ACTIVITY_EXECUTION WHERE STATUS_ST = 'RUNNING'",
+                "SELECT COUNT(*) FROM H_LINE_ACTIVITY_EXECUTION WHERE STATUS_ST = 'RUNNING'",
                 Integer.class);
         assertThat(running).isEqualTo(rowCount);
     }

@@ -4,7 +4,7 @@ import com.station8.engine.core.DagInterpreter;
 import com.station8.engine.core.DagValidator;
 import com.station8.engine.core.LineRegistry;
 import com.station8.engine.entity.LineDefinition;
-import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.LineDefinitionRepository;
 import org.slf4j.Logger;
@@ -65,8 +65,8 @@ public class LineDefinitionService {
                 n.nodeId(), definitionId, n.nodeNm(), n.activityNm(), n.inputParams(),
                 n.posX(), n.posY(), "Y", "Y", "N", null, null, null, null
         )).toList();
-        List<LineEdge> edges = req.edges() == null ? List.of()
-                : req.edges().stream().map(e -> new LineEdge(
+        List<LineTrack> edges = req.edges() == null ? List.of()
+                : req.edges().stream().map(e -> new LineTrack(
                 e.edgeId(), definitionId, e.fromNodeId(), e.toNodeId(), e.conditionExpr(),
                 "Y", "Y", "N", null, null, null, null
         )).toList();
@@ -82,7 +82,7 @@ public class LineDefinitionService {
         );
         definitionRepository.insertDefinition(def);
         for (LineStation n : nodes) definitionRepository.insertNode(n);
-        for (LineEdge e : edges) definitionRepository.insertEdge(e);
+        for (LineTrack e : edges) definitionRepository.insertEdge(e);
 
         log.info("DAG 정의 등록: id={}, nm={}, version={}, nodes={}, edges={}",
                 definitionId, req.definitionNm(), nextVersion, nodes.size(), edges.size());
@@ -96,7 +96,7 @@ public class LineDefinitionService {
             throw new IllegalArgumentException("정의를 찾을 수 없습니다: " + definitionId);
         }
         List<LineStation> nodes = definitionRepository.findNodesByDefinition(definitionId);
-        List<LineEdge> edges = definitionRepository.findEdgesByDefinition(definitionId);
+        List<LineTrack> edges = definitionRepository.findEdgesByDefinition(definitionId);
         return new DagDefinitionResponse(
                 def.id(), def.definitionNm(), def.description(),
                 def.versionNo(), def.activeFl(),
@@ -122,8 +122,8 @@ public class LineDefinitionService {
                 n.nodeId(), definitionId, n.nodeNm(), n.activityNm(), n.inputParams(),
                 n.posX(), n.posY(), "Y", "Y", "N", null, null, null, null
         )).toList();
-        List<LineEdge> edges = req.edges() == null ? List.of()
-                : req.edges().stream().map(e -> new LineEdge(
+        List<LineTrack> edges = req.edges() == null ? List.of()
+                : req.edges().stream().map(e -> new LineTrack(
                 e.edgeId(), definitionId, e.fromNodeId(), e.toNodeId(), e.conditionExpr(),
                 "Y", "Y", "N", null, null, null, null
         )).toList();
@@ -133,7 +133,7 @@ public class LineDefinitionService {
         definitionRepository.softDeleteEdgesByDefinition(definitionId);
         definitionRepository.softDeleteNodesByDefinition(definitionId);
         for (LineStation n : nodes) definitionRepository.insertNode(n);
-        for (LineEdge e : edges) definitionRepository.insertEdge(e);
+        for (LineTrack e : edges) definitionRepository.insertEdge(e);
 
         log.info("DAG 정의 교체: id={}, nodes={}, edges={}", definitionId, nodes.size(), edges.size());
     }
@@ -164,7 +164,7 @@ public class LineDefinitionService {
 
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-                INSERT INTO U_WF_INSTANCE
+                INSERT INTO U_LINE_INSTANCE
                   (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
                 VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, instanceId, def.definitionNm(), inputData);

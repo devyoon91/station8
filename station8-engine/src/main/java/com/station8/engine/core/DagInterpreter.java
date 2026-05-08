@@ -1,7 +1,7 @@
 package com.station8.engine.core;
 
 import com.station8.engine.entity.ActivityExecution;
-import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
@@ -57,13 +57,13 @@ public class DagInterpreter {
      * 모든 역의 ActivityExecution을 생성하되, 시작 역만 PENDING이고 그 외는 WAITING_DEPENDENCIES.
      *
      * @param definitionId DAG 정의 ID
-     * @param instanceId 호출자가 발급한 인스턴스 ID (U_WF_INSTANCE에 이미 INSERT 되어 있어야 함)
+     * @param instanceId 호출자가 발급한 인스턴스 ID (U_LINE_INSTANCE에 이미 INSERT 되어 있어야 함)
      * @param inputData 인스턴스 입력 (각 역의 INPUT_PARAMS와 별개; 시작 역에 함께 주입됨)
      */
     @Transactional
     public void startInstance(String definitionId, String instanceId, String inputData) {
         List<LineStation> nodes = definitionRepository.findNodesByDefinition(definitionId);
-        List<LineEdge> edges = definitionRepository.findEdgesByDefinition(definitionId);
+        List<LineTrack> edges = definitionRepository.findEdgesByDefinition(definitionId);
 
         // 실행 직전 안전망 검증 (정의 저장 시점에 이미 검증되어야 하지만 이중 방어)
         dagValidator.validate(nodes, edges, workflowRegistry.getActivityNames());
@@ -92,13 +92,13 @@ public class DagInterpreter {
      */
     @Transactional
     public void onNodeCompleted(String instanceId, String completedNodeId) {
-        List<LineEdge> outgoing = definitionRepository.findOutgoingEdges(completedNodeId);
+        List<LineTrack> outgoing = definitionRepository.findOutgoingEdges(completedNodeId);
         if (outgoing.isEmpty()) {
             log.debug("Terminal node completed: instanceId={}, nodeId={}", instanceId, completedNodeId);
             return;
         }
 
-        for (LineEdge edge : outgoing) {
+        for (LineTrack edge : outgoing) {
             String successorId = edge.toNodeId();
             if (allPredecessorsCompleted(instanceId, successorId)) {
                 ActivityExecution successorExec = activityRepository.findByInstanceAndNode(instanceId, successorId);
@@ -116,8 +116,8 @@ public class DagInterpreter {
     }
 
     private boolean allPredecessorsCompleted(String instanceId, String nodeId) {
-        List<LineEdge> incoming = definitionRepository.findIncomingEdges(nodeId);
-        for (LineEdge edge : incoming) {
+        List<LineTrack> incoming = definitionRepository.findIncomingEdges(nodeId);
+        for (LineTrack edge : incoming) {
             ActivityExecution predExec = activityRepository.findByInstanceAndNode(instanceId, edge.fromNodeId());
             if (predExec == null || !STATUS_COMPLETED.equals(predExec.statusSt())) {
                 return false;

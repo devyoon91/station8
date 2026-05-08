@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Cron 스케줄 폴러: 만료된 ``U_WF_SCHEDULE`` 행을 SKIP LOCKED로 가져와
+ * Cron 스케줄 폴러: 만료된 ``U_LINE_SCHEDULE`` 행을 SKIP LOCKED로 가져와
  * 라인 인스턴스를 시작하고 ``NEXT_RUN_DT``를 다음 cron 시각으로 갱신한다.
  *
  * <p>분산 환경 안전성: ``findDueWithLock``의 SKIP LOCKED로 두 워커가 동일 스케줄을 동시 트리거하지 않는다.</p>
@@ -71,10 +71,10 @@ public class LineScheduler {
         try {
             // 1) 인스턴스 INSERT
             String workflowName = jdbcTemplate.queryForObject(
-                    "SELECT DEFINITION_NM FROM U_WF_DEFINITION WHERE ID = ?",
+                    "SELECT DEFINITION_NM FROM U_LINE_DEFINITION WHERE ID = ?",
                     String.class, s.definitionId());
             jdbcTemplate.update("""
-                    INSERT INTO U_WF_INSTANCE
+                    INSERT INTO U_LINE_INSTANCE
                       (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
                     VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     """, instanceId, workflowName, s.inputData());

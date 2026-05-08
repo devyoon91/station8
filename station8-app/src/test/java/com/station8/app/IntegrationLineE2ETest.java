@@ -53,14 +53,14 @@ public class IntegrationLineE2ETest {
 
         // 테스트 격리: MigrationInitializer가 부팅 시 만든 인스턴스/액티비티 정리
         // (FK 순서: DLQ → ACTIVITY → INSTANCE)
-        jdbcTemplate.execute("DELETE FROM H_WF_DLQ");
-        jdbcTemplate.execute("DELETE FROM H_WF_ACTIVITY_EXECUTION");
-        jdbcTemplate.execute("DELETE FROM U_WF_INSTANCE");
+        jdbcTemplate.execute("DELETE FROM H_LINE_DLQ");
+        jdbcTemplate.execute("DELETE FROM H_LINE_ACTIVITY_EXECUTION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_INSTANCE");
 
         // Fresh instance
         instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-            INSERT INTO U_WF_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
             VALUES (?, 'DataMigrationLine', 'RUNNING', NULL, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """, instanceId);
 

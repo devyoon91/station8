@@ -1,7 +1,7 @@
 package com.station8.engine.repository;
 
 import com.station8.engine.entity.LineDefinition;
-import com.station8.engine.entity.LineEdge;
+import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -24,7 +24,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Override
     @Transactional(readOnly = true)
     public LineDefinition findDefinitionById(String definitionId) {
-        String sql = "SELECT * FROM U_WF_DEFINITION WHERE ID = ?";
+        String sql = "SELECT * FROM U_LINE_DEFINITION WHERE ID = ?";
         List<LineDefinition> rows = jdbcTemplate.query(sql, new DefinitionMapper(), definitionId);
         return rows.isEmpty() ? null : rows.get(0);
     }
@@ -34,7 +34,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     public String findDefinitionIdByNodeId(String nodeId) {
         // 소프트 삭제된 노드도 매칭 — 인스턴스가 실행됐던 당시 정의로 역조회해야 하므로.
         List<String> rows = jdbcTemplate.query(
-                "SELECT DEFINITION_ID FROM U_WF_NODE WHERE ID = ?",
+                "SELECT DEFINITION_ID FROM U_LINE_STATION WHERE ID = ?",
                 (rs, rowNum) -> rs.getString(1),
                 nodeId);
         return rows.isEmpty() ? null : rows.get(0);
@@ -44,7 +44,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Transactional(readOnly = true)
     public List<LineDefinition> findAllActiveDefinitions() {
         String sql = """
-                SELECT * FROM U_WF_DEFINITION
+                SELECT * FROM U_LINE_DEFINITION
                 WHERE DEL_FL = 'N' AND ACTIVE_FL = 'Y'
                 ORDER BY DEFINITION_NM ASC, VERSION_NO DESC
                 """;
@@ -54,28 +54,28 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Override
     @Transactional(readOnly = true)
     public List<LineStation> findNodesByDefinition(String definitionId) {
-        String sql = "SELECT * FROM U_WF_NODE WHERE DEFINITION_ID = ? AND DEL_FL = 'N'";
+        String sql = "SELECT * FROM U_LINE_STATION WHERE DEFINITION_ID = ? AND DEL_FL = 'N'";
         return jdbcTemplate.query(sql, new NodeMapper(), definitionId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<LineEdge> findEdgesByDefinition(String definitionId) {
-        String sql = "SELECT * FROM U_WF_EDGE WHERE DEFINITION_ID = ? AND DEL_FL = 'N'";
+    public List<LineTrack> findEdgesByDefinition(String definitionId) {
+        String sql = "SELECT * FROM U_LINE_TRACK WHERE DEFINITION_ID = ? AND DEL_FL = 'N'";
         return jdbcTemplate.query(sql, new EdgeMapper(), definitionId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<LineEdge> findIncomingEdges(String toNodeId) {
-        String sql = "SELECT * FROM U_WF_EDGE WHERE TO_NODE_ID = ? AND DEL_FL = 'N'";
+    public List<LineTrack> findIncomingEdges(String toNodeId) {
+        String sql = "SELECT * FROM U_LINE_TRACK WHERE TO_NODE_ID = ? AND DEL_FL = 'N'";
         return jdbcTemplate.query(sql, new EdgeMapper(), toNodeId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<LineEdge> findOutgoingEdges(String fromNodeId) {
-        String sql = "SELECT * FROM U_WF_EDGE WHERE FROM_NODE_ID = ? AND DEL_FL = 'N'";
+    public List<LineTrack> findOutgoingEdges(String fromNodeId) {
+        String sql = "SELECT * FROM U_LINE_TRACK WHERE FROM_NODE_ID = ? AND DEL_FL = 'N'";
         return jdbcTemplate.query(sql, new EdgeMapper(), fromNodeId);
     }
 
@@ -83,10 +83,10 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Transactional(readOnly = true)
     public List<LineStation> findStartNodes(String definitionId) {
         String sql = """
-                SELECT n.* FROM U_WF_NODE n
+                SELECT n.* FROM U_LINE_STATION n
                 WHERE n.DEFINITION_ID = ? AND n.DEL_FL = 'N'
                   AND NOT EXISTS (
-                      SELECT 1 FROM U_WF_EDGE e
+                      SELECT 1 FROM U_LINE_TRACK e
                       WHERE e.TO_NODE_ID = n.ID AND e.DEL_FL = 'N'
                   )
                 """;
@@ -97,7 +97,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Transactional
     public void insertDefinition(LineDefinition definition) {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_DEFINITION
+                INSERT INTO U_LINE_DEFINITION
                   (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
                 VALUES (?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
                 """,
@@ -110,7 +110,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Transactional
     public void updateDefinitionMeta(String definitionId, String description, String activeFl) {
         jdbcTemplate.update("""
-                UPDATE U_WF_DEFINITION
+                UPDATE U_LINE_DEFINITION
                 SET DESCRIPTION = ?, ACTIVE_FL = COALESCE(?, ACTIVE_FL), EDIT_DT = CURRENT_TIMESTAMP
                 WHERE ID = ?
                 """, description, activeFl, definitionId);
@@ -120,7 +120,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Transactional
     public void softDeleteDefinition(String definitionId) {
         jdbcTemplate.update("""
-                UPDATE U_WF_DEFINITION
+                UPDATE U_LINE_DEFINITION
                 SET DEL_FL = 'Y', ACTIVE_FL = 'N', EDIT_DT = CURRENT_TIMESTAMP
                 WHERE ID = ?
                 """, definitionId);
@@ -130,7 +130,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Transactional
     public void insertNode(LineStation node) {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_NODE
+                INSERT INTO U_LINE_STATION
                   (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO,
                    USE_FL, VIEW_FL, DEL_FL, REG_DT)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
@@ -143,16 +143,16 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Transactional
     public void softDeleteNodesByDefinition(String definitionId) {
         jdbcTemplate.update("""
-                UPDATE U_WF_NODE SET DEL_FL = 'Y', EDIT_DT = CURRENT_TIMESTAMP
+                UPDATE U_LINE_STATION SET DEL_FL = 'Y', EDIT_DT = CURRENT_TIMESTAMP
                 WHERE DEFINITION_ID = ?
                 """, definitionId);
     }
 
     @Override
     @Transactional
-    public void insertEdge(LineEdge edge) {
+    public void insertEdge(LineTrack edge) {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_EDGE
+                INSERT INTO U_LINE_TRACK
                   (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, CONDITION_EXPR,
                    USE_FL, VIEW_FL, DEL_FL, REG_DT)
                 VALUES (?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
@@ -165,7 +165,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Transactional
     public void softDeleteEdgesByDefinition(String definitionId) {
         jdbcTemplate.update("""
-                UPDATE U_WF_EDGE SET DEL_FL = 'Y', EDIT_DT = CURRENT_TIMESTAMP
+                UPDATE U_LINE_TRACK SET DEL_FL = 'Y', EDIT_DT = CURRENT_TIMESTAMP
                 WHERE DEFINITION_ID = ?
                 """, definitionId);
     }
@@ -174,7 +174,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     @Transactional(readOnly = true)
     public int findMaxVersionByName(String definitionNm) {
         Integer max = jdbcTemplate.queryForObject(
-                "SELECT COALESCE(MAX(VERSION_NO), 0) FROM U_WF_DEFINITION WHERE DEFINITION_NM = ? AND DEL_FL = 'N'",
+                "SELECT COALESCE(MAX(VERSION_NO), 0) FROM U_LINE_DEFINITION WHERE DEFINITION_NM = ? AND DEL_FL = 'N'",
                 Integer.class, definitionNm);
         return max != null ? max : 0;
     }
@@ -225,10 +225,10 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
         }
     }
 
-    private static class EdgeMapper implements RowMapper<LineEdge> {
+    private static class EdgeMapper implements RowMapper<LineTrack> {
         @Override
-        public LineEdge mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new LineEdge(
+        public LineTrack mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new LineTrack(
                 rs.getString("ID"),
                 rs.getString("DEFINITION_ID"),
                 rs.getString("FROM_NODE_ID"),

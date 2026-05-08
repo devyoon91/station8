@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 정기 실행 스케줄(U_WF_SCHEDULE) 리포지토리.
+ * 정기 실행 스케줄(U_LINE_SCHEDULE) 리포지토리.
  * M2-2 폴러가 ``findDueWithLock``로 만료된 cron을 가져가고, ``markRun``으로 다음 실행 시각을 갱신한다.
  */
 public interface LineScheduleRepository {

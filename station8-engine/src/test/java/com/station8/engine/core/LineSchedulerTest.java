@@ -79,21 +79,21 @@ class LineSchedulerTest {
 
     @BeforeEach
     void clean() {
-        jdbcTemplate.execute("DELETE FROM H_WF_ACTIVITY_EXECUTION");
-        jdbcTemplate.execute("DELETE FROM U_WF_SCHEDULE");
-        jdbcTemplate.execute("DELETE FROM U_WF_INSTANCE");
-        jdbcTemplate.execute("DELETE FROM U_WF_EDGE");
-        jdbcTemplate.execute("DELETE FROM U_WF_NODE");
-        jdbcTemplate.execute("DELETE FROM U_WF_DEFINITION");
+        jdbcTemplate.execute("DELETE FROM H_LINE_ACTIVITY_EXECUTION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_SCHEDULE");
+        jdbcTemplate.execute("DELETE FROM U_LINE_INSTANCE");
+        jdbcTemplate.execute("DELETE FROM U_LINE_TRACK");
+        jdbcTemplate.execute("DELETE FROM U_LINE_STATION");
+        jdbcTemplate.execute("DELETE FROM U_LINE_DEFINITION");
 
         // 단일 역 정의 (시작이자 종료) — DAG 검증 통과
         jdbcTemplate.update("""
-                INSERT INTO U_WF_DEFINITION
+                INSERT INTO U_LINE_DEFINITION
                   (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('def-sched', 'CronDef', 1, 'Y', 'Y', 'Y', 'N')
                 """);
         jdbcTemplate.update("""
-                INSERT INTO U_WF_NODE
+                INSERT INTO U_LINE_STATION
                   (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
                 VALUES ('n-only', 'def-sched', 'A', 'Y', 'Y', 'N')
                 """);

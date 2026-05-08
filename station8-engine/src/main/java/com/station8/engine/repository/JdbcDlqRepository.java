@@ -13,7 +13,7 @@ import java.util.UUID;
 
 /**
  * DlqRepository의 JDBC 기반 구현체.
- * H_WF_DLQ 테이블에 대한 CRUD를 수행합니다.
+ * H_LINE_DLQ 테이블에 대한 CRUD를 수행합니다.
  */
 @Repository
 public class JdbcDlqRepository implements DlqRepository {
@@ -28,7 +28,7 @@ public class JdbcDlqRepository implements DlqRepository {
     public void insert(DlqEntry entry) {
         String id = (entry.id() != null) ? entry.id() : UUID.randomUUID().toString();
         String sql = """
-            INSERT INTO H_WF_DLQ (
+            INSERT INTO H_LINE_DLQ (
                 ID, INSTANCE_ID, EXECUTION_ID, WORKFLOW_NAME, ACTIVITY_NAME,
                 DLQ_STATUS_ST, ERROR_MESSAGE, STACK_TRACE,
                 RETRY_CNT, MAX_RETRY_CNT, FAILED_AT_DT,
@@ -52,19 +52,19 @@ public class JdbcDlqRepository implements DlqRepository {
 
     @Override
     public List<DlqEntry> findAll() {
-        String sql = "SELECT * FROM H_WF_DLQ ORDER BY REG_DT DESC";
+        String sql = "SELECT * FROM H_LINE_DLQ ORDER BY REG_DT DESC";
         return jdbcTemplate.query(sql, new DlqEntryRowMapper());
     }
 
     @Override
     public DlqEntry findById(String id) {
-        String sql = "SELECT * FROM H_WF_DLQ WHERE ID = ?";
+        String sql = "SELECT * FROM H_LINE_DLQ WHERE ID = ?";
         return jdbcTemplate.queryForObject(sql, new DlqEntryRowMapper(), id);
     }
 
     @Override
     public void updateStatus(String id, String newStatus) {
-        String sql = "UPDATE H_WF_DLQ SET DLQ_STATUS_ST = ?, EDIT_DT = CURRENT_TIMESTAMP, EDIT_ID = 'engine' WHERE ID = ?";
+        String sql = "UPDATE H_LINE_DLQ SET DLQ_STATUS_ST = ?, EDIT_DT = CURRENT_TIMESTAMP, EDIT_ID = 'engine' WHERE ID = ?";
         jdbcTemplate.update(sql, newStatus, id);
     }
 

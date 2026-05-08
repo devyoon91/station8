@@ -1,0 +1,10 @@
+-- #88 : U_WF_* / H_WF_* → U_LINE_* / H_LINE_* (Oracle)
+-- 자세한 배경/매핑은 본 디렉터리의 README 격 .md 참조.
+-- Oracle의 RENAME은 한 번에 한 테이블이며 FK 참조는 자동 갱신된다.
+RENAME U_WF_DEFINITION         TO U_LINE_DEFINITION;
+RENAME U_WF_INSTANCE           TO U_LINE_INSTANCE;
+RENAME U_WF_NODE               TO U_LINE_STATION;
+RENAME U_WF_EDGE               TO U_LINE_TRACK;
+RENAME U_WF_SCHEDULE           TO U_LINE_SCHEDULE;
+RENAME H_WF_ACTIVITY_EXECUTION TO H_LINE_ACTIVITY_EXECUTION;
+RENAME H_WF_DLQ                TO H_LINE_DLQ;

@@ -3,7 +3,7 @@ package com.station8.engine.entity;
 import java.time.LocalDateTime;
 
 /**
- * H_WF_DLQ 테이블에 대응하는 엔티티 (Record 사용)
+ * H_LINE_DLQ 테이블에 대응하는 엔티티 (Record 사용)
  * 최대 재시도 초과 시 Dead Letter Queue에 적재되는 레코드.
  */
 public record DlqEntry(

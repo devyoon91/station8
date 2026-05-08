@@ -27,7 +27,7 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
     @Transactional
     public void insert(LineSchedule s) {
         jdbcTemplate.update("""
-                INSERT INTO U_WF_SCHEDULE
+                INSERT INTO U_LINE_SCHEDULE
                   (ID, DEFINITION_ID, CRON_EXPR, NEXT_RUN_DT, LAST_RUN_DT,
                    PAUSED_FL, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
@@ -42,7 +42,7 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
     @Transactional(readOnly = true)
     public LineSchedule findById(String id) {
         List<LineSchedule> rows = jdbcTemplate.query(
-                "SELECT * FROM U_WF_SCHEDULE WHERE ID = ? AND DEL_FL = 'N'",
+                "SELECT * FROM U_LINE_SCHEDULE WHERE ID = ? AND DEL_FL = 'N'",
                 new ScheduleMapper(), id);
         return rows.isEmpty() ? null : rows.get(0);
     }
@@ -51,7 +51,7 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
     @Transactional(readOnly = true)
     public List<LineSchedule> findAll() {
         return jdbcTemplate.query(
-                "SELECT * FROM U_WF_SCHEDULE WHERE DEL_FL = 'N' ORDER BY REG_DT DESC",
+                "SELECT * FROM U_LINE_SCHEDULE WHERE DEL_FL = 'N' ORDER BY REG_DT DESC",
                 new ScheduleMapper());
     }
 
@@ -60,7 +60,7 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
     public List<LineSchedule> findDueWithLock(int limit) {
         // M2-2 폴러가 사용. PAUSED_FL='N' AND NEXT_RUN_DT <= NOW() 조건 + SKIP LOCKED
         String sql = String.format("""
-                SELECT * FROM U_WF_SCHEDULE
+                SELECT * FROM U_LINE_SCHEDULE
                 WHERE PAUSED_FL = 'N'
                   AND DEL_FL = 'N'
                   AND USE_FL = 'Y'
@@ -77,7 +77,7 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
     @Transactional
     public void markRun(String scheduleId, LocalDateTime nextRunDt, LocalDateTime lastRunDt) {
         jdbcTemplate.update("""
-                UPDATE U_WF_SCHEDULE
+                UPDATE U_LINE_SCHEDULE
                 SET NEXT_RUN_DT = ?, LAST_RUN_DT = ?, EDIT_DT = CURRENT_TIMESTAMP, EDIT_ID = 'scheduler'
                 WHERE ID = ?
                 """, nextRunDt, lastRunDt, scheduleId);
@@ -87,7 +87,7 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
     @Transactional
     public void updateCron(String scheduleId, String cronExpr, LocalDateTime nextRunDt) {
         jdbcTemplate.update("""
-                UPDATE U_WF_SCHEDULE
+                UPDATE U_LINE_SCHEDULE
                 SET CRON_EXPR = ?, NEXT_RUN_DT = ?, EDIT_DT = CURRENT_TIMESTAMP
                 WHERE ID = ?
                 """, cronExpr, nextRunDt, scheduleId);
@@ -97,7 +97,7 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
     @Transactional
     public void setPaused(String scheduleId, boolean paused) {
         jdbcTemplate.update("""
-                UPDATE U_WF_SCHEDULE
+                UPDATE U_LINE_SCHEDULE
                 SET PAUSED_FL = ?, EDIT_DT = CURRENT_TIMESTAMP
                 WHERE ID = ?
                 """, paused ? "Y" : "N", scheduleId);
@@ -107,7 +107,7 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
     @Transactional
     public void softDelete(String scheduleId) {
         jdbcTemplate.update("""
-                UPDATE U_WF_SCHEDULE
+                UPDATE U_LINE_SCHEDULE
                 SET DEL_FL = 'Y', PAUSED_FL = 'Y', EDIT_DT = CURRENT_TIMESTAMP
                 WHERE ID = ?
                 """, scheduleId);

@@ -41,7 +41,7 @@ public class JdbcActivityRepository implements ActivityRepository {
         // Oracle: ORDER BY ... FETCH FIRST N ROWS ONLY FOR UPDATE SKIP LOCKED
         // MariaDB/H2: ORDER BY ... LIMIT N FOR UPDATE SKIP LOCKED
         String selectSql = String.format("""
-            SELECT * FROM H_WF_ACTIVITY_EXECUTION
+            SELECT * FROM H_LINE_ACTIVITY_EXECUTION
             WHERE STATUS_ST = 'PENDING'
               AND (NEXT_RETRY_DT IS NULL OR NEXT_RETRY_DT <= %s)
               AND USE_FL = 'Y'
@@ -60,7 +60,7 @@ public class JdbcActivityRepository implements ActivityRepository {
         // 2. 조회된 작업들의 상태를 RUNNING으로 즉시 업데이트 (다른 워커가 가로채지 못하도록)
         for (ActivityExecution activity : activities) {
             jdbcTemplate.update(
-                String.format("UPDATE H_WF_ACTIVITY_EXECUTION SET STATUS_ST = 'RUNNING', START_DT = %s, EDIT_DT = %s WHERE ID = ?",
+                String.format("UPDATE H_LINE_ACTIVITY_EXECUTION SET STATUS_ST = 'RUNNING', START_DT = %s, EDIT_DT = %s WHERE ID = ?",
                     dbDialect.currentTimestamp(), dbDialect.currentTimestamp()),
                 activity.id()
             );
@@ -74,7 +74,7 @@ public class JdbcActivityRepository implements ActivityRepository {
     @Transactional
     public void updateStatus(ActivityExecution activity) {
         String sql = String.format("""
-            UPDATE H_WF_ACTIVITY_EXECUTION
+            UPDATE H_LINE_ACTIVITY_EXECUTION
             SET STATUS_ST = ?,
                 OUTPUT_DATA = ?,
                 ERROR_MESSAGE = ?,
@@ -103,7 +103,7 @@ public class JdbcActivityRepository implements ActivityRepository {
     public String createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt) {
         String id = UUID.randomUUID().toString();
         String sql = String.format("""
-            INSERT INTO H_WF_ACTIVITY_EXECUTION (
+            INSERT INTO H_LINE_ACTIVITY_EXECUTION (
                 ID, INSTANCE_ID, NODE_ID, ACTIVITY_NAME, STATUS_ST, INPUT_DATA,
                 RETRY_CNT, NEXT_RETRY_DT, USE_FL, VIEW_FL, DEL_FL, REG_DT
             ) VALUES (
@@ -126,7 +126,7 @@ public class JdbcActivityRepository implements ActivityRepository {
     public String createForNode(String instanceId, String nodeId, String activityName, String statusSt, String inputData) {
         String id = UUID.randomUUID().toString();
         String sql = String.format("""
-            INSERT INTO H_WF_ACTIVITY_EXECUTION (
+            INSERT INTO H_LINE_ACTIVITY_EXECUTION (
                 ID, INSTANCE_ID, NODE_ID, ACTIVITY_NAME, STATUS_ST, INPUT_DATA,
                 RETRY_CNT, USE_FL, VIEW_FL, DEL_FL, REG_DT
             ) VALUES (
@@ -141,7 +141,7 @@ public class JdbcActivityRepository implements ActivityRepository {
     @Override
     @Transactional(readOnly = true)
     public ActivityExecution findById(String executionId) {
-        String sql = "SELECT * FROM H_WF_ACTIVITY_EXECUTION WHERE ID = ?";
+        String sql = "SELECT * FROM H_LINE_ACTIVITY_EXECUTION WHERE ID = ?";
         List<ActivityExecution> rows = jdbcTemplate.query(sql, new ActivityExecutionRowMapper(), executionId);
         return rows.isEmpty() ? null : rows.get(0);
     }
@@ -149,7 +149,7 @@ public class JdbcActivityRepository implements ActivityRepository {
     @Override
     @Transactional(readOnly = true)
     public ActivityExecution findByInstanceAndNode(String instanceId, String nodeId) {
-        String sql = "SELECT * FROM H_WF_ACTIVITY_EXECUTION WHERE INSTANCE_ID = ? AND NODE_ID = ?";
+        String sql = "SELECT * FROM H_LINE_ACTIVITY_EXECUTION WHERE INSTANCE_ID = ? AND NODE_ID = ?";
         List<ActivityExecution> rows = jdbcTemplate.query(sql, new ActivityExecutionRowMapper(), instanceId, nodeId);
         return rows.isEmpty() ? null : rows.get(0);
     }
@@ -158,7 +158,7 @@ public class JdbcActivityRepository implements ActivityRepository {
     @Transactional
     public void promoteToPending(String executionId) {
         String sql = String.format("""
-            UPDATE H_WF_ACTIVITY_EXECUTION
+            UPDATE H_LINE_ACTIVITY_EXECUTION
             SET STATUS_ST = 'PENDING',
                 EDIT_DT = %s
             WHERE ID = ? AND STATUS_ST = 'WAITING_DEPENDENCIES'
@@ -169,21 +169,21 @@ public class JdbcActivityRepository implements ActivityRepository {
     @Override
     @Transactional(readOnly = true)
     public List<LineInstance> findAllInstances() {
-        String sql = "SELECT * FROM U_WF_INSTANCE ORDER BY REG_DT DESC";
+        String sql = "SELECT * FROM U_LINE_INSTANCE ORDER BY REG_DT DESC";
         return jdbcTemplate.query(sql, new LineInstanceRowMapper());
     }
 
     @Override
     @Transactional(readOnly = true)
     public LineInstance findInstanceById(String instanceId) {
-        String sql = "SELECT * FROM U_WF_INSTANCE WHERE ID = ?";
+        String sql = "SELECT * FROM U_LINE_INSTANCE WHERE ID = ?";
         return jdbcTemplate.queryForObject(sql, new LineInstanceRowMapper(), instanceId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ActivityExecution> findActivitiesByInstanceId(String instanceId) {
-        String sql = "SELECT * FROM H_WF_ACTIVITY_EXECUTION WHERE INSTANCE_ID = ? ORDER BY REG_DT ASC";
+        String sql = "SELECT * FROM H_LINE_ACTIVITY_EXECUTION WHERE INSTANCE_ID = ? ORDER BY REG_DT ASC";
         return jdbcTemplate.query(sql, new ActivityExecutionRowMapper(), instanceId);
     }
 
@@ -191,7 +191,7 @@ public class JdbcActivityRepository implements ActivityRepository {
     @Transactional
     public void resetToPending(String executionId) {
         String sql = String.format("""
-            UPDATE H_WF_ACTIVITY_EXECUTION
+            UPDATE H_LINE_ACTIVITY_EXECUTION
             SET STATUS_ST = 'PENDING',
                 NEXT_RETRY_DT = NULL,
                 START_DT = NULL,

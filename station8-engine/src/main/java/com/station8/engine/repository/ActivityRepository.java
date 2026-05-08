@@ -40,7 +40,7 @@ public interface ActivityRepository {
      * STATUS_ST는 호출자가 결정 (시작 역은 PENDING, 후행 역은 WAITING_DEPENDENCIES).
      *
      * @param instanceId 라인 인스턴스 ID
-     * @param nodeId U_WF_NODE.ID
+     * @param nodeId U_LINE_STATION.ID
      * @param activityName 액티비티 이름
      * @param statusSt 초기 상태 (PENDING 또는 WAITING_DEPENDENCIES)
      * @param inputData 입력 JSON
