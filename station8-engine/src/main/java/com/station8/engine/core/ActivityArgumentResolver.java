@@ -1,0 +1,64 @@
+package com.station8.engine.core;
+
+import com.station8.engine.datasource.DataSourceRegistry;
+import org.springframework.stereotype.Component;
+
+import java.lang.reflect.Method;
+
+/**
+ * 액티비티 메서드 호출 시 파라미터를 바인딩하는 책임 객체.
+ *
+ * <p>지원 파라미터 타입:</p>
+ * <ul>
+ *   <li>{@code String} — 첫 번째 등장 시 ``inputData``를 그대로 전달
+ *       (액티비티의 입력 페이로드)</li>
+ *   <li>{@link DataSourceRegistry} — 멀티 DS 액세스용 레지스트리 주입 (#108 D3(a))</li>
+ * </ul>
+ *
+ * <p>지원하지 않는 타입이 선언되면 {@link IllegalStateException}을 던져 등록 단계가 아닌
+ * 호출 단계에서 명시적으로 실패시킨다 — 운영자가 액티비티 시그니처 오류를 즉시 파악할 수 있도록.</p>
+ *
+ * <p>plugin 코드도 동일 API — 이 클래스의 인스턴스는 코어/플러그인 모두 공유.</p>
+ */
+@Component
+public class ActivityArgumentResolver {
+
+    private final DataSourceRegistry dataSourceRegistry;
+
+    public ActivityArgumentResolver(DataSourceRegistry dataSourceRegistry) {
+        this.dataSourceRegistry = dataSourceRegistry;
+    }
+
+    /**
+     * @param method    호출 대상 액티비티 메서드
+     * @param inputData 액티비티 입력 페이로드 (JSON / plain string)
+     * @return method.invoke()에 그대로 넘길 인자 배열
+     * @throws IllegalStateException 지원하지 않는 파라미터 타입을 만난 경우
+     */
+    public Object[] resolve(Method method, String inputData) {
+        Class<?>[] types = method.getParameterTypes();
+        if (types.length == 0) {
+            return new Object[0];
+        }
+        Object[] args = new Object[types.length];
+        boolean inputBound = false;
+        for (int i = 0; i < types.length; i++) {
+            Class<?> t = types[i];
+            if (t == String.class && !inputBound) {
+                args[i] = inputData;
+                inputBound = true;
+            } else if (t.isAssignableFrom(DataSourceRegistry.class)
+                    || DataSourceRegistry.class.isAssignableFrom(t)) {
+                args[i] = dataSourceRegistry;
+            } else {
+                throw new IllegalStateException(
+                        "Unsupported activity parameter type: " + t.getName()
+                                + " at index " + i + " on "
+                                + method.getDeclaringClass().getSimpleName()
+                                + "#" + method.getName()
+                                + " — supported: String (input), DataSourceRegistry");
+            }
+        }
+        return args;
+    }
+}

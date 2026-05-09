@@ -33,6 +33,7 @@ public class LineWorker {
     private final DlqNotifier dlqNotifier;
     private final JsonUtil jsonUtil;
     private final DagInterpreter dagInterpreter;
+    private final ActivityArgumentResolver argumentResolver;
 
     public LineWorker(ActivityRepository activityRepository,
                           TaskExecutor taskExecutor,
@@ -42,7 +43,8 @@ public class LineWorker {
                           DlqRepository dlqRepository,
                           DlqNotifier dlqNotifier,
                           JsonUtil jsonUtil,
-                          DagInterpreter dagInterpreter) {
+                          DagInterpreter dagInterpreter,
+                          ActivityArgumentResolver argumentResolver) {
         this.activityRepository = activityRepository;
         this.taskExecutor = taskExecutor;
         this.workflowTaskExecutor = workflowTaskExecutor;
@@ -52,6 +54,7 @@ public class LineWorker {
         this.dlqNotifier = dlqNotifier;
         this.jsonUtil = jsonUtil;
         this.dagInterpreter = dagInterpreter;
+        this.argumentResolver = argumentResolver;
     }
 
     /**
@@ -104,9 +107,9 @@ public class LineWorker {
             log.info("Executing activity: {} (Execution ID: {})", activity.activityName(), activity.id());
             
             // 3. 리플렉션을 통한 메서드 호출
-            // 입력 파라미터가 있을 경우 JSON 역직렬화 및 타입 매칭 로직 보완
-            Object[] args = resolveArguments(metadata, activity.inputData());
-            
+            // 파라미터 바인딩은 ActivityArgumentResolver에 위임 (#108 — String + DataSourceRegistry 지원)
+            Object[] args = argumentResolver.resolve(metadata.method(), activity.inputData());
+
             Object result = metadata.method().invoke(metadata.bean(), args);
             
             // 4. 성공 시 결과 업데이트 및 다음 단계 처리
@@ -138,33 +141,6 @@ public class LineWorker {
                 taskExecutor.fail(context, cause, nextBackoff);
             }
         }
-    }
-
-    /**
-     * 리플렉션 호출을 위한 파라미터 바인딩 로직.
-     * JSON 입력 데이터를 메서드 파라미터 타입에 맞게 역직렬화합니다.
-     */
-    private Object[] resolveArguments(LineRegistry.ActivityMetadata metadata, String inputData) {
-        Class<?>[] parameterTypes = metadata.method().getParameterTypes();
-        if (parameterTypes.length == 0) {
-            return new Object[0];
-        }
-        
-        // 현재는 첫 번째 파라미터에 입력을 주입하는 것을 기본으로 함
-        Object arg;
-        Class<?> firstParamType = parameterTypes[0];
-        
-        if (firstParamType == String.class) {
-            arg = inputData;
-        } else {
-            // station8-engine의 JsonUtil을 사용하여 역직렬화 (LineWorker가 이미 JsonUtil을 간접적으로 사용하거나 주입받을 수 있음)
-            // 현재 구조에서는 LineWorker에 JsonUtil 주입이 누락되어 있으므로, 필요한 경우 추가 주입 필요
-            // 여기서는 단순함을 위해 String이 아니면 null 처리하거나 예외를 던질 수 있음
-            // TODO: LineWorker에 JsonUtil 주입 및 정교한 역직렬화 구현
-            arg = inputData; 
-        }
-        
-        return new Object[]{arg};
     }
 
     private void updateActivityAsCompleted(ActivityExecution activity, Object output) {

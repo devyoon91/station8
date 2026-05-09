@@ -65,6 +65,12 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 
 * 모든 액티비티의 입력값/결과값/스택트레이스를 DB에 JSON으로 저장.
 * Worker Polling: `FOR UPDATE SKIP LOCKED` 분산 처리.
+* **멀티 DataSource (#108):** 엔진 상태 DB(primary)와 액티비티가 R/W하는 외부 DB(secondary)를 분리.
+  `application.properties`에 `station8.datasources.<name>.*`로 secondary 선언 → 액티비티는
+  `DataSourceRegistry`를 메서드 파라미터로 받아 이름으로 `JdbcTemplate`을 조회.
+  엔진 SQL 생성은 primary dialect만, secondary dialect는 액티비티가 알아서 다룸.
+  단일 DS 트랜잭션만 보장(JTA/XA 비도입 — [#111](https://github.com/devyoon91/station8/issues/111) 토론).
+  운영자는 `/admin/datasources`에서 등록 목록 / 풀 상태 / Test ping 진단 가능.
 
 ### 4.5. Fault Tolerance (기존 유지 + 확장)
 

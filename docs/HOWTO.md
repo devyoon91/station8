@@ -43,8 +43,45 @@ public class OrderFlow {
 
 ### 1.3. 입력 파라미터 규칙
 
-- 첫 파라미터는 `String inputJson`을 받는 게 권장 (JSON 문자열을 그대로 전달받아 메서드에서 직접 파싱)
-- 그 외 타입은 `@Activity` 메서드 호출 시 첫 파라미터에만 inputData를 주입 (POJO 자동 역직렬화는 미구현, 필요 시 메서드 안에서 `JsonUtil.fromJson` 사용)
+지원 파라미터 타입 (선언된 순서대로 바인딩):
+
+- `String inputJson` — 액티비티 입력 페이로드 (첫 번째 등장 시 inputData 주입). POJO 자동 역직렬화는 미구현 → 메서드 안에서 `JsonUtil.fromJson` 사용.
+- `DataSourceRegistry ds` — 멀티 DS 액세스용 레지스트리 (#108). 이름으로 `JdbcTemplate` / `DataSource` 조회.
+
+지원하지 않는 타입을 선언하면 액티비티 호출 시점에 `IllegalStateException`으로 실패함.
+
+#### 멀티 DataSource 사용 예 (#108)
+
+```java
+@Activity("MIGRATE")
+public String migrate(String inputJson, DataSourceRegistry ds) {
+    JdbcTemplate src = ds.jdbc("source-oracle");   // application.properties의 이름과 일치
+    JdbcTemplate dst = ds.jdbc("target-mart");
+    List<Map<String, Object>> rows = src.queryForList("SELECT * FROM RAW_ORDER WHERE ...");
+    for (Map<String, Object> r : rows) {
+        dst.update("INSERT INTO MART_ORDER (...) VALUES (...)", r.get("id"), ...);
+    }
+    return "ok:" + rows.size();
+}
+```
+
+`application.properties`에 secondary DS 선언:
+
+```properties
+station8.datasources.source-oracle.url=jdbc:oracle:thin:@oracle-prod:1521:ORCL
+station8.datasources.source-oracle.username=etl_reader
+station8.datasources.source-oracle.password=${DB_SOURCE_ORACLE_PASSWORD}
+station8.datasources.source-oracle.driver-class-name=oracle.jdbc.OracleDriver
+station8.datasources.source-oracle.dialect=oracle
+
+station8.datasources.target-mart.url=jdbc:mariadb://mart:3306/analytics
+station8.datasources.target-mart.username=etl_writer
+station8.datasources.target-mart.password=${DB_TARGET_MART_PASSWORD}
+```
+
+운영 시 `/admin/datasources`에서 등록 목록 / 풀 상태 확인 + Test connection ping 가능.
+
+> **트랜잭션 주의**: 두 DS를 R/W하는 액티비티는 각각 별개 트랜잭션이라 부분 실패 시 데이터 불일치 가능 → 멱등 키 / upsert(MERGE) / DLQ 재처리 패턴으로 운영자가 책임 (XA/JTA 비도입). 자세한 토론은 [#111](https://github.com/devyoon91/station8/issues/111).
 
 ### 1.4. 재시도 vs 영구 실패
 
