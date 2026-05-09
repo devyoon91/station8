@@ -303,6 +303,41 @@ public class MyBatchConfig {
 
 ## 5. 모니터링 / 운영
 
+### 5.0. 로그인 / 사용자 관리 (#121)
+
+Station8은 자체 사용자 계정 + Spring Security 기반 form login을 제공.
+
+**부팅 시 초기 ADMIN 시드:**
+```bash
+STATION8_INITIAL_ADMIN_USERNAME=admin \
+STATION8_INITIAL_ADMIN_PASSWORD='Hello!1234' \
+java -jar station8-app.jar
+```
+또는 `application.properties`:
+```properties
+station8.security.initial-admin.username=admin
+station8.security.initial-admin.password=Hello!1234
+```
+비밀번호가 비어있으면 시드 안 함. 같은 username이 이미 있으면 멱등(skip).
+
+**비밀번호 정책:** 최소 8자 + 숫자 1+ + 특수문자 1+.
+
+**경로 보호:**
+- `/admin/**` — ADMIN 역할 필요 (DataSources / Plugins / Users 페이지)
+- `/me/**` — 인증 필요 (본인 비밀번호 변경)
+- `/line/**`, `/api/**` — 본 이슈 1차에선 permitAll (점진 적용은 후속)
+- `/api/**`는 CSRF 면제 — 자동화/REST 클라이언트용
+
+**사용자 관리** (`/admin/users`, ADMIN 전용):
+- 신규 사용자 추가 (USER 또는 ADMIN 역할)
+- 비밀번호 재설정 (ADMIN-driven)
+- 활성/비활성 토글
+- 소프트 삭제
+
+**본인 비밀번호 변경**: `/me/password` — 현재 비밀번호 확인 + 새 비밀번호 정책 검증.
+
+
+
 ### 5.1. Dashboard
 - `/line/dashboard` — 인스턴스 목록 + Running/Completed/Failed 통계
 - 검색 필터 (Line Name / Status / Instance ID)

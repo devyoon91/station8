@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Login — Station8</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/design.css">
+    <style>
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .login-box { width: 360px; padding: var(--space-section); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius-lg); }
+        .login-box h1 { margin: 0 0 var(--space-md); }
+        .login-box label { display: block; font-weight: 600; margin: var(--space-md) 0 var(--space-xs); }
+        .login-box input[type=text], .login-box input[type=password] {
+            width: 100%; padding: var(--space-sm) var(--space-md);
+            background: var(--surface-2); border: 1px solid var(--line);
+            color: var(--ink); border-radius: var(--radius-sm); font-family: inherit;
+            box-sizing: border-box;
+        }
+        .login-box button { width: 100%; margin-top: var(--space-lg); padding: var(--space-md); }
+        .alert-error { color: var(--accent-pink); margin-top: var(--space-sm); font-size: 13px; }
+        .alert-info { color: var(--accent-green); margin-top: var(--space-sm); font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="login-box">
+    <h1 class="swe-display-md">Station8</h1>
+    <p class="swe-mute" style="font-size: 13px; margin: 0;">로그인</p>
+    {{#loginError}}<div class="alert-error">사용자명 또는 비밀번호가 올바르지 않습니다.</div>{{/loginError}}
+    {{#loggedOut}}<div class="alert-info">로그아웃되었습니다.</div>{{/loggedOut}}
+    <form method="post" action="/login">
+        <input type="hidden" name="{{_csrf.parameterName}}" value="{{_csrf.token}}">
+        <div>
+            <label for="username">사용자명</label>
+            <input type="text" id="username" name="username" required autofocus>
+        </div>
+        <div>
+            <label for="password">비밀번호</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="swe-btn-primary">로그인</button>
+    </form>
+</div>
+</body>
+</html>

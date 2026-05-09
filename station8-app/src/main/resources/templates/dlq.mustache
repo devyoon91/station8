@@ -66,9 +66,11 @@
                     <a href="/line/dlq/{{id}}" class="swe-btn-tertiary swe-btn-sm">Detail</a>
                     {{#isNew}}
                     <form action="/line/dlq/{{id}}/requeue" method="post" style="display:inline;">
+                        {{> _csrf}}
                         <button type="submit" class="swe-btn-tertiary swe-btn-sm">Requeue</button>
                     </form>
                     <form action="/line/dlq/{{id}}/discard" method="post" style="display:inline;">
+                        {{> _csrf}}
                         <button type="submit" class="swe-btn-tertiary swe-btn-sm swe-btn-danger">Discard</button>
                     </form>
                     {{/isNew}}
