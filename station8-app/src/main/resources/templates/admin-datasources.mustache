@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>DataSources — Station8</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/design.css">
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <h1 class="swe-display-lg" style="margin: 0;">DataSources</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">
+                등록된 DataSource 진단 — 부팅 health-check / 풀 통계 / Test 연결.
+                추가/수정은 <a href="https://github.com/devyoon91/station8/issues/110" target="_blank" style="color: var(--accent-pink);">#110</a> 후속.
+            </p>
+        </div>
+    </div>
+
+    {{#testMsg}}
+    <div class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid {{#testOk}}var(--accent-green){{/testOk}}{{^testOk}}var(--accent-pink){{/testOk}};">
+        <code style="color: var(--ink); font-size: 0.95em;">{{testMsg}}</code>
+    </div>
+    {{/testMsg}}
+
+    <!-- 통계 -->
+    <div class="swe-grid swe-grid-3 swe-mb-xl">
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-green);">Healthy</div>
+            <div class="swe-stat-value">{{healthyCount}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-pink);">Unhealthy</div>
+            <div class="swe-stat-value">{{unhealthyCount}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label">Total</div>
+            <div class="swe-stat-value">{{totalCount}}</div>
+        </div>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="swe-card" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>URL</th>
+                <th>User</th>
+                <th>Dialect</th>
+                <th>Boot health</th>
+                <th>Pool (active / idle / total)</th>
+                <th class="swe-text-right">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#datasources}}
+            <tr>
+                <td><strong>{{name}}</strong></td>
+                <td class="swe-id-cell" title="{{url}}">{{url}}</td>
+                <td class="swe-mute">{{username}}</td>
+                <td><span class="swe-keycap">{{dialect}}</span></td>
+                <td>
+                    {{#healthy}}<span class="swe-badge swe-badge-success">Healthy</span>{{/healthy}}
+                    {{^healthy}}<span class="swe-badge swe-badge-danger" title="{{errorMsg}}">Down</span>{{/healthy}}
+                </td>
+                <td class="swe-mute">
+                    {{#hasPoolStats}}{{activeConn}} / {{idleConn}} / {{totalConn}}{{/hasPoolStats}}
+                    {{^hasPoolStats}}—{{/hasPoolStats}}
+                </td>
+                <td class="swe-text-right">
+                    <form action="/admin/datasources/{{name}}/test" method="post" style="display:inline;">
+                        <button type="submit" class="swe-btn-tertiary swe-btn-sm">Test connection</button>
+                    </form>
+                </td>
+            </tr>
+            {{/datasources}}
+            {{^datasources}}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    등록된 DataSource가 없습니다. <code>application.properties</code>에서
+                    <code>station8.datasources.&lt;name&gt;.url</code>로 추가하거나 <code>spring.datasource.*</code>를 정의하세요.
+                </td>
+            </tr>
+            {{/datasources}}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+</body>
+</html>
