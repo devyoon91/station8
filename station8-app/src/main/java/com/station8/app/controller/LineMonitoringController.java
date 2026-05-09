@@ -52,13 +52,20 @@ public class LineMonitoringController {
      * 전체 라인 인스턴스 목록 대시보드 (#97 페이징 적용).
      * 필터/페이징은 SQL로 내려가며, 헤더 통계 카드는 ``GROUP BY STATUS_ST`` 한 방.
      */
+    /** Auto-refresh interval (seconds) when {@code ?auto=1} (#100). 워커 폴링 주기 1초 + 여유. */
+    private static final int AUTO_REFRESH_INTERVAL_SECONDS = 5;
+
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(value = "workflowName", required = false) String workflowName,
                             @RequestParam(value = "statusSt", required = false) String statusSt,
                             @RequestParam(value = "instanceId", required = false) String instanceId,
                             @RequestParam(value = "page", required = false) Integer page,
                             @RequestParam(value = "size", required = false) Integer size,
+                            @RequestParam(value = "auto", required = false) String auto,
                             Model model) {
+        boolean autoRefresh = "1".equals(auto) || "true".equalsIgnoreCase(auto);
+        model.addAttribute("autoRefresh", autoRefresh);
+        model.addAttribute("autoRefreshIntervalSeconds", AUTO_REFRESH_INTERVAL_SECONDS);
         int pageSize = PaginationModel.normalizeSize(size);
 
         long matchingCount = activityRepository.countInstances(workflowName, statusSt, instanceId);
