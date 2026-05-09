@@ -179,7 +179,7 @@ canvas.addEventListener('drop', e => {
     const pos_y = e.clientY - rect.top;
     const html = '<div><strong>' + activity + '</strong>' +
         '<div style="font-size: 11px; color: var(--mute); margin-top: 4px;" data-label-id></div></div>';
-    const nodeId = editor.addNode(activity, 1, 1, pos_x, pos_y, activity, {activityNm: activity, inputParams: ''}, html);
+    const nodeId = editor.addNode(activity, 1, 1, pos_x, pos_y, activity, {activityNm: activity, inputParams: '', datasourceBindings: ''}, html);
     setStatus('Added node #' + nodeId + ' (' + activity + ')');
 });
 
@@ -191,7 +191,8 @@ editor.on('nodeSelected', id => {
         '<div><label>Node ID</label><input class="swe-input" value="' + id + '" disabled></div>' +
         '<div><label>Activity</label><input class="swe-input" value="' + node.data.activityNm + '" disabled></div>' +
         '<div><label>Input params (JSON)</label><textarea class="swe-input" rows="6" id="paramsInput" style="height: auto; padding: 8px;" placeholder="{}">' + (node.data.inputParams || '') + '</textarea></div>' +
-        '<button class="swe-btn-tertiary" onclick="updateParams(' + id + ')">Update params</button>' +
+        '<div><label>DataSource bindings (JSON)</label><textarea class="swe-input" rows="3" id="bindingsInput" style="height: auto; padding: 8px;" placeholder=\'{"source":"oracle-prod","target":"mart"}\'>' + (node.data.datasourceBindings || '') + '</textarea><div class="swe-mute" style="font-size: 11px; margin-top: 4px;">role → DataSource 이름. 액티비티가 <code>@BoundDataSource("role") JdbcTemplate</code>로 받아씀. 비우면 모두 primary fallback (#113).</div></div>' +
+        '<button class="swe-btn-tertiary" onclick="updateParams(' + id + ')">Update params + bindings</button>' +
         '<button class="swe-btn-tertiary swe-btn-danger" onclick="deleteNode(' + id + ')">Delete node</button>' +
         '<hr style="border: none; border-top: 1px solid var(--hairline); margin: var(--space-md) 0;">' +
         '<button class="swe-btn-tertiary swe-w-full" onclick="startConnect(' + id + ')">Connect from this node</button>' +
@@ -202,8 +203,10 @@ editor.on('nodeSelected', id => {
 function updateParams(id) {
     const node = editor.getNodeFromId(id);
     node.data.inputParams = document.getElementById('paramsInput').value;
+    const bindingsEl = document.getElementById('bindingsInput');
+    if (bindingsEl) node.data.datasourceBindings = bindingsEl.value;
     editor.updateNodeDataFromId(id, node.data);
-    setStatus('Updated params for node #' + id);
+    setStatus('Updated node #' + id);
 }
 
 function deleteNode(id) {
@@ -257,13 +260,24 @@ async function saveDefinition() {
         const n = data[k];
         const nodeId = 'n-' + n.id;
         idMap[n.id] = nodeId;
+        // datasourceBindings: 빈 문자열 → null, JSON 문자열 → 파싱해서 Map으로 전송
+        let bindingsMap = null;
+        const bindingsRaw = (n.data.datasourceBindings || '').trim();
+        if (bindingsRaw) {
+            try { bindingsMap = JSON.parse(bindingsRaw); }
+            catch (e) {
+                alert('Node ' + nodeId + '의 DataSource bindings JSON 오류: ' + e.message);
+                throw e;
+            }
+        }
         nodes.push({
             nodeId: nodeId,
             nodeNm: n.name,
             activityNm: n.data.activityNm,
             inputParams: n.data.inputParams || null,
             posX: Math.round(n.pos_x),
-            posY: Math.round(n.pos_y)
+            posY: Math.round(n.pos_y),
+            datasourceBindings: bindingsMap
         });
     });
 

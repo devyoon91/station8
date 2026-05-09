@@ -1,5 +1,6 @@
 package com.station8.engine.core;
 
+import com.station8.engine.annotation.BoundDataSource;
 import com.station8.engine.datasource.DataSourceInfo;
 import com.station8.engine.datasource.DataSourceRegistry;
 import com.station8.engine.dialect.DbDialect;
@@ -8,7 +9,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,12 +73,98 @@ class ActivityArgumentResolverTest {
                 .hasMessageContaining("Integer");
     }
 
+    @Test
+    void resolve_boundDataSource_picksFromStationBindings() throws Exception {
+        // Stub registry: jdbc("oracle-prod") → 특정 인스턴스
+        JdbcTemplate sourceJdbc = new JdbcTemplate();
+        JdbcTemplate targetJdbc = new JdbcTemplate();
+        BindingAwareStubRegistry boundRegistry = new BindingAwareStubRegistry(Map.of(
+                "oracle-prod", sourceJdbc,
+                "mart", targetJdbc
+        ));
+        ActivityArgumentResolver resolver = new ActivityArgumentResolver(boundRegistry);
+
+        Method m = Probe.class.getMethod("withBoundJdbc", String.class, JdbcTemplate.class, JdbcTemplate.class);
+        Map<String, String> bindings = new HashMap<>();
+        bindings.put("source", "oracle-prod");
+        bindings.put("target", "mart");
+        Object[] args = resolver.resolve(m, new ActivityArgumentResolver.Context("payload", bindings));
+
+        assertThat(args).hasSize(3);
+        assertThat(args[0]).isEqualTo("payload");
+        assertThat(args[1]).isSameAs(sourceJdbc);
+        assertThat(args[2]).isSameAs(targetJdbc);
+    }
+
+    @Test
+    void resolve_boundDataSource_missingRole_fallsBackToPrimary() throws Exception {
+        JdbcTemplate primaryJdbc = new JdbcTemplate();
+        BindingAwareStubRegistry boundRegistry = new BindingAwareStubRegistry(Map.of(
+                "primary", primaryJdbc
+        ));
+        ActivityArgumentResolver resolver = new ActivityArgumentResolver(boundRegistry);
+
+        Method m = Probe.class.getMethod("singleBoundJdbc", String.class, JdbcTemplate.class);
+        // bindings에 "source" 키가 없음 → primary fallback
+        Object[] args = resolver.resolve(m, new ActivityArgumentResolver.Context("x", Map.of()));
+        assertThat(args[1]).isSameAs(primaryJdbc);
+    }
+
+    @Test
+    void resolve_boundDataSource_unknownName_fallsBackToPrimary() throws Exception {
+        JdbcTemplate primaryJdbc = new JdbcTemplate();
+        BindingAwareStubRegistry boundRegistry = new BindingAwareStubRegistry(Map.of(
+                "primary", primaryJdbc
+                // "ghost"는 등록 안 됨
+        ));
+        ActivityArgumentResolver resolver = new ActivityArgumentResolver(boundRegistry);
+
+        Method m = Probe.class.getMethod("singleBoundJdbc", String.class, JdbcTemplate.class);
+        Object[] args = resolver.resolve(m, new ActivityArgumentResolver.Context("x",
+                Map.of("source", "ghost")));
+        assertThat(args[1]).isSameAs(primaryJdbc);
+    }
+
+    @Test
+    void resolve_boundDataSource_onNonJdbcParameter_throws() throws Exception {
+        Method m = Probe.class.getMethod("invalidBoundOnString", String.class);
+        assertThatThrownBy(() -> resolver.resolve(m, "x"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("@BoundDataSource is only supported on JdbcTemplate");
+    }
+
     public static class Probe {
         public void noArg() {}
         public String singleString(String input) { return input; }
         public String withRegistry(String input, DataSourceRegistry ds) { return input; }
         public String registryOnly(DataSourceRegistry ds) { return "ok"; }
         public String unsupported(Integer x) { return ""; }
+        public String withBoundJdbc(String input,
+                                    @BoundDataSource("source") JdbcTemplate src,
+                                    @BoundDataSource("target") JdbcTemplate dst) { return input; }
+        public String singleBoundJdbc(String input, @BoundDataSource("source") JdbcTemplate src) { return input; }
+        public String invalidBoundOnString(@BoundDataSource("nope") String s) { return s; }
+    }
+
+    /** jdbc(name) 호출만 동작하는 stub — bound binding 테스트용. */
+    private static class BindingAwareStubRegistry implements DataSourceRegistry {
+        private final Map<String, JdbcTemplate> templates;
+        BindingAwareStubRegistry(Map<String, JdbcTemplate> templates) { this.templates = templates; }
+        @Override public Set<String> names() { return templates.keySet(); }
+        @Override public DataSource dataSource(String name) { throw new UnsupportedOperationException(); }
+        @Override public JdbcTemplate jdbc(String name) {
+            JdbcTemplate t = templates.get(name);
+            if (t == null) throw new IllegalArgumentException("Unknown DataSource name: " + name);
+            return t;
+        }
+        @Override public DbDialect dialect(String name) { throw new UnsupportedOperationException(); }
+        @Override public TestResult testConnection(String name) { throw new UnsupportedOperationException(); }
+        @Override public List<DataSourceInfo> snapshot() { return List.of(); }
+        @Override public DataSourceInfo info(String name) { throw new UnsupportedOperationException(); }
+        @Override public Source sourceOf(String name) { return templates.containsKey(name) ? Source.STATIC : Source.NONE; }
+        @Override public TestResult register(DynamicSpec spec) { throw new UnsupportedOperationException(); }
+        @Override public TestResult swap(DynamicSpec spec) { throw new UnsupportedOperationException(); }
+        @Override public void unregister(String name) { throw new UnsupportedOperationException(); }
     }
 
     /** 테스트용 stub — 실제 풀 없이 ID 비교만 가능하면 충분. */

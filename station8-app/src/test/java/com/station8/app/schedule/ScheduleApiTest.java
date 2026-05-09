@@ -50,7 +50,7 @@ class ScheduleApiTest {
         defId = definitionService.createDefinition(new DagDefinitionRequest(
                 "ScheduleTestFlow", null,
                 List.of(new DagDefinitionRequest.NodeDef(
-                        "n-only", "Only", "MIGRATION_WRITE", null, 0, 0)),
+                        "n-only", "Only", "MIGRATION_WRITE", null, 0, 0, null)),
                 List.of()
         ));
     }
