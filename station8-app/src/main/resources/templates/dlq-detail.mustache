@@ -19,9 +19,11 @@
         {{#entry.isNew}}
         <div class="swe-row">
             <form action="/line/dlq/{{entry.id}}/requeue" method="post">
+                {{> _csrf}}
                 <button type="submit" class="swe-btn-primary">Requeue</button>
             </form>
             <form action="/line/dlq/{{entry.id}}/discard" method="post">
+                {{> _csrf}}
                 <button type="submit" class="swe-btn-tertiary swe-btn-danger">Discard</button>
             </form>
         </div>

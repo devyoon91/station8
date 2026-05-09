@@ -84,15 +84,18 @@
                 <td class="swe-text-right" style="white-space: nowrap;">
                     {{#enabled}}
                     <form action="/admin/datasources/{{name}}/test" method="post" style="display:inline;">
+                        {{> _csrf}}
                         <button type="submit" class="swe-btn-tertiary swe-btn-sm">Test</button>
                     </form>
                     {{/enabled}}
                     {{#isDynamic}}
                     <a href="/admin/datasources/{{name}}/edit" class="swe-btn-tertiary swe-btn-sm">Edit</a>
                     <form action="/admin/datasources/{{name}}/toggle-enabled" method="post" style="display:inline;">
+                        {{> _csrf}}
                         <button type="submit" class="swe-btn-tertiary swe-btn-sm">{{#enabled}}Disable{{/enabled}}{{^enabled}}Enable{{/enabled}}</button>
                     </form>
                     <form action="/admin/datasources/{{name}}/delete" method="post" style="display:inline;" onsubmit="return confirm('Delete DataSource &quot;{{name}}&quot;?');">
+                        {{> _csrf}}
                         <button type="submit" class="swe-btn-tertiary swe-btn-sm swe-btn-danger">Delete</button>
                     </form>
                     {{/isDynamic}}

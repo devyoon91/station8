@@ -20,14 +20,9 @@
             </p>
         </div>
         <form action="/admin/plugins/reload" method="post" style="margin: 0;">
+            {{> _csrf}}
             <button type="submit" class="swe-btn-tertiary" title="새로 업로드된 jar의 @Activity를 등록 (Add only)">↻ Reload now</button>
         </form>
-    </div>
-
-    <!-- 인증 미적용 경고 (#121에서 Spring Security 도입 시 제거 가능) -->
-    <div class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid var(--accent-yellow);">
-        <strong>⚠ 보안 안내</strong> — 본 페이지는 현재 인증 미적용. 외부 노출 환경에선 RCE 위험이므로
-        <a href="https://github.com/devyoon91/station8/issues/121" target="_blank" style="color: var(--accent-pink);">#121</a> 머지 전까지 내부망 또는 dev 환경에서만 사용.
     </div>
 
     {{#uploadMsg}}
@@ -68,6 +63,7 @@
     <div class="swe-card swe-mb-xl">
         <h2 class="swe-heading-md" style="margin: 0 0 var(--space-md);">Upload jar</h2>
         <form action="/admin/plugins" method="post" enctype="multipart/form-data" class="swe-stack">
+            {{> _csrf}}
             <div>
                 <input type="file" name="file" accept=".jar" required
                        style="padding: var(--space-sm); background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: var(--radius-sm); width: 100%;">

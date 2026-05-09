@@ -43,12 +43,14 @@
         <div class="swe-row">
             {{#instance.isFailed}}
             <form action="/line/instance/{{instance.id}}/resume" method="post" style="margin: 0;">
+                {{> _csrf}}
                 <button type="submit" class="swe-btn-primary">Resume</button>
             </form>
             {{/instance.isFailed}}
             {{#instance.isRunning}}
             <form action="/line/instance/{{instance.id}}/terminate" method="post" style="margin: 0;"
                   onsubmit="return confirm('인스턴스를 강제 종료합니까? 진행 중 액티비티는 워커가 자연 완료한 뒤 후행이 차단됩니다.');">
+                {{> _csrf}}
                 <button type="submit" class="swe-btn-tertiary swe-btn-danger">Terminate</button>
             </form>
             {{/instance.isRunning}}

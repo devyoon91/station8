@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Users — Station8</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/design.css">
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <h1 class="swe-display-lg" style="margin: 0;">Users</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">
+                자체 사용자 계정 — ADMIN만 추가/관리. 비밀번호 정책: 최소 8자 + 숫자 + 특수문자.
+            </p>
+        </div>
+    </div>
+
+    {{#userMsg}}
+    <div class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid {{#userOk}}var(--accent-green){{/userOk}}{{^userOk}}var(--accent-pink){{/userOk}};">
+        <code style="color: var(--ink); font-size: 0.95em;">{{userMsg}}</code>
+    </div>
+    {{/userMsg}}
+
+    <!-- 신규 사용자 폼 -->
+    <div class="swe-card swe-mb-xl">
+        <h2 class="swe-heading-md" style="margin: 0 0 var(--space-md);">Add user</h2>
+        <form action="/admin/users" method="post">
+            <input type="hidden" name="{{_csrf.parameterName}}" value="{{_csrf.token}}">
+            <div class="swe-grid swe-grid-2" style="gap: var(--space-md);">
+                <div>
+                    <label style="display:block;font-weight:600;margin-bottom:var(--space-xs);">Username *</label>
+                    <input type="text" name="username" required pattern="[A-Za-z][A-Za-z0-9_.-]{1,63}"
+                           style="width:100%;padding:var(--space-sm);background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:var(--radius-sm);">
+                    <div class="swe-mute" style="font-size:11px;margin-top:var(--space-xs);">영문자로 시작 + 영숫자/_/-/. (2~64자)</div>
+                </div>
+                <div>
+                    <label style="display:block;font-weight:600;margin-bottom:var(--space-xs);">Display Name</label>
+                    <input type="text" name="displayNm"
+                           style="width:100%;padding:var(--space-sm);background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:var(--radius-sm);">
+                </div>
+                <div>
+                    <label style="display:block;font-weight:600;margin-bottom:var(--space-xs);">Password *</label>
+                    <input type="password" name="password" required minlength="8"
+                           style="width:100%;padding:var(--space-sm);background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:var(--radius-sm);">
+                    <div class="swe-mute" style="font-size:11px;margin-top:var(--space-xs);">8자+ 숫자+ 특수문자+</div>
+                </div>
+                <div style="display:flex;align-items:flex-end;">
+                    <label><input type="checkbox" name="isAdmin" value="Y"> ADMIN 역할 부여</label>
+                </div>
+            </div>
+            <div style="margin-top:var(--space-md);">
+                <button type="submit" class="swe-btn-primary">Create user</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 사용자 목록 -->
+    <h2 class="swe-heading-md swe-mb-md">Existing users ({{totalCount}})</h2>
+    <div class="swe-card" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+            <tr>
+                <th>Username</th>
+                <th>Display</th>
+                <th>Roles</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th class="swe-text-right">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#users}}
+            <tr>
+                <td><strong>{{username}}</strong>{{#isSelf}} <span class="swe-mute" style="font-size:11px;">(you)</span>{{/isSelf}}</td>
+                <td class="swe-mute">{{displayNm}}</td>
+                <td>
+                    {{#isAdmin}}<span class="swe-badge" style="background:var(--accent-pink);color:#0d0d0d;">ADMIN</span>{{/isAdmin}}
+                    <span class="swe-badge swe-badge-secondary">{{rolesText}}</span>
+                </td>
+                <td>
+                    {{#enabled}}<span class="swe-badge swe-badge-success">Enabled</span>{{/enabled}}
+                    {{^enabled}}<span class="swe-badge swe-badge-warning">Disabled</span>{{/enabled}}
+                </td>
+                <td class="swe-mute">{{regDt}}</td>
+                <td class="swe-text-right" style="white-space:nowrap;">
+                    <details style="display:inline-block;">
+                        <summary class="swe-btn-tertiary swe-btn-sm" style="cursor:pointer;list-style:none;">Reset PW</summary>
+                        <form action="/admin/users/{{id}}/reset-password" method="post" style="display:flex;gap:var(--space-xs);margin-top:var(--space-xs);">
+                            <input type="hidden" name="{{_csrf.parameterName}}" value="{{_csrf.token}}">
+                            <input type="password" name="newPassword" required minlength="8" placeholder="new password" style="padding:var(--space-xs);background:var(--surface-2);border:1px solid var(--line);color:var(--ink);">
+                            <button type="submit" class="swe-btn-tertiary swe-btn-sm">Apply</button>
+                        </form>
+                    </details>
+                    {{^isSelf}}
+                    <form action="/admin/users/{{id}}/toggle-enabled" method="post" style="display:inline;">
+                        <input type="hidden" name="{{_csrf.parameterName}}" value="{{_csrf.token}}">
+                        <button type="submit" class="swe-btn-tertiary swe-btn-sm">{{#enabled}}Disable{{/enabled}}{{^enabled}}Enable{{/enabled}}</button>
+                    </form>
+                    <form action="/admin/users/{{id}}/delete" method="post" style="display:inline;" onsubmit="return confirm('Delete user {{username}}?');">
+                        <input type="hidden" name="{{_csrf.parameterName}}" value="{{_csrf.token}}">
+                        <button type="submit" class="swe-btn-tertiary swe-btn-sm swe-btn-danger">Delete</button>
+                    </form>
+                    {{/isSelf}}
+                </td>
+            </tr>
+            {{/users}}
+            {{^users}}
+            <tr><td colspan="6" style="text-align:center;padding:var(--space-section) 0;color:var(--mute);">사용자 없음</td></tr>
+            {{/users}}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+</body>
+</html>

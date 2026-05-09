@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -126,7 +127,7 @@ class InstanceTerminateTest {
     void rest_terminate_returns200_andMarksInstance() throws Exception {
         String instanceId = createRunningInstanceWithActivities();
 
-        mockMvc.perform(post("/api/line/instances/" + instanceId + "/terminate"))
+        mockMvc.perform(post("/api/line/instances/" + instanceId + "/terminate").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("TERMINATED"))
                 .andExpect(jsonPath("$.instanceId").value(instanceId));
@@ -136,7 +137,7 @@ class InstanceTerminateTest {
 
     @Test
     void rest_terminate_unknownInstance_returns404() throws Exception {
-        mockMvc.perform(post("/api/line/instances/ghost/terminate"))
+        mockMvc.perform(post("/api/line/instances/ghost/terminate").with(csrf()))
                 .andExpect(status().isNotFound());
     }
 
@@ -148,7 +149,7 @@ class InstanceTerminateTest {
             VALUES (?, 'F', 'COMPLETED', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, instanceId);
 
-        mockMvc.perform(post("/api/line/instances/" + instanceId + "/terminate"))
+        mockMvc.perform(post("/api/line/instances/" + instanceId + "/terminate").with(csrf()))
                 .andExpect(status().isConflict());
     }
 

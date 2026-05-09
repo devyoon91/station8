@@ -8,6 +8,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-mustache'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-batch'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    testImplementation 'org.springframework.security:spring-security-test'
 
     // DB Drivers (Runtime)
     // 호스트(default 프로파일)에서 ./gradlew bootRun 시 H2 임베디드 자동 설정용. docker 프로파일에서는 mariadb URL이 명시되므로 H2가 무시됨.

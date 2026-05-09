@@ -9,9 +9,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
@@ -30,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(classes = Application.class)
 @AutoConfigureMockMvc
+@WithMockUser(roles = "ADMIN")
 class AdminPluginControllerTest {
 
     @TempDir
@@ -59,9 +63,7 @@ class AdminPluginControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Plugins")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Upload jar")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("파일 없음")))
-                // 보안 안내 배너 표시
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("보안 안내")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("파일 없음")));
     }
 
     @Test
@@ -70,7 +72,7 @@ class AdminPluginControllerTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "sample.jar", "application/java-archive", jarBytes);
 
-        mockMvc.perform(multipart("/admin/plugins").file(file))
+        mockMvc.perform(multipart("/admin/plugins").file(file).with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/plugins"));
 
@@ -85,7 +87,7 @@ class AdminPluginControllerTest {
                 "file", "notes.txt", "text/plain",
                 new byte[]{0x50, 0x4B, 0x03, 0x04, 0, 0, 0, 0});
 
-        mockMvc.perform(multipart("/admin/plugins").file(file))
+        mockMvc.perform(multipart("/admin/plugins").file(file).with(csrf()))
                 .andExpect(status().is3xxRedirection());
 
         // GET으로 결과 메시지 확인
@@ -104,7 +106,7 @@ class AdminPluginControllerTest {
                 "file", "fake.jar", "application/java-archive",
                 "this is not a jar".getBytes());
 
-        mockMvc.perform(multipart("/admin/plugins").file(file))
+        mockMvc.perform(multipart("/admin/plugins").file(file).with(csrf()))
                 .andExpect(status().is3xxRedirection());
 
         assertThat(Files.exists(tempPluginsDir.resolve("fake.jar"))).isFalse();
@@ -115,7 +117,7 @@ class AdminPluginControllerTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "empty.jar", "application/java-archive", new byte[0]);
 
-        mockMvc.perform(multipart("/admin/plugins").file(file))
+        mockMvc.perform(multipart("/admin/plugins").file(file).with(csrf()))
                 .andExpect(status().is3xxRedirection());
 
         assertThat(Files.exists(tempPluginsDir.resolve("empty.jar"))).isFalse();
@@ -126,7 +128,7 @@ class AdminPluginControllerTest {
         // v1 업로드
         byte[] v1 = buildMinimalJar();
         mockMvc.perform(multipart("/admin/plugins").file(
-                new MockMultipartFile("file", "plugin.jar", "application/java-archive", v1)))
+                new MockMultipartFile("file", "plugin.jar", "application/java-archive", v1)).with(csrf()))
                 .andExpect(status().is3xxRedirection());
 
         // v2 업로드 (같은 이름) — v1은 .bak으로 백업
@@ -136,7 +138,7 @@ class AdminPluginControllerTest {
         System.arraycopy(v2, 0, v2WithExtra, 0, v2.length);
 
         mockMvc.perform(multipart("/admin/plugins").file(
-                new MockMultipartFile("file", "plugin.jar", "application/java-archive", v2)))
+                new MockMultipartFile("file", "plugin.jar", "application/java-archive", v2)).with(csrf()))
                 .andExpect(status().is3xxRedirection());
 
         Path main = tempPluginsDir.resolve("plugin.jar");
@@ -153,7 +155,7 @@ class AdminPluginControllerTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "../../etc/evil.jar", "application/java-archive", jar);
 
-        mockMvc.perform(multipart("/admin/plugins").file(file))
+        mockMvc.perform(multipart("/admin/plugins").file(file).with(csrf()))
                 .andExpect(status().is3xxRedirection());
 
         // basename으로 sanitize되어 plugins 디렉토리 안에 evil.jar로 저장됨 (디렉토리 외부에 안 떨어짐)
@@ -166,7 +168,7 @@ class AdminPluginControllerTest {
     void list_afterUpload_showsFileInTable() throws Exception {
         byte[] jar = buildMinimalJar();
         mockMvc.perform(multipart("/admin/plugins").file(
-                new MockMultipartFile("file", "shown.jar", "application/java-archive", jar)));
+                new MockMultipartFile("file", "shown.jar", "application/java-archive", jar)).with(csrf()));
 
         mockMvc.perform(get("/admin/plugins"))
                 .andExpect(status().isOk())
@@ -181,7 +183,7 @@ class AdminPluginControllerTest {
     @Test
     void reload_returns_redirect_andFlashSummary() throws Exception {
         var result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/admin/plugins/reload"))
+                        .post("/admin/plugins/reload").with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/plugins"))
                 .andReturn();

@@ -113,7 +113,7 @@ WARN  c.b.w.engine.core.LineRegistry - Activity name conflict: SEND_SLACK alread
 3. `systemctl restart workflow-engine` (또는 `docker compose restart app`) — 본 이슈 비범위, hot reload는 [#103](https://github.com/devyoon91/station8/issues/103).
 4. `/line/activities`에서 등록 확인 + 빌더에 노출.
 
-> 인증: 본 페이지는 현재 인증 없음 — [#121](https://github.com/devyoon91/station8/issues/121) 머지 시 `/admin/**`이 ADMIN 역할 검사로 자동 보호됨. 그 전까진 내부망/dev 환경에서만.
+> 인증: ADMIN 역할 필요 (#121). 로그인 후 nav의 **Plugins** 메뉴 또는 직접 URL 접근.
 
 **(b) 호스트 파일시스템 직접 (전통)** — ssh/docker cp 권한 보유 시:
 
