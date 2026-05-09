@@ -97,15 +97,35 @@
 <div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-xl);">
     <div class="swe-builder-toolbar">
         <div>
-            <h1 class="swe-heading-xl" style="margin: 0;">DAG Builder</h1>
-            <div class="swe-builder-status" id="status">Ready · drag activities from the left, click two nodes to connect</div>
+            <h1 class="swe-heading-xl" style="margin: 0;">
+                {{#editMode}}Edit Line — {{definitionNm}} <span class="swe-mute" style="font-size: 13px;">v{{versionNo}}</span>{{/editMode}}
+                {{^editMode}}DAG Builder{{/editMode}}
+            </h1>
+            <div class="swe-builder-status" id="status">
+                {{#editMode}}Editing existing line · changes replace nodes/edges in place (same ID, same version){{/editMode}}
+                {{^editMode}}Ready · drag activities from the left, click two nodes to connect{{/editMode}}
+            </div>
         </div>
         <div class="swe-row">
-            <input id="defNm" class="swe-input" style="width: 200px;" placeholder="Definition name">
-            <button class="swe-btn-tertiary" onclick="clearAll()">Clear</button>
+            <input id="defNm" class="swe-input" style="width: 200px;" placeholder="Definition name" value="{{#editMode}}{{definitionNm}}{{/editMode}}" {{#editMode}}readonly title="Definition name 변경은 새 정의 생성으로 — 편집에선 read-only"{{/editMode}}>
+            {{#editMode}}<a href="/line/definitions/{{definitionId}}" class="swe-btn-tertiary">Cancel</a>{{/editMode}}
+            {{^editMode}}<button class="swe-btn-tertiary" onclick="clearAll()">Clear</button>{{/editMode}}
             <button class="swe-btn-primary" onclick="saveDefinition()">Save</button>
         </div>
     </div>
+
+    {{#editMode}}
+    <div class="swe-card swe-mb-lg" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid var(--accent-yellow);">
+        <strong>편집 모드</strong> — 저장하면 같은 ID로 역/엣지를 통째로 교체합니다.
+        진행 중 인스턴스가 있다면 후행 단계가 새 정의 기준으로 동작할 수 있으니 주의.
+        새 버전을 만들고 싶으면 <a href="/line/builder">신규 생성</a>으로.
+    </div>
+    {{/editMode}}
+    {{#loadError}}
+    <div class="swe-card swe-mb-lg" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid var(--accent-pink);">
+        <strong>로드 실패:</strong> {{loadError}}
+    </div>
+    {{/loadError}}
 
     <div class="swe-builder-layout">
         <!-- Left: palette -->
@@ -134,11 +154,19 @@
     <div id="validation" class="swe-card swe-validation-list" style="margin-top: var(--space-lg); display: none;"></div>
 </div>
 
+{{#existingDefinitionJson}}
+<script id="existing-definition-json" type="application/json">{{{existingDefinitionJson}}}</script>
+{{/existingDefinitionJson}}
+
 <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow@0.0.59/dist/drawflow.min.js"></script>
 <script>
 const editor = new Drawflow(document.getElementById('drawflow'));
 editor.reroute = true;
 editor.start();
+
+// 편집 모드 식별 (#99)
+const EDIT_MODE = {{#editMode}}true{{/editMode}}{{^editMode}}false{{/editMode}};
+const EDIT_DEFINITION_ID = {{#editMode}}'{{definitionId}}'{{/editMode}}{{^editMode}}null{{/editMode}};
 
 let activities = [];
 let connectMode = null;  // {from: nodeId} when waiting for second click
@@ -295,30 +323,99 @@ async function saveDefinition() {
         });
     });
 
-    const payload = {definitionNm, description: 'Created via Builder', nodes, edges};
-    setStatus('Saving…');
-    const res = await fetch('/api/line/definitions', {
-        method: 'POST',
+    // 편집 모드면 PUT, 아니면 POST (#99)
+    const url = EDIT_MODE
+        ? '/api/line/definitions/' + EDIT_DEFINITION_ID
+        : '/api/line/definitions';
+    const method = EDIT_MODE ? 'PUT' : 'POST';
+    const payload = EDIT_MODE
+        ? {definitionNm, description: 'Edited via Builder', nodes, edges}
+        : {definitionNm, description: 'Created via Builder', nodes, edges};
+
+    setStatus(EDIT_MODE ? 'Updating…' : 'Saving…');
+    const res = await fetch(url, {
+        method: method,
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
     });
     const validation = document.getElementById('validation');
     if (res.ok) {
-        const j = await res.json();
         validation.style.display = 'none';
-        setStatus('Saved! definitionId=' + j.definitionId);
-        alert('Saved. ID: ' + j.definitionId + '\n\nGo to Schedules to register a cron, or run via REST: POST /api/line/definitions/' + j.definitionId + '/run');
+        if (EDIT_MODE) {
+            setStatus('Updated! definitionId=' + EDIT_DEFINITION_ID);
+            alert('Updated. ID: ' + EDIT_DEFINITION_ID + '\n\nNodes/edges replaced in place.');
+            window.location.href = '/line/definitions/' + EDIT_DEFINITION_ID;
+        } else {
+            const j = await res.json();
+            setStatus('Saved! definitionId=' + j.definitionId);
+            alert('Saved. ID: ' + j.definitionId + '\n\nGo to Schedules to register a cron, or run via REST: POST /api/line/definitions/' + j.definitionId + '/run');
+        }
     } else {
         const j = await res.json().catch(() => ({}));
         validation.style.display = 'block';
-        validation.innerHTML = '<strong>Validation failed:</strong><br>' +
+        validation.innerHTML = '<strong>' + (EDIT_MODE ? 'Update' : 'Validation') + ' failed:</strong><br>' +
             (j.errorCode ? '<code>' + j.errorCode + '</code> — ' : '') +
             (j.message || res.statusText);
         setStatus('Save failed (HTTP ' + res.status + ')');
     }
 }
 
+// ===== 편집 모드: 기존 정의를 Drawflow에 복원 (#99) =====
+function restoreExistingDefinition() {
+    const el = document.getElementById('existing-definition-json');
+    if (!el) return;
+    let def;
+    try {
+        def = JSON.parse(el.textContent);
+    } catch (e) {
+        setStatus('Failed to parse existing definition: ' + e.message);
+        return;
+    }
+
+    // node 외부 ID(예: "n-validate") → Drawflow 내부 숫자 ID 매핑
+    const idMap = {};
+
+    (def.nodes || []).forEach(n => {
+        const html = '<div><strong>' + n.activityNm + '</strong>' +
+            '<div style="font-size: 11px; color: var(--mute); margin-top: 4px;" data-label-id></div></div>';
+        const bindingsJson = (n.datasourceBindings && Object.keys(n.datasourceBindings).length > 0)
+            ? JSON.stringify(n.datasourceBindings)
+            : '';
+        const drawflowId = editor.addNode(
+            n.activityNm,
+            1, 1,
+            n.posX || 100, n.posY || 100,
+            n.activityNm,
+            {
+                activityNm: n.activityNm,
+                inputParams: n.inputParams || '',
+                datasourceBindings: bindingsJson,
+                originalNodeId: n.nodeId  // 편집 시 reset 후 같은 외부 ID로 다시 저장하기 위함은 아님 (replace는 새로 ID 발급도 OK)
+            },
+            html
+        );
+        idMap[n.nodeId] = drawflowId;
+    });
+
+    (def.edges || []).forEach(e => {
+        const fromId = idMap[e.fromNodeId];
+        const toId = idMap[e.toNodeId];
+        if (fromId == null || toId == null) {
+            console.warn('Edge skipped — node not found', e);
+            return;
+        }
+        try {
+            editor.addConnection(fromId, toId, 'output_1', 'input_1');
+        } catch (err) {
+            console.warn('Edge restore failed:', err);
+        }
+    });
+
+    setStatus('Loaded ' + (def.nodes || []).length + ' stations · ' + (def.edges || []).length + ' tracks');
+}
+
 loadActivities();
+restoreExistingDefinition();
 </script>
 </body>
 </html>

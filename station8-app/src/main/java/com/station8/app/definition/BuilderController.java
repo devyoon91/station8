@@ -1,25 +1,63 @@
 package com.station8.app.definition;
 
+import com.station8.engine.util.JsonUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * DAG Builder UI (Drawflow 기반).
- * GET /line/builder — 좌측 액티비티 팔레트 + 중앙 캔버스 + 우측 속성 패널
  *
- * 사용 흐름:
- *  1. 좌측 ``Activity Catalog`` 항목을 캔버스로 drag → drop
- *  2. 역 클릭 후 "Connect from this node" → 다음 역 클릭으로 엣지 연결
- *  3. 우측 패널에서 ``inputParams`` JSON 편집 → "Update params"
- *  4. 상단 "Save" → POST /api/line/definitions (검증 통과 시 definitionId 반환)
+ * <p>두 가지 모드 (#99):</p>
+ * <ul>
+ *   <li>{@code GET /line/builder} — 신규 생성 모드 (빈 캔버스)</li>
+ *   <li>{@code GET /line/builder?id={definitionId}} — 편집 모드, 기존 정의를 캔버스에 프리로드</li>
+ * </ul>
+ *
+ * <p>저장 시 신규는 {@code POST /api/line/definitions}, 편집은 {@code PUT /api/line/definitions/{id}} 호출.
+ * 서비스의 {@code replaceDefinition}은 같은 ID/같은 버전 유지로 역/엣지를 통째로 교체한다 — 새 버전 분기는
+ * 비범위(향후 별도 UX). 진행 중 인스턴스가 있을 수 있으니 운영자 책임으로 주의.</p>
  */
 @Controller
 public class BuilderController {
 
+    private static final Logger log = LoggerFactory.getLogger(BuilderController.class);
+
+    private final LineDefinitionService service;
+    private final JsonUtil jsonUtil;
+
+    public BuilderController(LineDefinitionService service, JsonUtil jsonUtil) {
+        this.service = service;
+        this.jsonUtil = jsonUtil;
+    }
+
     @GetMapping("/line/builder")
-    public String builder(Model model) {
+    public String builder(@RequestParam(value = "id", required = false) String definitionId,
+                          Model model) {
         model.addAttribute("navBuilder", true);
+
+        if (definitionId == null || definitionId.isBlank()) {
+            model.addAttribute("editMode", false);
+            return "builder";
+        }
+
+        // 편집 모드 — 기존 정의를 JSON으로 직렬화해 페이지에 임베드
+        try {
+            DagDefinitionResponse existing = service.getDefinition(definitionId);
+            model.addAttribute("editMode", true);
+            model.addAttribute("definitionId", existing.definitionId());
+            model.addAttribute("definitionNm", existing.definitionNm());
+            model.addAttribute("description", existing.description() != null ? existing.description() : "");
+            model.addAttribute("versionNo", existing.versionNo());
+            model.addAttribute("existingDefinitionJson", jsonUtil.toJson(existing));
+        } catch (IllegalArgumentException ex) {
+            log.warn("Builder edit — definition not found: {} ({})", definitionId, ex.getMessage());
+            model.addAttribute("editMode", false);
+            model.addAttribute("loadError", "정의를 찾을 수 없습니다: " + definitionId);
+        }
         return "builder";
     }
 }
