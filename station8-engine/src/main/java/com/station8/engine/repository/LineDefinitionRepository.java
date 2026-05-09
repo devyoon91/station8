@@ -36,6 +36,14 @@ public interface LineDefinitionRepository {
      */
     String findDefinitionIdByNodeId(String nodeId);
 
+    /**
+     * ``U_LINE_STATION.ID``로 단일 역 조회 — DataSource 바인딩(#113) 포함 모든 필드.
+     * 소프트 삭제된 역도 반환 (실행 당시 정의로 거슬러 올라가는 경우).
+     *
+     * @return 해당 역 또는 ``null``
+     */
+    LineStation findStationById(String stationId);
+
     List<LineStation> findNodesByDefinition(String definitionId);
 
     List<LineTrack> findEdgesByDefinition(String definitionId);

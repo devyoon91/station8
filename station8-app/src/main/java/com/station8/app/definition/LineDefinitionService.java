@@ -7,6 +7,7 @@ import com.station8.engine.entity.LineDefinition;
 import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.LineDefinitionRepository;
+import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -30,17 +32,20 @@ public class LineDefinitionService {
     private final LineRegistry workflowRegistry;
     private final DagInterpreter dagInterpreter;
     private final JdbcTemplate jdbcTemplate;
+    private final JsonUtil jsonUtil;
 
     public LineDefinitionService(LineDefinitionRepository definitionRepository,
                                      DagValidator dagValidator,
                                      LineRegistry workflowRegistry,
                                      DagInterpreter dagInterpreter,
-                                     JdbcTemplate jdbcTemplate) {
+                                     JdbcTemplate jdbcTemplate,
+                                     JsonUtil jsonUtil) {
         this.definitionRepository = definitionRepository;
         this.dagValidator = dagValidator;
         this.workflowRegistry = workflowRegistry;
         this.dagInterpreter = dagInterpreter;
         this.jdbcTemplate = jdbcTemplate;
+        this.jsonUtil = jsonUtil;
     }
 
     /**
@@ -63,6 +68,7 @@ public class LineDefinitionService {
         // 검증을 위한 엔티티 변환 (저장 전에 위반 여부 확인)
         List<LineStation> nodes = req.nodes().stream().map(n -> new LineStation(
                 n.nodeId(), definitionId, n.nodeNm(), n.activityNm(), n.inputParams(),
+                serializeBindings(n.datasourceBindings()),
                 n.posX(), n.posY(), "Y", "Y", "N", null, null, null, null
         )).toList();
         List<LineTrack> edges = req.edges() == null ? List.of()
@@ -102,7 +108,8 @@ public class LineDefinitionService {
                 def.versionNo(), def.activeFl(),
                 nodes.stream().map(n -> new DagDefinitionRequest.NodeDef(
                         n.id(), n.nodeNm(), n.activityNm(), n.inputParams(),
-                        n.posXNo(), n.posYNo())).toList(),
+                        n.posXNo(), n.posYNo(),
+                        jsonUtil.fromJsonToStringMap(n.datasourceBindings()))).toList(),
                 edges.stream().map(e -> new DagDefinitionRequest.EdgeDef(
                         e.id(), e.fromNodeId(), e.toNodeId(), e.conditionExpr())).toList()
         );
@@ -120,6 +127,7 @@ public class LineDefinitionService {
         }
         List<LineStation> nodes = req.nodes().stream().map(n -> new LineStation(
                 n.nodeId(), definitionId, n.nodeNm(), n.activityNm(), n.inputParams(),
+                serializeBindings(n.datasourceBindings()),
                 n.posX(), n.posY(), "Y", "Y", "N", null, null, null, null
         )).toList();
         List<LineTrack> edges = req.edges() == null ? List.of()
@@ -172,5 +180,13 @@ public class LineDefinitionService {
         dagInterpreter.startInstance(definitionId, instanceId, inputData);
         log.info("DAG 즉시 실행: definitionId={}, instanceId={}", definitionId, instanceId);
         return instanceId;
+    }
+
+    /**
+     * NodeDef.datasourceBindings(Map) → DB 저장용 JSON 문자열. null/빈 맵이면 null 저장.
+     */
+    private String serializeBindings(Map<String, String> bindings) {
+        if (bindings == null || bindings.isEmpty()) return null;
+        return jsonUtil.toJson(bindings);
     }
 }

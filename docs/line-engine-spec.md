@@ -75,7 +75,11 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
   운영자가 DataSource를 직접 추가/수정/삭제 가능. `U_LINE_DATASOURCE` 테이블에 영속화되며 부팅 시
   `DynamicDataSourceLoader`가 자동 로드. 수정 시 connection pool은 즉시 graceful drain 후 새 풀로 swap.
   정적 선언과 이름 충돌 시 정적 win — DB 행은 무시. 비밀번호는 plain text 저장 (시크릿 통합은
-  [#112](https://github.com/devyoon91/station8/issues/112)). Station 단위 DS 바인딩 모델은 [#113](https://github.com/devyoon91/station8/issues/113).
+  [#112](https://github.com/devyoon91/station8/issues/112)).
+* **Station 단위 DataSource 바인딩 (#113):** 라인 정의의 각 station(`U_LINE_STATION.DATASOURCE_BINDINGS`)에
+  `{role: registry-name}` 매핑을 선언적으로 둘 수 있다. 액티비티는 `@BoundDataSource("role") JdbcTemplate`로
+  파라미터를 받아 — DS 이름이 코드에 박히지 않고 라인 정의가 결정. 같은 액티비티 코드를 여러 DS에서
+  재사용 가능. 누락 시 primary fallback. 기존 `DataSourceRegistry` 직접 호출(#108)도 유지되지만 권장 안 함.
 
 ### 4.5. Fault Tolerance (기존 유지 + 확장)
 

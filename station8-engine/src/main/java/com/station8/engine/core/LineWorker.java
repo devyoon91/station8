@@ -2,8 +2,10 @@ package com.station8.engine.core;
 
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.entity.DlqEntry;
+import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.DlqRepository;
+import com.station8.engine.repository.LineDefinitionRepository;
 import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +15,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * DB에서 실행 대기 중인 작업을 가져와 스레드 풀에서 실행하는 워커 클래스.
@@ -34,6 +38,7 @@ public class LineWorker {
     private final JsonUtil jsonUtil;
     private final DagInterpreter dagInterpreter;
     private final ActivityArgumentResolver argumentResolver;
+    private final LineDefinitionRepository definitionRepository;
 
     public LineWorker(ActivityRepository activityRepository,
                           TaskExecutor taskExecutor,
@@ -44,7 +49,8 @@ public class LineWorker {
                           DlqNotifier dlqNotifier,
                           JsonUtil jsonUtil,
                           DagInterpreter dagInterpreter,
-                          ActivityArgumentResolver argumentResolver) {
+                          ActivityArgumentResolver argumentResolver,
+                          LineDefinitionRepository definitionRepository) {
         this.activityRepository = activityRepository;
         this.taskExecutor = taskExecutor;
         this.workflowTaskExecutor = workflowTaskExecutor;
@@ -55,6 +61,7 @@ public class LineWorker {
         this.jsonUtil = jsonUtil;
         this.dagInterpreter = dagInterpreter;
         this.argumentResolver = argumentResolver;
+        this.definitionRepository = definitionRepository;
     }
 
     /**
@@ -107,8 +114,11 @@ public class LineWorker {
             log.info("Executing activity: {} (Execution ID: {})", activity.activityName(), activity.id());
             
             // 3. 리플렉션을 통한 메서드 호출
-            // 파라미터 바인딩은 ActivityArgumentResolver에 위임 (#108 — String + DataSourceRegistry 지원)
-            Object[] args = argumentResolver.resolve(metadata.method(), activity.inputData());
+            // 파라미터 바인딩은 ActivityArgumentResolver에 위임:
+            //  - #108: String + DataSourceRegistry
+            //  - #113: @BoundDataSource JdbcTemplate (station 바인딩 기반)
+            ActivityArgumentResolver.Context resolveCtx = buildResolveContext(activity);
+            Object[] args = argumentResolver.resolve(metadata.method(), resolveCtx);
 
             Object result = metadata.method().invoke(metadata.bean(), args);
             
@@ -141,6 +151,28 @@ public class LineWorker {
                 taskExecutor.fail(context, cause, nextBackoff);
             }
         }
+    }
+
+    /**
+     * 액티비티 호출 시 ArgumentResolver에 넘길 컨텍스트를 구성한다.
+     * DAG 모드(NODE_ID 보유)이면 station을 조회해 datasourceBindings를 파싱.
+     * 레거시(선형) 모드 또는 station 미발견이면 빈 bindings — 모든 @BoundDataSource는 primary fallback.
+     */
+    private ActivityArgumentResolver.Context buildResolveContext(ActivityExecution activity) {
+        Map<String, String> bindings = Collections.emptyMap();
+        if (activity.nodeId() != null) {
+            try {
+                LineStation station = definitionRepository.findStationById(activity.nodeId());
+                if (station != null && station.datasourceBindings() != null
+                        && !station.datasourceBindings().isBlank()) {
+                    bindings = jsonUtil.fromJsonToStringMap(station.datasourceBindings());
+                }
+            } catch (Exception ex) {
+                log.warn("Station 조회 실패 — nodeId={}, fallback to empty bindings ({}: {})",
+                        activity.nodeId(), ex.getClass().getSimpleName(), ex.getMessage());
+            }
+        }
+        return new ActivityArgumentResolver.Context(activity.inputData(), bindings);
     }
 
     private void updateActivityAsCompleted(ActivityExecution activity, Object output) {

@@ -131,7 +131,7 @@ class DagValidatorTest {
 
     private LineStation node(String id, String activityNm) {
         return new LineStation(id, "def-test", id + "-label", activityNm,
-                null, null, null, "Y", "Y", "N", null, null, null, null);
+                null, null, null, null, "Y", "Y", "N", null, null, null, null);
     }
 
     private LineTrack edge(String id, String from, String to) {
@@ -146,9 +146,9 @@ class DagValidatorTest {
         static List<NodeEdge> cycle() {
             // A → B, B → A
             LineStation na = new LineStation("n-a", "def-test", "A-lbl", "A",
-                    null, null, null, "Y", "Y", "N", null, null, null, null);
+                    null, null, null, null, "Y", "Y", "N", null, null, null, null);
             LineStation nb = new LineStation("n-b", "def-test", "B-lbl", "B",
-                    null, null, null, "Y", "Y", "N", null, null, null, null);
+                    null, null, null, null, "Y", "Y", "N", null, null, null, null);
             LineTrack e1 = new LineTrack("e1", "def-test", "n-a", "n-b", null,
                     "Y", "Y", "N", null, null, null, null);
             LineTrack e2 = new LineTrack("e2", "def-test", "n-b", "n-a", null,

@@ -46,9 +46,43 @@ public class OrderFlow {
 지원 파라미터 타입 (선언된 순서대로 바인딩):
 
 - `String inputJson` — 액티비티 입력 페이로드 (첫 번째 등장 시 inputData 주입). POJO 자동 역직렬화는 미구현 → 메서드 안에서 `JsonUtil.fromJson` 사용.
-- `DataSourceRegistry ds` — 멀티 DS 액세스용 레지스트리 (#108). 이름으로 `JdbcTemplate` / `DataSource` 조회.
+- `@BoundDataSource("role") JdbcTemplate` — **권장** (#113). 라인 정의의 station 바인딩에서 결정된 풀 자동 주입. DS 이름이 코드에 박히지 않아 같은 액티비티를 여러 DS에서 재사용 가능.
+- `DataSourceRegistry ds` — 멀티 DS 직접 호출 (#108). 이름이 코드에 박히는 형태라 #113 도입 후엔 권장 안 함 (legacy compatibility).
 
 지원하지 않는 타입을 선언하면 액티비티 호출 시점에 `IllegalStateException`으로 실패함.
+
+#### Station 단위 DataSource 바인딩 (#113)
+
+라인 정의의 각 station에 `datasourceBindings: {role: registry-name}` 매핑을 두고, 액티비티는 `@BoundDataSource("role")`로 받아씀:
+
+```java
+@Activity("MIGRATE")
+public String migrate(String inputJson,
+                      @BoundDataSource("source") JdbcTemplate src,
+                      @BoundDataSource("target") JdbcTemplate dst) {
+    List<Map<String, Object>> rows = src.queryForList("SELECT * FROM RAW_ORDER WHERE ...");
+    for (Map<String, Object> r : rows) {
+        dst.update("INSERT INTO MART_ORDER ...", ...);
+    }
+    return "ok:" + rows.size();
+}
+```
+
+라인 정의 (REST API 또는 Builder UI):
+
+```json
+{
+  "definitionNm": "OrderMigration",
+  "nodes": [
+    {"nodeId": "n-extract-load", "activityNm": "MIGRATE",
+     "datasourceBindings": {"source": "ops-oracle", "target": "mart-mariadb"}}
+  ]
+}
+```
+
+Builder UI에서는 station 클릭 시 우측 properties 패널의 **DataSource bindings (JSON)** textarea에서 편집 가능.
+
+> 누락된 role(예: `@BoundDataSource("source")`인데 station에 `source` 키가 없음) 또는 등록되지 않은 DS 이름이면 → `primary` fallback + WARN 로그.
 
 #### 멀티 DataSource 사용 예 (#108)
 

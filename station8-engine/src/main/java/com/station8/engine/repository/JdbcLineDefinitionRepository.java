@@ -45,6 +45,17 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public LineStation findStationById(String stationId) {
+        // findDefinitionIdByNodeId와 동일하게 DEL_FL 조건 무시 — 인스턴스 실행 중 station 메타에 접근.
+        List<LineStation> rows = jdbcTemplate.query(
+                "SELECT * FROM U_LINE_STATION WHERE ID = ?",
+                new NodeMapper(),
+                stationId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<LineDefinition> findAllActiveDefinitions() {
         String sql = """
                 SELECT * FROM U_LINE_DEFINITION
@@ -153,12 +164,14 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     public void insertNode(LineStation node) {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_STATION
-                  (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO,
+                  (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, DATASOURCE_BINDINGS,
+                   POS_X_NO, POS_Y_NO,
                    USE_FL, VIEW_FL, DEL_FL, REG_DT)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
                 """,
                 node.id(), node.definitionId(), node.nodeNm(), node.activityNm(),
-                node.inputParams(), node.posXNo(), node.posYNo());
+                node.inputParams(), node.datasourceBindings(),
+                node.posXNo(), node.posYNo());
     }
 
     @Override
@@ -234,6 +247,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 rs.getString("NODE_NM"),
                 rs.getString("ACTIVITY_NM"),
                 rs.getString("INPUT_PARAMS"),
+                rs.getString("DATASOURCE_BINDINGS"),
                 posXVal,
                 posYVal,
                 rs.getString("USE_FL"),

@@ -71,7 +71,7 @@ public class DemoSeedRunner implements ApplicationRunner {
                             "demo-node-1", "Migrate", "MIGRATION_WRITE",
                             // 정적 입력 (실제 폴러는 SRC_DATA에서 PENDING을 끌고 가서 처리)
                             "{\"id\":\"demo-1\",\"content\":\"Auto seeded data\"}",
-                            150, 100)),
+                            150, 100, null)),
                     List.of()
             ));
             log.info("[DemoSeed] DAG 정의 등록: id={}, nm={}", defId, DEMO_DEFINITION_NM);
