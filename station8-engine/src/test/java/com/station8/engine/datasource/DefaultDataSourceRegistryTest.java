@@ -132,6 +132,137 @@ class DefaultDataSourceRegistryTest {
     }
 
     @Test
+    void register_addsDynamicEntry_andCanQuery() {
+        primaryDs = h2DataSource("primary-reg");
+        registry = new DefaultDataSourceRegistry(
+                primaryDs, new MariaDbDialect(), props(Map.of()),
+                "jdbc:h2:mem:primary-reg", "sa");
+
+        DataSourceRegistry.DynamicSpec spec = new DataSourceRegistry.DynamicSpec(
+                "added", "jdbc:h2:mem:reg-added;DB_CLOSE_DELAY=-1",
+                "sa", "", "org.h2.Driver", null, Map.of());
+        DataSourceRegistry.TestResult result = registry.register(spec);
+
+        assertThat(result.success()).isTrue();
+        assertThat(registry.names()).contains("added");
+        assertThat(registry.sourceOf("added")).isEqualTo(DataSourceRegistry.Source.DYNAMIC);
+        assertThat(registry.jdbc("added").queryForObject("SELECT 1", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void register_rejectsPrimaryName() {
+        primaryDs = h2DataSource("primary-reject");
+        registry = new DefaultDataSourceRegistry(
+                primaryDs, new MariaDbDialect(), props(Map.of()),
+                "jdbc:h2:mem:primary-reject", "sa");
+
+        DataSourceRegistry.DynamicSpec spec = new DataSourceRegistry.DynamicSpec(
+                "primary", "jdbc:h2:mem:nope", "sa", "", null, null, Map.of());
+        assertThatThrownBy(() -> registry.register(spec))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'primary' is reserved");
+    }
+
+    @Test
+    void register_rejectsDuplicateName() {
+        primaryDs = h2DataSource("primary-dup");
+        Station8DataSourcesProperties props = props(Map.of(
+                "static-existing", entry("jdbc:h2:mem:dup-static;DB_CLOSE_DELAY=-1", null)
+        ));
+        registry = new DefaultDataSourceRegistry(
+                primaryDs, new MariaDbDialect(), props,
+                "jdbc:h2:mem:primary-dup", "sa");
+
+        DataSourceRegistry.DynamicSpec spec = new DataSourceRegistry.DynamicSpec(
+                "static-existing", "jdbc:h2:mem:dup-attempt", "sa", "", null, null, Map.of());
+        assertThatThrownBy(() -> registry.register(spec))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("already registered")
+                .hasMessageContaining("STATIC");
+    }
+
+    @Test
+    void swap_replacesDynamicPool_andClosesOld() {
+        primaryDs = h2DataSource("primary-swap");
+        registry = new DefaultDataSourceRegistry(
+                primaryDs, new MariaDbDialect(), props(Map.of()),
+                "jdbc:h2:mem:primary-swap", "sa");
+        registry.register(new DataSourceRegistry.DynamicSpec(
+                "swappable", "jdbc:h2:mem:swap-v1;DB_CLOSE_DELAY=-1",
+                "sa", "", "org.h2.Driver", null, Map.of()));
+        DataSource oldDs = registry.dataSource("swappable");
+
+        registry.swap(new DataSourceRegistry.DynamicSpec(
+                "swappable", "jdbc:h2:mem:swap-v2;DB_CLOSE_DELAY=-1",
+                "sa", "", "org.h2.Driver", null, Map.of()));
+
+        DataSource newDs = registry.dataSource("swappable");
+        assertThat(newDs).isNotSameAs(oldDs);
+        assertThat(((com.zaxxer.hikari.HikariDataSource) oldDs).isClosed()).isTrue();
+        assertThat(registry.info("swappable").url()).contains("swap-v2");
+    }
+
+    @Test
+    void swap_rejectsStaticAndPrimary() {
+        primaryDs = h2DataSource("primary-swap-reject");
+        Station8DataSourcesProperties props = props(Map.of(
+                "static-only", entry("jdbc:h2:mem:swap-static;DB_CLOSE_DELAY=-1", null)
+        ));
+        registry = new DefaultDataSourceRegistry(
+                primaryDs, new MariaDbDialect(), props,
+                "jdbc:h2:mem:primary-swap-reject", "sa");
+
+        DataSourceRegistry.DynamicSpec spec = new DataSourceRegistry.DynamicSpec(
+                "static-only", "jdbc:h2:mem:nope", "sa", "", null, null, Map.of());
+        assertThatThrownBy(() -> registry.swap(spec))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Cannot swap STATIC");
+
+        DataSourceRegistry.DynamicSpec primarySpec = new DataSourceRegistry.DynamicSpec(
+                "primary", "jdbc:h2:mem:nope", "sa", "", null, null, Map.of());
+        assertThatThrownBy(() -> registry.swap(primarySpec))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Cannot swap PRIMARY");
+    }
+
+    @Test
+    void unregister_removesDynamic_andClosesPool() {
+        primaryDs = h2DataSource("primary-unreg");
+        registry = new DefaultDataSourceRegistry(
+                primaryDs, new MariaDbDialect(), props(Map.of()),
+                "jdbc:h2:mem:primary-unreg", "sa");
+        registry.register(new DataSourceRegistry.DynamicSpec(
+                "to-remove", "jdbc:h2:mem:remove-me;DB_CLOSE_DELAY=-1",
+                "sa", "", "org.h2.Driver", null, Map.of()));
+        DataSource ds = registry.dataSource("to-remove");
+
+        registry.unregister("to-remove");
+
+        assertThat(registry.names()).doesNotContain("to-remove");
+        assertThat(registry.sourceOf("to-remove")).isEqualTo(DataSourceRegistry.Source.NONE);
+        assertThat(((com.zaxxer.hikari.HikariDataSource) ds).isClosed()).isTrue();
+    }
+
+    @Test
+    void sourceOf_distinguishesPrimaryStaticDynamicNone() {
+        primaryDs = h2DataSource("primary-source-test");
+        Station8DataSourcesProperties props = props(Map.of(
+                "static-x", entry("jdbc:h2:mem:src-static;DB_CLOSE_DELAY=-1", null)
+        ));
+        registry = new DefaultDataSourceRegistry(
+                primaryDs, new MariaDbDialect(), props,
+                "jdbc:h2:mem:primary-source-test", "sa");
+        registry.register(new DataSourceRegistry.DynamicSpec(
+                "dynamic-x", "jdbc:h2:mem:src-dynamic;DB_CLOSE_DELAY=-1",
+                "sa", "", "org.h2.Driver", null, Map.of()));
+
+        assertThat(registry.sourceOf("primary")).isEqualTo(DataSourceRegistry.Source.PRIMARY);
+        assertThat(registry.sourceOf("static-x")).isEqualTo(DataSourceRegistry.Source.STATIC);
+        assertThat(registry.sourceOf("dynamic-x")).isEqualTo(DataSourceRegistry.Source.DYNAMIC);
+        assertThat(registry.sourceOf("nope")).isEqualTo(DataSourceRegistry.Source.NONE);
+    }
+
+    @Test
     void close_closesOnlyOwnedSecondaryPools_primaryUntouched() {
         primaryDs = h2DataSource("primary-close");
         Station8DataSourcesProperties props = props(Map.of(

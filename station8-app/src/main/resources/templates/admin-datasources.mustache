@@ -15,10 +15,10 @@
         <div>
             <h1 class="swe-display-lg" style="margin: 0;">DataSources</h1>
             <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">
-                등록된 DataSource 진단 — 부팅 health-check / 풀 통계 / Test 연결.
-                추가/수정은 <a href="https://github.com/devyoon91/station8/issues/110" target="_blank" style="color: var(--accent-pink);">#110</a> 후속.
+                등록된 DataSource 진단 + 동적 등록/수정/삭제. PRIMARY와 STATIC(application.properties)은 Test connection만, DYNAMIC만 수정 가능.
             </p>
         </div>
+        <a href="/admin/datasources/new" class="swe-btn-primary">+ New DataSource</a>
     </div>
 
     {{#testMsg}}
@@ -49,11 +49,12 @@
             <thead>
             <tr>
                 <th>Name</th>
+                <th>Source</th>
                 <th>URL</th>
                 <th>User</th>
                 <th>Dialect</th>
-                <th>Boot health</th>
-                <th>Pool (active / idle / total)</th>
+                <th>Health</th>
+                <th>Pool (a / i / t)</th>
                 <th class="swe-text-right">Actions</th>
             </tr>
             </thead>
@@ -61,29 +62,48 @@
             {{#datasources}}
             <tr>
                 <td><strong>{{name}}</strong></td>
+                <td>
+                    {{#isPrimary}}<span class="swe-badge" style="background: var(--accent-pink); color: #0d0d0d;">PRIMARY</span>{{/isPrimary}}
+                    {{#isStatic}}<span class="swe-badge swe-badge-secondary">STATIC</span>{{/isStatic}}
+                    {{#isDynamic}}<span class="swe-badge swe-badge-info">DYNAMIC</span>{{/isDynamic}}
+                </td>
                 <td class="swe-id-cell" title="{{url}}">{{url}}</td>
                 <td class="swe-mute">{{username}}</td>
                 <td><span class="swe-keycap">{{dialect}}</span></td>
                 <td>
-                    {{#healthy}}<span class="swe-badge swe-badge-success">Healthy</span>{{/healthy}}
-                    {{^healthy}}<span class="swe-badge swe-badge-danger" title="{{errorMsg}}">Down</span>{{/healthy}}
+                    {{#enabled}}
+                        {{#healthy}}<span class="swe-badge swe-badge-success">Healthy</span>{{/healthy}}
+                        {{^healthy}}<span class="swe-badge swe-badge-danger" title="{{errorMsg}}">Down</span>{{/healthy}}
+                    {{/enabled}}
+                    {{^enabled}}<span class="swe-badge swe-badge-warning">Disabled</span>{{/enabled}}
                 </td>
                 <td class="swe-mute">
                     {{#hasPoolStats}}{{activeConn}} / {{idleConn}} / {{totalConn}}{{/hasPoolStats}}
                     {{^hasPoolStats}}—{{/hasPoolStats}}
                 </td>
-                <td class="swe-text-right">
+                <td class="swe-text-right" style="white-space: nowrap;">
+                    {{#enabled}}
                     <form action="/admin/datasources/{{name}}/test" method="post" style="display:inline;">
-                        <button type="submit" class="swe-btn-tertiary swe-btn-sm">Test connection</button>
+                        <button type="submit" class="swe-btn-tertiary swe-btn-sm">Test</button>
                     </form>
+                    {{/enabled}}
+                    {{#isDynamic}}
+                    <a href="/admin/datasources/{{name}}/edit" class="swe-btn-tertiary swe-btn-sm">Edit</a>
+                    <form action="/admin/datasources/{{name}}/toggle-enabled" method="post" style="display:inline;">
+                        <button type="submit" class="swe-btn-tertiary swe-btn-sm">{{#enabled}}Disable{{/enabled}}{{^enabled}}Enable{{/enabled}}</button>
+                    </form>
+                    <form action="/admin/datasources/{{name}}/delete" method="post" style="display:inline;" onsubmit="return confirm('Delete DataSource &quot;{{name}}&quot;?');">
+                        <button type="submit" class="swe-btn-tertiary swe-btn-sm swe-btn-danger">Delete</button>
+                    </form>
+                    {{/isDynamic}}
                 </td>
             </tr>
             {{/datasources}}
             {{^datasources}}
             <tr>
-                <td colspan="7" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
-                    등록된 DataSource가 없습니다. <code>application.properties</code>에서
-                    <code>station8.datasources.&lt;name&gt;.url</code>로 추가하거나 <code>spring.datasource.*</code>를 정의하세요.
+                <td colspan="8" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    등록된 DataSource가 없습니다. <strong style="color: var(--ink);">+ New DataSource</strong> 클릭 또는
+                    <code>application.properties</code>에서 <code>station8.datasources.&lt;name&gt;.url</code>로 정적 선언하세요.
                 </td>
             </tr>
             {{/datasources}}

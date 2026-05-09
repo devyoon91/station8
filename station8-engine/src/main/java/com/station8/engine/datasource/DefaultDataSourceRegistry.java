@@ -1,5 +1,6 @@
 package com.station8.engine.datasource;
 
+import com.station8.engine.datasource.DataSourceRegistry.Source;
 import com.station8.engine.dialect.DbDialect;
 import com.station8.engine.dialect.MariaDbDialect;
 import com.station8.engine.dialect.OracleDialect;
@@ -41,13 +42,24 @@ public class DefaultDataSourceRegistry implements DataSourceRegistry, Closeable 
     /** 부팅 health-check 타임아웃 (초). */
     private static final int BOOT_HEALTHCHECK_TIMEOUT_SECONDS = 5;
 
-    private final Map<String, DataSource> dataSources = new LinkedHashMap<>();
-    private final Map<String, JdbcTemplate> jdbcTemplates = new LinkedHashMap<>();
-    private final Map<String, DbDialect> dialects = new LinkedHashMap<>();
-    private final Map<String, String> jdbcUrls = new LinkedHashMap<>();
-    private final Map<String, String> usernames = new LinkedHashMap<>();
-    private final Map<String, Boolean> bootHealthy = new LinkedHashMap<>();
-    private final Map<String, String> bootHealthError = new LinkedHashMap<>();
+    /** 등록 단위 — 모든 메타데이터를 묶어 atomic swap을 가능하게 한다. */
+    private record Slot(
+            DataSource ds,
+            JdbcTemplate jdbc,
+            DbDialect dialect,
+            String url,
+            String username,
+            Source source,
+            boolean ownsPool,
+            boolean healthy,
+            String healthError
+    ) {}
+
+    /**
+     * 모든 등록 슬롯의 진실 공급원. swap 시 이 맵의 단일 put이 atomic 효과를 낸다.
+     * Concurrent 액세스 안전을 위해 ConcurrentHashMap.
+     */
+    private final Map<String, Slot> slots = new java.util.concurrent.ConcurrentHashMap<>();
 
     public DefaultDataSourceRegistry(DataSource primary,
                                      DbDialect primaryDialect,
@@ -60,99 +72,87 @@ public class DefaultDataSourceRegistry implements DataSourceRegistry, Closeable 
                 ? primaryEntry.getUrl() : primaryJdbcUrlFromEnv;
         String primaryUser = primaryEntry != null && primaryEntry.getUsername() != null
                 ? primaryEntry.getUsername() : primaryUsernameFromEnv;
-        registerEntry("primary", primary, primaryDialect, primaryUrl, primaryUser, /*ownsPool*/ false);
+        installSlot("primary", primary, primaryDialect, primaryUrl, primaryUser,
+                Source.PRIMARY, /*ownsPool*/ false);
 
-        // secondary들 build
+        // secondary들 build (STATIC)
         for (Map.Entry<String, DataSourceEntry> e : props.getDatasources().entrySet()) {
             String name = e.getKey();
-            if ("primary".equals(name)) continue; // primary는 위에서 처리
+            if ("primary".equals(name)) continue;
             DataSourceEntry entry = e.getValue();
             try {
                 HikariDataSource hds = buildHikari(name, entry);
                 DbDialect dialect = resolveDialect(entry);
-                registerEntry(name, hds, dialect, entry.getUrl(), entry.getUsername(), /*ownsPool*/ true);
-                log.info("DataSource registered: {} (url={}, dialect={})",
+                installSlot(name, hds, dialect, entry.getUrl(), entry.getUsername(),
+                        Source.STATIC, /*ownsPool*/ true);
+                log.info("DataSource registered (STATIC): {} (url={}, dialect={})",
                         name, entry.getUrl(), dialect.getClass().getSimpleName());
             } catch (RuntimeException ex) {
-                log.warn("Failed to build DataSource {}: {} — registration skipped",
+                log.warn("Failed to build STATIC DataSource {}: {} — registration skipped",
                         name, ex.getMessage());
             }
         }
+    }
 
-        // 부팅 health-check (실패해도 등록은 유지 — D4 요구사항)
-        for (String name : dataSources.keySet()) {
-            try (Connection c = dataSources.get(name).getConnection()) {
-                if (c.isValid(BOOT_HEALTHCHECK_TIMEOUT_SECONDS)) {
-                    bootHealthy.put(name, Boolean.TRUE);
-                } else {
-                    bootHealthy.put(name, Boolean.FALSE);
-                    bootHealthError.put(name, "isValid() returned false");
-                    log.warn("DataSource {} boot health-check FAILED (isValid=false)", name);
-                }
-            } catch (Exception ex) {
-                bootHealthy.put(name, Boolean.FALSE);
-                bootHealthError.put(name, ex.getMessage());
-                log.warn("DataSource {} boot health-check FAILED: {}", name, ex.getMessage());
-            }
+    /**
+     * 슬롯 설치 + 부팅 health-check 1회. 기존 슬롯이 있으면 덮어쓴다 (swap에서도 사용).
+     */
+    private void installSlot(String name, DataSource ds, DbDialect dialect,
+                             String url, String username,
+                             Source source, boolean ownsPool) {
+        boolean healthy;
+        String error = null;
+        try (Connection c = ds.getConnection()) {
+            healthy = c.isValid(BOOT_HEALTHCHECK_TIMEOUT_SECONDS);
+            if (!healthy) error = "isValid() returned false";
+        } catch (Exception ex) {
+            healthy = false;
+            error = ex.getMessage();
         }
+        if (!healthy) {
+            log.warn("DataSource {} health-check FAILED: {}", name, error);
+        }
+        slots.put(name, new Slot(ds, new JdbcTemplate(ds), dialect, url, username,
+                source, ownsPool, healthy, error));
     }
 
-    private void registerEntry(String name, DataSource ds, DbDialect dialect,
-                               String url, String username, boolean ownsPool) {
-        dataSources.put(name, ds);
-        jdbcTemplates.put(name, new JdbcTemplate(ds));
-        dialects.put(name, dialect);
-        jdbcUrls.put(name, url);
-        usernames.put(name, username);
-        ownedPools.put(name, ownsPool);
+    private Slot requireSlot(String name) {
+        Slot s = slots.get(name);
+        if (s == null) {
+            throw new IllegalArgumentException("Unknown DataSource name: " + name
+                    + " (registered: " + slots.keySet() + ")");
+        }
+        return s;
     }
-
-    /** primary 풀은 Spring이 관리, secondary 풀은 본 레지스트리가 닫는다. */
-    private final Map<String, Boolean> ownedPools = new LinkedHashMap<>();
 
     @Override
     public Set<String> names() {
-        return Collections.unmodifiableSet(dataSources.keySet());
+        return Collections.unmodifiableSet(slots.keySet());
     }
 
     @Override
-    public DataSource dataSource(String name) {
-        DataSource ds = dataSources.get(name);
-        if (ds == null) {
-            throw new IllegalArgumentException("Unknown DataSource name: " + name
-                    + " (registered: " + dataSources.keySet() + ")");
-        }
-        return ds;
-    }
+    public DataSource dataSource(String name) { return requireSlot(name).ds(); }
 
     @Override
-    public JdbcTemplate jdbc(String name) {
-        JdbcTemplate t = jdbcTemplates.get(name);
-        if (t == null) {
-            throw new IllegalArgumentException("Unknown DataSource name: " + name
-                    + " (registered: " + dataSources.keySet() + ")");
-        }
-        return t;
-    }
+    public JdbcTemplate jdbc(String name) { return requireSlot(name).jdbc(); }
 
     @Override
-    public DbDialect dialect(String name) {
-        DbDialect d = dialects.get(name);
-        if (d == null) {
-            throw new IllegalArgumentException("Unknown DataSource name: " + name
-                    + " (registered: " + dataSources.keySet() + ")");
-        }
-        return d;
+    public DbDialect dialect(String name) { return requireSlot(name).dialect(); }
+
+    @Override
+    public Source sourceOf(String name) {
+        Slot s = slots.get(name);
+        return s == null ? Source.NONE : s.source();
     }
 
     @Override
     public TestResult testConnection(String name) {
-        DataSource ds = dataSources.get(name);
-        if (ds == null) {
+        Slot slot = slots.get(name);
+        if (slot == null) {
             return new TestResult(name, false, 0L, "Unknown DataSource name");
         }
         long start = System.nanoTime();
-        try (Connection c = ds.getConnection()) {
+        try (Connection c = slot.ds().getConnection()) {
             try (Statement s = c.createStatement()) {
                 s.setQueryTimeout(PING_TIMEOUT_SECONDS);
                 s.execute("SELECT 1");
@@ -167,8 +167,8 @@ public class DefaultDataSourceRegistry implements DataSourceRegistry, Closeable 
 
     @Override
     public List<DataSourceInfo> snapshot() {
-        List<DataSourceInfo> out = new ArrayList<>(dataSources.size());
-        for (String name : dataSources.keySet()) {
+        List<DataSourceInfo> out = new ArrayList<>(slots.size());
+        for (String name : slots.keySet()) {
             out.add(info(name));
         }
         return out;
@@ -176,12 +176,9 @@ public class DefaultDataSourceRegistry implements DataSourceRegistry, Closeable 
 
     @Override
     public DataSourceInfo info(String name) {
-        DataSource ds = dataSources.get(name);
-        if (ds == null) {
-            throw new IllegalArgumentException("Unknown DataSource name: " + name);
-        }
+        Slot slot = requireSlot(name);
         int active = -1, idle = -1, total = -1;
-        if (ds instanceof HikariDataSource hds) {
+        if (slot.ds() instanceof HikariDataSource hds) {
             HikariPoolMXBean pool = hds.getHikariPoolMXBean();
             if (pool != null) {
                 try {
@@ -195,21 +192,78 @@ public class DefaultDataSourceRegistry implements DataSourceRegistry, Closeable 
         }
         return new DataSourceInfo(
                 name,
-                jdbcUrls.get(name),
-                usernames.get(name),
-                dialects.get(name).getClass().getSimpleName(),
-                Boolean.TRUE.equals(bootHealthy.get(name)),
+                slot.url(),
+                slot.username(),
+                slot.dialect().getClass().getSimpleName(),
+                slot.healthy(),
                 active, idle, total,
-                bootHealthError.get(name)
+                slot.healthError()
         );
     }
 
     @Override
+    public TestResult register(DynamicSpec spec) {
+        validateName(spec.name());
+        Slot existing = slots.get(spec.name());
+        if (existing != null) {
+            throw new IllegalStateException("DataSource '" + spec.name() + "' already registered (source=" + existing.source() + ")");
+        }
+        DataSourceEntry entry = toEntry(spec);
+        HikariDataSource hds = buildHikari(spec.name(), entry);
+        DbDialect dialect = resolveDialect(entry);
+        installSlot(spec.name(), hds, dialect, spec.jdbcUrl(), spec.username(),
+                Source.DYNAMIC, /*ownsPool*/ true);
+        log.info("DataSource registered (DYNAMIC): {} (url={}, dialect={})",
+                spec.name(), spec.jdbcUrl(), dialect.getClass().getSimpleName());
+        return testConnection(spec.name());
+    }
+
+    @Override
+    public TestResult swap(DynamicSpec spec) {
+        Slot old = requireSlot(spec.name());
+        if (old.source() != Source.DYNAMIC) {
+            throw new IllegalStateException("Cannot swap " + old.source() + " DataSource '" + spec.name() + "' — only DYNAMIC entries support runtime swap");
+        }
+        DataSourceEntry entry = toEntry(spec);
+        HikariDataSource newHds = buildHikari(spec.name(), entry);
+        DbDialect dialect = resolveDialect(entry);
+        // 새 슬롯 install (old를 atomic하게 덮어씀)
+        installSlot(spec.name(), newHds, dialect, spec.jdbcUrl(), spec.username(),
+                Source.DYNAMIC, /*ownsPool*/ true);
+        // 옛 풀 graceful close — Hikari는 in-flight 트랜잭션이 끝날 때까지 대기 후 닫음
+        if (old.ds() instanceof HikariDataSource oldHds) {
+            try {
+                oldHds.close();
+                log.info("Closed previous pool for swapped DataSource: {}", spec.name());
+            } catch (Exception ex) {
+                log.warn("Failed to close previous pool for {}: {}", spec.name(), ex.getMessage());
+            }
+        }
+        return testConnection(spec.name());
+    }
+
+    @Override
+    public void unregister(String name) {
+        Slot slot = requireSlot(name);
+        if (slot.source() != Source.DYNAMIC) {
+            throw new IllegalStateException("Cannot unregister " + slot.source() + " DataSource '" + name + "' — only DYNAMIC entries can be removed at runtime");
+        }
+        slots.remove(name);
+        if (slot.ds() instanceof HikariDataSource hds) {
+            try {
+                hds.close();
+                log.info("Unregistered + closed DYNAMIC DataSource pool: {}", name);
+            } catch (Exception ex) {
+                log.warn("Failed to close pool for unregistered {}: {}", name, ex.getMessage());
+            }
+        }
+    }
+
+    @Override
     public void close() {
-        for (Map.Entry<String, Boolean> e : ownedPools.entrySet()) {
-            if (!Boolean.TRUE.equals(e.getValue())) continue;
-            DataSource ds = dataSources.get(e.getKey());
-            if (ds instanceof HikariDataSource hds) {
+        for (Map.Entry<String, Slot> e : slots.entrySet()) {
+            if (!e.getValue().ownsPool()) continue;
+            if (e.getValue().ds() instanceof HikariDataSource hds) {
                 try {
                     hds.close();
                     log.info("Closed DataSource pool: {}", e.getKey());
@@ -218,6 +272,30 @@ public class DefaultDataSourceRegistry implements DataSourceRegistry, Closeable 
                 }
             }
         }
+    }
+
+    private static void validateName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("DataSource name is required");
+        }
+        if ("primary".equalsIgnoreCase(name)) {
+            throw new IllegalArgumentException("'primary' is reserved — cannot be registered as DYNAMIC");
+        }
+        // 허용: 영숫자/하이픈/언더스코어. URL 경로/JSON 키로 안전.
+        if (!name.matches("[A-Za-z][A-Za-z0-9_-]*")) {
+            throw new IllegalArgumentException("DataSource name must match [A-Za-z][A-Za-z0-9_-]* — got: " + name);
+        }
+    }
+
+    private static DataSourceEntry toEntry(DynamicSpec spec) {
+        DataSourceEntry e = new DataSourceEntry();
+        e.setUrl(spec.jdbcUrl());
+        e.setUsername(spec.username());
+        e.setPassword(spec.password());
+        e.setDriverClassName(spec.driverClass());
+        e.setDialect(spec.dialect());
+        if (spec.hikariOptions() != null) e.setHikari(new LinkedHashMap<>(spec.hikariOptions()));
+        return e;
     }
 
     // ---- helpers ----
