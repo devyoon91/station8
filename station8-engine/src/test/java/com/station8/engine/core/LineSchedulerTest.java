@@ -45,6 +45,9 @@ class LineSchedulerTest {
 
     private static final DbDialect H2_DIALECT = new DbDialect() {
         @Override public String limit(int limit) { return " FETCH FIRST " + limit + " ROWS ONLY"; }
+        @Override public String offsetLimit(int offset, int limit) {
+            return "OFFSET " + offset + " ROWS FETCH NEXT " + limit + " ROWS ONLY";
+        }
         @Override public String currentTimestamp() { return "CURRENT_TIMESTAMP"; }
     };
 
@@ -62,7 +65,7 @@ class LineSchedulerTest {
 
         jdbcTemplate = new JdbcTemplate(dataSource);
         activityRepo = new JdbcActivityRepository(jdbcTemplate, H2_DIALECT);
-        defRepo = new JdbcLineDefinitionRepository(jdbcTemplate);
+        defRepo = new JdbcLineDefinitionRepository(jdbcTemplate, H2_DIALECT);
         scheduleRepo = new JdbcLineScheduleRepository(jdbcTemplate, H2_DIALECT);
 
         DagValidator validator = new DagValidator();

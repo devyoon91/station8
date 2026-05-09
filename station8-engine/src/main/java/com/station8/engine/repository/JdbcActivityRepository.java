@@ -11,7 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -171,6 +174,63 @@ public class JdbcActivityRepository implements ActivityRepository {
     public List<LineInstance> findAllInstances() {
         String sql = "SELECT * FROM U_LINE_INSTANCE ORDER BY REG_DT DESC";
         return jdbcTemplate.query(sql, new LineInstanceRowMapper());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LineInstance> findInstancesPage(String workflowName, String statusSt, String instanceId,
+                                                int offset, int limit) {
+        InstanceFilter f = new InstanceFilter(workflowName, statusSt, instanceId);
+        String sql = "SELECT * FROM U_LINE_INSTANCE " + f.where()
+                + " ORDER BY REG_DT DESC " + dbDialect.offsetLimit(offset, limit);
+        return jdbcTemplate.query(sql, new LineInstanceRowMapper(), f.args().toArray());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countInstances(String workflowName, String statusSt, String instanceId) {
+        InstanceFilter f = new InstanceFilter(workflowName, statusSt, instanceId);
+        String sql = "SELECT COUNT(*) FROM U_LINE_INSTANCE " + f.where();
+        Long n = jdbcTemplate.queryForObject(sql, Long.class, f.args().toArray());
+        return n == null ? 0L : n;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Long> countInstancesByStatus() {
+        String sql = "SELECT STATUS_ST, COUNT(*) FROM U_LINE_INSTANCE GROUP BY STATUS_ST";
+        Map<String, Long> out = new HashMap<>();
+        jdbcTemplate.query(sql, rs -> {
+            out.put(rs.getString(1), rs.getLong(2));
+        });
+        return out;
+    }
+
+    /**
+     * Dashboard 필터(WORKFLOW_NAME LIKE / STATUS_ST = / ID LIKE)를 동적 WHERE로 빌드.
+     * 빈/null 인자는 무시. SQL 인젝션 방지를 위해 모두 ``?``로 바인딩한다.
+     */
+    private static final class InstanceFilter {
+        private final List<String> conditions = new ArrayList<>();
+        private final List<Object> args = new ArrayList<>();
+        InstanceFilter(String workflowName, String statusSt, String instanceId) {
+            if (workflowName != null && !workflowName.isBlank()) {
+                conditions.add("WORKFLOW_NAME LIKE ?");
+                args.add("%" + workflowName + "%");
+            }
+            if (statusSt != null && !statusSt.isBlank()) {
+                conditions.add("STATUS_ST = ?");
+                args.add(statusSt);
+            }
+            if (instanceId != null && !instanceId.isBlank()) {
+                conditions.add("ID LIKE ?");
+                args.add("%" + instanceId + "%");
+            }
+        }
+        String where() {
+            return conditions.isEmpty() ? "" : "WHERE " + String.join(" AND ", conditions);
+        }
+        List<Object> args() { return args; }
     }
 
     @Override

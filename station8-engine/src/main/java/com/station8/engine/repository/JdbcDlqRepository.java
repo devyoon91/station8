@@ -1,5 +1,6 @@
 package com.station8.engine.repository;
 
+import com.station8.engine.dialect.DbDialect;
 import com.station8.engine.entity.DlqEntry;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -8,7 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -19,9 +22,11 @@ import java.util.UUID;
 public class JdbcDlqRepository implements DlqRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final DbDialect dbDialect;
 
-    public JdbcDlqRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcDlqRepository(JdbcTemplate jdbcTemplate, DbDialect dbDialect) {
         this.jdbcTemplate = jdbcTemplate;
+        this.dbDialect = dbDialect;
     }
 
     @Override
@@ -54,6 +59,26 @@ public class JdbcDlqRepository implements DlqRepository {
     public List<DlqEntry> findAll() {
         String sql = "SELECT * FROM H_LINE_DLQ ORDER BY REG_DT DESC";
         return jdbcTemplate.query(sql, new DlqEntryRowMapper());
+    }
+
+    @Override
+    public List<DlqEntry> findPage(int offset, int limit) {
+        String sql = "SELECT * FROM H_LINE_DLQ ORDER BY REG_DT DESC " + dbDialect.offsetLimit(offset, limit);
+        return jdbcTemplate.query(sql, new DlqEntryRowMapper());
+    }
+
+    @Override
+    public long count() {
+        Long n = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM H_LINE_DLQ", Long.class);
+        return n == null ? 0L : n;
+    }
+
+    @Override
+    public Map<String, Long> countByStatus() {
+        String sql = "SELECT DLQ_STATUS_ST, COUNT(*) FROM H_LINE_DLQ GROUP BY DLQ_STATUS_ST";
+        Map<String, Long> out = new HashMap<>();
+        jdbcTemplate.query(sql, rs -> { out.put(rs.getString(1), rs.getLong(2)); });
+        return out;
     }
 
     @Override

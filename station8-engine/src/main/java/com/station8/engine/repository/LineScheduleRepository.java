@@ -20,6 +20,15 @@ public interface LineScheduleRepository {
     /** 전체 활성 스케줄 (삭제되지 않은). */
     List<LineSchedule> findAll();
 
+    /** 스케줄 페이지 조회 — 정렬은 ``NEXT_RUN_DT ASC NULLS LAST`` (만료 임박 순) (#97). */
+    List<LineSchedule> findPage(int offset, int limit);
+
+    /** 살아있는 스케줄 총 행 수 (#97). */
+    long count();
+
+    /** PAUSED_FL별 카운트 (Y/N). 헤더 통계용 (#97). */
+    java.util.Map<String, Long> countByPaused();
+
     /**
      * SKIP LOCKED로 만료된 스케줄을 잠금하여 가져온다 (분산 환경에서 중복 트리거 방지).
      * 조건: PAUSED_FL='N' AND DEL_FL='N' AND NEXT_RUN_DT IS NOT NULL AND NEXT_RUN_DT <= now

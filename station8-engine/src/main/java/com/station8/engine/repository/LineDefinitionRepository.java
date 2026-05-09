@@ -21,6 +21,12 @@ public interface LineDefinitionRepository {
      */
     List<LineDefinition> findAllActiveDefinitions();
 
+    /** 활성 정의 페이지 조회 — 같은 정렬 키(``DEFINITION_NM ASC``) (#97). */
+    List<LineDefinition> findActiveDefinitionsPage(int offset, int limit);
+
+    /** 활성 정의 총 행 수 (#97). */
+    long countActiveDefinitions();
+
     /**
      * ``U_LINE_STATION.ID``로부터 소속 ``DEFINITION_ID``를 역조회한다.
      * 인스턴스 → 액티비티 실행 → ``nodeId``를 거쳐 라인 정의를 찾을 때 사용 (#87 M2).

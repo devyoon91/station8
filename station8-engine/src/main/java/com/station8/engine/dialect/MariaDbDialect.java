@@ -7,6 +7,11 @@ public class MariaDbDialect implements DbDialect {
     }
 
     @Override
+    public String offsetLimit(int offset, int limit) {
+        return "LIMIT " + limit + " OFFSET " + offset;
+    }
+
+    @Override
     public String currentTimestamp() {
         return "CURRENT_TIMESTAMP";
     }

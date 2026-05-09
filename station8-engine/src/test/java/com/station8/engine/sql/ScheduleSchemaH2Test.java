@@ -32,6 +32,9 @@ class ScheduleSchemaH2Test {
 
     private static final DbDialect H2_DIALECT = new DbDialect() {
         @Override public String limit(int limit) { return " FETCH FIRST " + limit + " ROWS ONLY"; }
+        @Override public String offsetLimit(int offset, int limit) {
+            return "OFFSET " + offset + " ROWS FETCH NEXT " + limit + " ROWS ONLY";
+        }
         @Override public String currentTimestamp() { return "CURRENT_TIMESTAMP"; }
     };
 

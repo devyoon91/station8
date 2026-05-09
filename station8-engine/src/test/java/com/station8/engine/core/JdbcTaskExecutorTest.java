@@ -242,6 +242,22 @@ class JdbcTaskExecutorTest {
         }
 
         @Override
+        public List<LineInstance> findInstancesPage(String workflowName, String statusSt, String instanceId,
+                                                    int offset, int limit) {
+            return List.of();
+        }
+
+        @Override
+        public long countInstances(String workflowName, String statusSt, String instanceId) {
+            return 0L;
+        }
+
+        @Override
+        public java.util.Map<String, Long> countInstancesByStatus() {
+            return java.util.Map.of();
+        }
+
+        @Override
         public LineInstance findInstanceById(String instanceId) {
             return null;
         }

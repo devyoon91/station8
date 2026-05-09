@@ -1,5 +1,6 @@
 package com.station8.engine.repository;
 
+import com.station8.engine.dialect.DbDialect;
 import com.station8.engine.entity.LineDefinition;
 import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
@@ -16,9 +17,11 @@ import java.util.List;
 public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final DbDialect dbDialect;
 
-    public JdbcLineDefinitionRepository(JdbcTemplate jdbcTemplate) {
+    public JdbcLineDefinitionRepository(JdbcTemplate jdbcTemplate, DbDialect dbDialect) {
         this.jdbcTemplate = jdbcTemplate;
+        this.dbDialect = dbDialect;
     }
 
     @Override
@@ -49,6 +52,25 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 ORDER BY DEFINITION_NM ASC, VERSION_NO DESC
                 """;
         return jdbcTemplate.query(sql, new DefinitionMapper());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LineDefinition> findActiveDefinitionsPage(int offset, int limit) {
+        String sql = "SELECT * FROM U_LINE_DEFINITION "
+                + "WHERE DEL_FL = 'N' AND ACTIVE_FL = 'Y' "
+                + "ORDER BY DEFINITION_NM ASC, VERSION_NO DESC "
+                + dbDialect.offsetLimit(offset, limit);
+        return jdbcTemplate.query(sql, new DefinitionMapper());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countActiveDefinitions() {
+        Long n = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM U_LINE_DEFINITION WHERE DEL_FL = 'N' AND ACTIVE_FL = 'Y'",
+                Long.class);
+        return n == null ? 0L : n;
     }
 
     @Override

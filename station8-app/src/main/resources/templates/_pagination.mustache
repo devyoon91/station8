@@ -1,0 +1,46 @@
+<!--
+  Pagination 부분 템플릿 (#97).
+  컨트롤러는 ``model["pagination"]``에 ``PaginationModel.build(...)``로 만든 Map을 넣어야 한다.
+  스타일은 ``.swe-pagination`` (design.css). 호출자는 partial reference로 임포트.
+-->
+{{#pagination.hasResults}}
+<div class="swe-pagination">
+    <div class="swe-pagination-info">
+        <span class="swe-mute">{{pagination.totalCount}}건</span>
+        {{#pagination.hasMultiplePages}}
+        <span class="swe-pagination-pageinfo">· Page {{pagination.displayPage}} / {{pagination.totalPages}}</span>
+        {{/pagination.hasMultiplePages}}
+    </div>
+    <div class="swe-pagination-nav">
+        {{#pagination.hasMultiplePages}}
+        {{#pagination.hasPrev}}
+        <a href="{{pagination.firstUrl}}" class="swe-btn-tertiary swe-btn-sm" aria-label="First page">«</a>
+        <a href="{{pagination.prevUrl}}" class="swe-btn-tertiary swe-btn-sm" aria-label="Prev page">‹ Prev</a>
+        {{/pagination.hasPrev}}
+        {{^pagination.hasPrev}}
+        <span class="swe-btn-tertiary swe-btn-sm swe-pagination-disabled" aria-disabled="true">«</span>
+        <span class="swe-btn-tertiary swe-btn-sm swe-pagination-disabled" aria-disabled="true">‹ Prev</span>
+        {{/pagination.hasPrev}}
+        {{#pagination.hasNext}}
+        <a href="{{pagination.nextUrl}}" class="swe-btn-tertiary swe-btn-sm" aria-label="Next page">Next ›</a>
+        <a href="{{pagination.lastUrl}}" class="swe-btn-tertiary swe-btn-sm" aria-label="Last page">»</a>
+        {{/pagination.hasNext}}
+        {{^pagination.hasNext}}
+        <span class="swe-btn-tertiary swe-btn-sm swe-pagination-disabled" aria-disabled="true">Next ›</span>
+        <span class="swe-btn-tertiary swe-btn-sm swe-pagination-disabled" aria-disabled="true">»</span>
+        {{/pagination.hasNext}}
+        {{/pagination.hasMultiplePages}}
+    </div>
+    <div class="swe-pagination-size">
+        <span class="swe-mute" style="font-size: 12px;">Size</span>
+        {{#pagination.sizeOptions}}
+        {{#isCurrent}}
+        <span class="swe-pill swe-pill-active">{{size}}</span>
+        {{/isCurrent}}
+        {{^isCurrent}}
+        <a href="{{url}}" class="swe-pill">{{size}}</a>
+        {{/isCurrent}}
+        {{/pagination.sizeOptions}}
+    </div>
+</div>
+{{/pagination.hasResults}}
