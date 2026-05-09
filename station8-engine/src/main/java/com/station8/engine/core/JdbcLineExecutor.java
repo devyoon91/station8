@@ -1,6 +1,7 @@
 package com.station8.engine.core;
 
 import com.station8.engine.entity.ActivityExecution;
+import com.station8.engine.entity.LineInstance;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
@@ -81,6 +82,39 @@ public class JdbcLineExecutor implements LineExecutor {
         if (!resumed) {
             log.warn("No failed activities found to resume for instance: {}", instanceId);
         }
+    }
+
+    @Override
+    @Transactional
+    public void terminateLine(String instanceId) {
+        // 1. 인스턴스 존재 + 상태 검증 (RUNNING만 종료 가능)
+        LineInstance instance;
+        try {
+            instance = activityRepository.findInstanceById(instanceId);
+        } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
+            throw new IllegalArgumentException("인스턴스를 찾을 수 없습니다: " + instanceId);
+        }
+        if (instance == null) {
+            throw new IllegalArgumentException("인스턴스를 찾을 수 없습니다: " + instanceId);
+        }
+        if (!"RUNNING".equals(instance.statusSt())) {
+            throw new IllegalStateException(
+                    "인스턴스가 RUNNING 상태가 아니라 종료할 수 없습니다 — 현재: " + instance.statusSt());
+        }
+
+        // 2. 인스턴스 → TERMINATED
+        jdbcTemplate.update("""
+            UPDATE U_LINE_INSTANCE
+            SET STATUS_ST = 'TERMINATED', END_DT = CURRENT_TIMESTAMP,
+                EDIT_DT = CURRENT_TIMESTAMP, EDIT_ID = 'terminate'
+            WHERE ID = ?
+            """, instanceId);
+
+        // 3. 시작 안 한 액티비티 일괄 TERMINATED — RUNNING은 워커 자연 완료에 맡김(인스턴스가
+        //    이미 TERMINATED라서 후행 fan-out은 DagInterpreter가 차단)
+        int affected = activityRepository.bulkUpdateNotStartedStatuses(instanceId, "TERMINATED");
+        log.info("Terminated workflow instance: {} ({} pending/waiting activities marked TERMINATED)",
+                instanceId, affected);
     }
 }
 

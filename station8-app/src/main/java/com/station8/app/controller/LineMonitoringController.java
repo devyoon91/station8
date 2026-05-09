@@ -131,6 +131,8 @@ public class LineMonitoringController {
         instView.put("inputData", instance.inputData());
         instView.put("badgeClass", badgeFor(instance.statusSt()));
         instView.put("isFailed", "FAILED".equals(instance.statusSt()));
+        instView.put("isRunning", "RUNNING".equals(instance.statusSt()));
+        instView.put("isTerminated", "TERMINATED".equals(instance.statusSt()));
         model.addAttribute("instance", instView);
 
         List<java.util.Map<String, Object>> actViews = activities.stream().map(a -> {
@@ -276,6 +278,24 @@ public class LineMonitoringController {
     @PostMapping("/instance/{id}/resume")
     public String resume(@PathVariable("id") String instanceId) {
         workflowExecutor.resumeLine(instanceId);
+        return "redirect:/line/instance/" + instanceId;
+    }
+
+    /**
+     * RUNNING 인스턴스 강제 종료 (#101). 인스턴스 + 시작 안 한 액티비티들을 TERMINATED로 전이.
+     * RUNNING 액티비티는 워커 자연 완료 — 인스턴스가 TERMINATED라 후행 fan-out은 차단됨.
+     */
+    @PostMapping("/instance/{id}/terminate")
+    public String terminate(@PathVariable("id") String instanceId,
+                            org.springframework.web.servlet.mvc.support.RedirectAttributes flash) {
+        try {
+            workflowExecutor.terminateLine(instanceId);
+            flash.addFlashAttribute("terminateMsg", "[OK] 인스턴스 종료 요청 완료 — 시작 안 한 액티비티는 TERMINATED, 진행 중은 자연 완료 후 후행 차단");
+            flash.addFlashAttribute("terminateOk", true);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            flash.addFlashAttribute("terminateMsg", "[FAIL] " + ex.getMessage());
+            flash.addFlashAttribute("terminateOk", false);
+        }
         return "redirect:/line/instance/" + instanceId;
     }
 

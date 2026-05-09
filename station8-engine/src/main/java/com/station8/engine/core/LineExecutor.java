@@ -16,9 +16,24 @@ public interface LineExecutor {
     
     /**
      * 중단된 라인을 특정 인스턴스 기준으로 재개합니다.
-     * 
+     *
      * @param instanceId 라인 인스턴스 ID
      */
     void resumeLine(String instanceId);
+
+    /**
+     * 인스턴스를 강제 종료합니다 (#101).
+     *
+     * <p>인스턴스를 {@code TERMINATED}로 마킹하고, 아직 시작하지 않은
+     * {@code PENDING} / {@code WAITING_DEPENDENCIES} 액티비티들을 일괄
+     * {@code TERMINATED}로 전이한다. 이미 {@code RUNNING} 상태인 액티비티는
+     * 워커가 자연 완료할 때까지 그대로 둔다 (워커 인터럽트 위험).</p>
+     *
+     * <p>인스턴스 상태가 {@code RUNNING}이 아니면(이미 COMPLETED/FAILED/TERMINATED)
+     * {@link IllegalStateException}을 던진다.</p>
+     *
+     * @param instanceId 라인 인스턴스 ID
+     */
+    void terminateLine(String instanceId);
 }
 

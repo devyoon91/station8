@@ -262,6 +262,22 @@ public class JdbcActivityRepository implements ActivityRepository {
         jdbcTemplate.update(sql, executionId);
     }
 
+    @Override
+    @Transactional
+    public int bulkUpdateNotStartedStatuses(String instanceId, String toStatus) {
+        // RUNNING/COMPLETED/FAILED는 영향 없음 — 워커 자연 완료 또는 이미 종결된 것
+        String sql = String.format("""
+            UPDATE H_LINE_ACTIVITY_EXECUTION
+            SET STATUS_ST = ?,
+                END_DT = %s,
+                EDIT_DT = %s,
+                EDIT_ID = 'terminate'
+            WHERE INSTANCE_ID = ?
+              AND STATUS_ST IN ('PENDING', 'WAITING_DEPENDENCIES')
+            """, dbDialect.currentTimestamp(), dbDialect.currentTimestamp());
+        return jdbcTemplate.update(sql, toStatus, instanceId);
+    }
+
     private static class LineInstanceRowMapper implements RowMapper<LineInstance> {
         @Override
         public LineInstance mapRow(ResultSet rs, int rowNum) throws SQLException {

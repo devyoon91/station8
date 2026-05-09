@@ -270,5 +270,10 @@ class JdbcTaskExecutorTest {
         @Override
         public void resetToPending(String executionId) {
         }
+
+        @Override
+        public int bulkUpdateNotStartedStatuses(String instanceId, String toStatus) {
+            return 0;
+        }
     }
 }

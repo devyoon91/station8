@@ -313,6 +313,8 @@ public class MyBatchConfig {
 - 노선도: 각 역에 실행 상태 색상 (running=점멸, completed=초록 채움, failed=적색 채움, pending=무채색 외곽선)
 - status dot 색상 (success/warning/danger/mute)
 - 실패 액티비티는 accent-red 강조 + Error 메시지
+- **Resume** 버튼 — 인스턴스 상태 `FAILED`일 때 노출. FAILED 액티비티들을 PENDING으로 복구하고 인스턴스를 RUNNING으로 되돌림.
+- **Terminate** 버튼 (#101) — 인스턴스 상태 `RUNNING`일 때 노출. 확인 다이얼로그 후 인스턴스를 `TERMINATED`로 마킹하고 시작 안 한 액티비티(`PENDING`/`WAITING_DEPENDENCIES`)를 일괄 `TERMINATED`로 전이. 진행 중(`RUNNING`) 액티비티는 워커가 자연 완료할 때까지 두고, 그 후 `DagInterpreter`가 fan-out을 차단해 후행이 활성화되지 않음. 이미 `COMPLETED`/`FAILED`/`TERMINATED`인 인스턴스는 종료 불가. 자동화 시 `POST /api/line/instances/{id}/terminate`.
 
 ### 5.3. Schedules
 - `/line/schedules` — 등록된 cron 일괄 관리
