@@ -172,6 +172,8 @@ DAG = `@Activity` 메서드들을 **역/엣지 그래프**로 연결한 것.
 
 저장 시 검증 통과한 정의 ID 반환. 실패 시 하단에 `errorCode`(예: `WF-E305`) + 메시지 표시.
 
+**편집 모드 (#99):** 저장된 라인을 다시 빌더에서 수정하려면 `/line/builder?id={definitionId}`로 진입 — 캔버스에 노드/엣지/inputParams/datasourceBindings/posX,posY가 모두 복원된다. 저장 시 같은 ID로 PUT(역/엣지 통째 교체, 같은 버전 유지). `definitionNm`은 read-only — 이름 변경은 새 정의 생성으로(신규 빌더 진입). `Lines` 목록 또는 정의 미리보기 페이지에서 **Edit** 버튼으로 진입 가능. 진행 중 인스턴스가 있으면 후행 단계가 새 정의 기준으로 실행되니 주의 (XA 미도입 — 운영자 책임).
+
 ### 2.2. REST API (자동화)
 
 ```bash
