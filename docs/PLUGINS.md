@@ -106,11 +106,20 @@ WARN  c.b.w.engine.core.LineRegistry - Activity name conflict: SEND_SLACK alread
 
 ### 5-1. 새 플러그인 추가
 
-1. 운영 호스트의 `plugins/` 디렉토리에 jar 업로드.
+**(a) 어드민 웹 업로드 (#102)** — 호스트 파일시스템 접근 불필요:
+
+1. `/admin/plugins` 접속 → **Upload jar** 폼에서 jar 선택 → Upload.
+2. 검증 통과 시(확장자 `.jar` + 매직 바이트 + 50MB 이하) `engine.plugins.dir`에 저장. 같은 이름이 있으면 기존은 `.bak`로 백업.
+3. `systemctl restart workflow-engine` (또는 `docker compose restart app`) — 본 이슈 비범위, hot reload는 [#103](https://github.com/devyoon91/station8/issues/103).
+4. `/line/activities`에서 등록 확인 + 빌더에 노출.
+
+> 인증: 본 페이지는 현재 인증 없음 — [#121](https://github.com/devyoon91/station8/issues/121) 머지 시 `/admin/**`이 ADMIN 역할 검사로 자동 보호됨. 그 전까진 내부망/dev 환경에서만.
+
+**(b) 호스트 파일시스템 직접 (전통)** — ssh/docker cp 권한 보유 시:
+
+1. 운영 호스트의 `plugins/` 디렉토리에 jar 업로드 (`scp` / `docker cp` / 마운트).
 2. `systemctl restart workflow-engine` (또는 `docker compose restart app`).
-3. 부팅 로그에서 등록 확인.
-4. `/line/activities` 페이지에서 노출 확인.
-5. 비주얼 빌더에서 신규 액티비티를 역로 추가 가능.
+3. 부팅 로그에서 등록 확인 + `/line/activities` 노출.
 
 ### 5-2. 플러그인 비활성화
 

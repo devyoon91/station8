@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Plugins — Station8</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/design.css">
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <h1 class="swe-display-lg" style="margin: 0;">Plugins</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">
+                플러그인 jar 웹 업로드 — <code>{{pluginsDir}}</code>
+                {{^dirExists}}<span style="color: var(--accent-yellow);">(디렉토리 없음 — 업로드 시 자동 생성)</span>{{/dirExists}}
+            </p>
+        </div>
+    </div>
+
+    <!-- 인증 미적용 경고 (#121에서 Spring Security 도입 시 제거 가능) -->
+    <div class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid var(--accent-yellow);">
+        <strong>⚠ 보안 안내</strong> — 본 페이지는 현재 인증 미적용. 외부 노출 환경에선 RCE 위험이므로
+        <a href="https://github.com/devyoon91/station8/issues/121" target="_blank" style="color: var(--accent-pink);">#121</a> 머지 전까지 내부망 또는 dev 환경에서만 사용.
+    </div>
+
+    {{#uploadMsg}}
+    <div class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid {{#uploadOk}}var(--accent-green){{/uploadOk}}{{^uploadOk}}var(--accent-pink){{/uploadOk}};">
+        <code style="color: var(--ink); font-size: 0.95em;">{{uploadMsg}}</code>
+    </div>
+    {{/uploadMsg}}
+
+    <!-- 업로드 폼 -->
+    <div class="swe-card swe-mb-xl">
+        <h2 class="swe-heading-md" style="margin: 0 0 var(--space-md);">Upload jar</h2>
+        <form action="/admin/plugins" method="post" enctype="multipart/form-data" class="swe-stack">
+            <div>
+                <input type="file" name="file" accept=".jar" required
+                       style="padding: var(--space-sm); background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: var(--radius-sm); width: 100%;">
+                <div class="swe-mute" style="font-size: 12px; margin-top: var(--space-xs);">
+                    <code>.jar</code>만 허용 · 사이즈 상한 <strong>{{maxSizeMb}}MB</strong> · 매직 바이트(<code>PK\x03\x04</code>) 검증.
+                    같은 이름이 있으면 기존은 <code>.bak</code>로 백업.
+                </div>
+            </div>
+            <div>
+                <button type="submit" class="swe-btn-primary">Upload</button>
+            </div>
+        </form>
+        <div class="swe-mute" style="font-size: 12px; margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--hairline);">
+            업로드 = 파일 저장만. 활성화는 앱 재시작 또는 별개 reload 액션
+            (<a href="https://github.com/devyoon91/station8/issues/103" target="_blank" style="color: var(--accent-pink);">#103</a>).
+        </div>
+    </div>
+
+    <!-- 디렉토리 목록 -->
+    <h2 class="swe-heading-md swe-mb-md">Files in {{pluginsDir}} ({{entryCount}})</h2>
+    <div class="swe-card" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Modified</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#entries}}
+            <tr>
+                <td><code>{{name}}</code></td>
+                <td>
+                    {{#isJar}}<span class="swe-badge swe-badge-success">jar</span>{{/isJar}}
+                    {{#isBackup}}<span class="swe-badge swe-badge-warning">backup</span>{{/isBackup}}
+                    {{^isJar}}{{^isBackup}}<span class="swe-mute">other</span>{{/isBackup}}{{/isJar}}
+                </td>
+                <td class="swe-mute">{{size}}</td>
+                <td class="swe-mute">{{modified}}</td>
+            </tr>
+            {{/entries}}
+            {{^entries}}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    파일 없음. 위 폼으로 jar를 업로드하세요.
+                </td>
+            </tr>
+            {{/entries}}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+</body>
+</html>
