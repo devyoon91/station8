@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -149,6 +150,95 @@ class InstanceTerminateTest {
 
         mockMvc.perform(post("/api/line/instances/" + instanceId + "/terminate"))
                 .andExpect(status().isConflict());
+    }
+
+    /**
+     * 검증: timeline 페이지에서 RUNNING 상태일 때만 Terminate 버튼이 노출.
+     * 헤더 영역 버튼 가시성에 집중 — 액티비티 0건 (액티비티 행은 별도 테스트 영역).
+     */
+    @Test
+    void timelinePage_runningInstance_rendersTerminateButton() throws Exception {
+        String instanceId = seedBareInstance("RunningFlow", "RUNNING");
+
+        mockMvc.perform(get("/line/instance/" + instanceId))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "/line/instance/" + instanceId + "/terminate")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Terminate")))
+                // RUNNING 상태이므로 Resume은 노출 안 됨
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString(
+                                "/line/instance/" + instanceId + "/resume"))));
+    }
+
+    @Test
+    void timelinePage_completedInstance_doesNotRenderTerminateButton() throws Exception {
+        String instanceId = seedBareInstance("DoneFlow", "COMPLETED");
+
+        mockMvc.perform(get("/line/instance/" + instanceId))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString(
+                                "/line/instance/" + instanceId + "/terminate"))));
+    }
+
+    @Test
+    void timelinePage_failedInstance_rendersResumeButNotTerminate() throws Exception {
+        String instanceId = seedBareInstance("FailedFlow", "FAILED");
+
+        mockMvc.perform(get("/line/instance/" + instanceId))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "/line/instance/" + instanceId + "/resume")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString(
+                                "/line/instance/" + instanceId + "/terminate"))));
+    }
+
+    /** 액티비티 없는 단순 인스턴스 시드 — UI 헤더 버튼 가시성 검증용. */
+    private String seedBareInstance(String workflowName, String statusSt) {
+        String instanceId = UUID.randomUUID().toString();
+        jdbcTemplate.update("""
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, instanceId, workflowName, statusSt);
+        return instanceId;
+    }
+
+    /**
+     * E2E 검증: 실제 워커가 RUNNING 액티비티를 자연 완료한 뒤,
+     * DagInterpreter가 인스턴스 TERMINATED를 보고 fan-out을 차단해 후행 PENDING이 생성되지 않음을 확인.
+     */
+    @Test
+    void e2e_terminate_then_runningActivityCompletes_shouldNotPromoteSuccessor() {
+        String instanceId = createRunningInstanceWithActivities();
+
+        // Terminate
+        lineExecutor.terminateLine(instanceId);
+
+        // RUNNING 액티비티(t-a)의 사후 자연 완료를 시뮬레이션:
+        // 워커는 동일하게 ActivityRepository.updateStatus(COMPLETED) + dagInterpreter.onNodeCompleted를 호출
+        ActivityExecution running = activityRepository.findByInstanceAndNode(instanceId, "t-a");
+        jdbcTemplate.update("""
+            UPDATE H_LINE_ACTIVITY_EXECUTION
+            SET STATUS_ST = 'COMPLETED', END_DT = CURRENT_TIMESTAMP
+            WHERE ID = ?
+            """, running.id());
+        dagInterpreter.onNodeCompleted(instanceId, "t-a");
+
+        // 모든 후행이 promote되지 않았어야 함 — 인스턴스 TERMINATED라 fan-out 차단
+        List<ActivityExecution> after = activityRepository.findActivitiesByInstanceId(instanceId);
+        long pendingCount = after.stream().filter(a -> "PENDING".equals(a.statusSt())).count();
+        long terminatedCount = after.stream().filter(a -> "TERMINATED".equals(a.statusSt())).count();
+
+        assertThat(pendingCount)
+                .as("Terminate 후 RUNNING 자연 완료 시 후행이 PENDING으로 promote되면 안 됨")
+                .isZero();
+        assertThat(terminatedCount).isEqualTo(2L);  // t-b, t-c 모두 TERMINATED 유지
+
+        // 인스턴스 상태 TERMINATED 유지 (워커가 인스턴스를 RUNNING으로 되돌리지 않음)
+        assertThat(activityRepository.findInstanceById(instanceId).statusSt())
+                .isEqualTo("TERMINATED");
     }
 
     /**
