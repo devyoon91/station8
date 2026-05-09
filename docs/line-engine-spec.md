@@ -71,6 +71,11 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
   엔진 SQL 생성은 primary dialect만, secondary dialect는 액티비티가 알아서 다룸.
   단일 DS 트랜잭션만 보장(JTA/XA 비도입 — [#111](https://github.com/devyoon91/station8/issues/111) 토론).
   운영자는 `/admin/datasources`에서 등록 목록 / 풀 상태 / Test ping 진단 가능.
+* **동적 DataSource 등록 (#110):** 위 정적 선언 외에, 어드민 UI(`/admin/datasources`)에서
+  운영자가 DataSource를 직접 추가/수정/삭제 가능. `U_LINE_DATASOURCE` 테이블에 영속화되며 부팅 시
+  `DynamicDataSourceLoader`가 자동 로드. 수정 시 connection pool은 즉시 graceful drain 후 새 풀로 swap.
+  정적 선언과 이름 충돌 시 정적 win — DB 행은 무시. 비밀번호는 plain text 저장 (시크릿 통합은
+  [#112](https://github.com/devyoon91/station8/issues/112)). Station 단위 DS 바인딩 모델은 [#113](https://github.com/devyoon91/station8/issues/113).
 
 ### 4.5. Fault Tolerance (기존 유지 + 확장)
 

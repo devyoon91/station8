@@ -183,3 +183,34 @@ CREATE TABLE U_LINE_SCHEDULE (
 
 CREATE INDEX U_LINE_SCHEDULE_IDX01 ON U_LINE_SCHEDULE (PAUSED_FL, NEXT_RUN_DT);
 CREATE INDEX U_LINE_SCHEDULE_IDX02 ON U_LINE_SCHEDULE (DEFINITION_ID);
+
+-- ============================================================================
+-- Dynamic DataSource Registry (#110)
+-- ============================================================================
+
+-- application.properties의 station8.datasources.* 정적 선언과 별개로, 운영자가
+-- 어드민 UI에서 동적으로 추가/수정/제거하는 DataSource 정의 테이블.
+-- 이름이 정적 선언과 충돌하면 정적이 win — DB 행은 비활성화 + 무시.
+-- 비밀번호는 plain text로 저장 (#112 후속에서 시크릿 통합).
+CREATE TABLE U_LINE_DATASOURCE (
+    ID VARCHAR2(50),
+    NAME VARCHAR2(100) NOT NULL,
+    JDBC_URL VARCHAR2(1000) NOT NULL,
+    USERNAME VARCHAR2(255),
+    PASSWORD VARCHAR2(2000),
+    DRIVER_CLASS VARCHAR2(255),
+    DIALECT VARCHAR2(50),
+    HIKARI_OPTIONS CLOB,
+    ENABLED_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,
+    USE_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,
+    VIEW_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,
+    DEL_FL VARCHAR2(1) DEFAULT 'N' NOT NULL,
+    REG_DT DATE DEFAULT CURRENT_TIMESTAMP,
+    REG_ID VARCHAR2(32),
+    EDIT_DT DATE,
+    EDIT_ID VARCHAR2(32),
+    CONSTRAINT U_LINE_DATASOURCE_PK PRIMARY KEY (ID),
+    CONSTRAINT U_LINE_DATASOURCE_U01 UNIQUE (NAME)
+);
+
+CREATE INDEX U_LINE_DATASOURCE_IDX01 ON U_LINE_DATASOURCE (DEL_FL, ENABLED_FL);

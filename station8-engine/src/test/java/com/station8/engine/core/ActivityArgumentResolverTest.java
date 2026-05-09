@@ -87,5 +87,9 @@ class ActivityArgumentResolverTest {
         @Override public TestResult testConnection(String name) { return new TestResult(name, true, 0L, null); }
         @Override public List<DataSourceInfo> snapshot() { return List.of(); }
         @Override public DataSourceInfo info(String name) { throw new UnsupportedOperationException(); }
+        @Override public Source sourceOf(String name) { return Source.NONE; }
+        @Override public TestResult register(DynamicSpec spec) { throw new UnsupportedOperationException(); }
+        @Override public TestResult swap(DynamicSpec spec) { throw new UnsupportedOperationException(); }
+        @Override public void unregister(String name) { throw new UnsupportedOperationException(); }
     }
 }

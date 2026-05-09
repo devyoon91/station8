@@ -81,6 +81,25 @@ station8.datasources.target-mart.password=${DB_TARGET_MART_PASSWORD}
 
 운영 시 `/admin/datasources`에서 등록 목록 / 풀 상태 확인 + Test connection ping 가능.
 
+#### 어드민 UI에서 동적 등록 (#110)
+
+`application.properties`에 선언하지 않고 운영 중에 즉시 추가하고 싶으면:
+
+1. `/admin/datasources` → **+ New DataSource** 클릭
+2. 이름 / JDBC URL / 사용자 / 비밀번호 / (선택) Driver / Dialect / Hikari 옵션(JSON) 입력
+3. **Create** — 검증 + 풀 생성 + 즉시 활성화. health check 결과(OK / DOWN)가 상단 배너로 표시
+4. 부팅 후에도 `U_LINE_DATASOURCE`에 영속화 → 다음 부팅에 자동 로드
+
+수정/삭제도 같은 페이지에서. 수정 시 connection pool은 즉시 graceful drain 후 새 설정으로 swap (in-flight 트랜잭션 안전 종료 후 옛 풀 close).
+
+| Source | 설명 | UI 권한 |
+|--------|------|---------|
+| **PRIMARY** | 엔진 상태 DB (Spring autoconfig 또는 `station8.datasources.primary`) | Test connection만 |
+| **STATIC** | `application.properties`의 `station8.datasources.<name>.*` | Test connection만 |
+| **DYNAMIC** | `U_LINE_DATASOURCE` 테이블 — UI에서 등록 | Test / Edit / Toggle / Delete |
+
+> 이름 충돌 시 정적 win — UI에서 `application.properties`와 같은 이름 등록 시도 시 거부됨.
+
 > **트랜잭션 주의**: 두 DS를 R/W하는 액티비티는 각각 별개 트랜잭션이라 부분 실패 시 데이터 불일치 가능 → 멱등 키 / upsert(MERGE) / DLQ 재처리 패턴으로 운영자가 책임 (XA/JTA 비도입). 자세한 토론은 [#111](https://github.com/devyoon91/station8/issues/111).
 
 ### 1.4. 재시도 vs 영구 실패

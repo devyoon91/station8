@@ -23,6 +23,13 @@ import java.util.Set;
  * <p>{@code primary}는 항상 등록되어 있다 — D2(c) 결정에 따라
  * ``station8.datasources.primary``가 명시되면 그것을, 아니면 ``spring.datasource``의
  * 자동 구성 DataSource를 가리킨다.</p>
+ *
+ * <p>등록 출처(#110):</p>
+ * <ul>
+ *   <li>{@code primary} — Spring autoconfig 또는 station8.datasources.primary (절대 unregister 불가)</li>
+ *   <li>STATIC — application.properties의 station8.datasources.&lt;name&gt;.* (UI에서 수정 불가)</li>
+ *   <li>DYNAMIC — 어드민 UI에서 등록(#110)된 항목, U_LINE_DATASOURCE에 영속화 (UI에서 수정/삭제 가능)</li>
+ * </ul>
  */
 public interface DataSourceRegistry {
 
@@ -46,6 +53,49 @@ public interface DataSourceRegistry {
 
     /** 단일 이름의 메타데이터 + 풀 통계 스냅샷. */
     DataSourceInfo info(String name);
+
+    /** 등록 출처(STATIC = properties / DYNAMIC = UI). primary는 항상 PRIMARY. 미등록은 NONE. */
+    Source sourceOf(String name);
+
+    /**
+     * 동적(UI) 등록 — 풀 빌드 + health check + registry에 추가. 이름 충돌 시 예외.
+     * 본 메서드가 던지는 예외는 호출자(서비스/컨트롤러)가 잡아 사용자에게 노출한다.
+     *
+     * @param spec 등록할 raw 설정
+     * @return 등록 직후 health check 결과 — DOWN이어도 등록은 유지(D5)
+     */
+    TestResult register(DynamicSpec spec);
+
+    /**
+     * 동적 항목의 풀을 즉시 graceful-drain하고 새 풀로 교체한다(D2). 정적/primary는 불가.
+     */
+    TestResult swap(DynamicSpec spec);
+
+    /** 동적 항목 풀 close + registry에서 제거. 정적/primary는 불가. */
+    void unregister(String name);
+
+    /**
+     * 동적 등록 spec — 어드민 UI 폼 / 부팅 로더가 동일하게 사용.
+     *
+     * @param name           이름 (정적 또는 primary와 충돌 불가)
+     * @param jdbcUrl        JDBC URL
+     * @param username       접속 계정
+     * @param password       비밀번호 (plain text — D9(a))
+     * @param driverClass    드라이버 클래스 (null/blank이면 URL에서 자동 추론)
+     * @param dialect        명시 dialect (null/blank이면 URL에서 추론)
+     * @param hikariOptions  Hikari 옵션 raw map (key: maximum-pool-size 등)
+     */
+    record DynamicSpec(
+            String name,
+            String jdbcUrl,
+            String username,
+            String password,
+            String driverClass,
+            String dialect,
+            java.util.Map<String, String> hikariOptions
+    ) {}
+
+    enum Source { PRIMARY, STATIC, DYNAMIC, NONE }
 
     /**
      * Test 결과.

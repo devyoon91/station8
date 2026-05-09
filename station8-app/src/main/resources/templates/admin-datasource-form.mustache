@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>{{title}} — Station8</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/design.css">
+    <style>
+        .ds-form { display: grid; grid-template-columns: 1fr; gap: var(--space-md); max-width: 720px; }
+        .ds-form label { display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--ink); }
+        .ds-form .hint { color: var(--mute); font-size: 0.85em; margin-top: var(--space-xs); }
+        .ds-form input[type=text],
+        .ds-form input[type=password],
+        .ds-form textarea {
+            width: 100%; padding: var(--space-sm) var(--space-md);
+            background: var(--surface-2); border: 1px solid var(--line);
+            color: var(--ink); border-radius: var(--radius-sm); font-family: inherit;
+        }
+        .ds-form textarea { font-family: var(--font-mono); font-size: 0.9em; min-height: 6em; }
+        .ds-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+        .ds-form .actions { display: flex; gap: var(--space-md); margin-top: var(--space-lg); }
+    </style>
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <h1 class="swe-display-lg" style="margin: 0;">{{title}}</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">
+                동적 DataSource는 <code>U_LINE_DATASOURCE</code>에 영속화되며, 부팅 시 자동 로드됩니다.
+                비밀번호는 plain text로 저장 — 운영에선 <code>${ENV_VAR}</code> 형태로 환경변수 reference 권장 (시크릿 관리는 #112).
+            </p>
+        </div>
+        <a href="/admin/datasources" class="swe-btn-secondary">← Back</a>
+    </div>
+
+    <form action="{{submitUrl}}" method="post" class="ds-form">
+
+        <div>
+            <label for="name">Name *</label>
+            <input type="text" id="name" name="name" value="{{form.name}}" required pattern="[A-Za-z][A-Za-z0-9_-]*"
+                   {{#isEdit}}readonly disabled{{/isEdit}}>
+            <div class="hint">영문자로 시작 + 영숫자/하이픈/언더스코어. 등록 후 변경 불가. 액티비티에서 <code>ds.jdbc("이 이름")</code>로 호출.</div>
+        </div>
+
+        <div>
+            <label for="jdbcUrl">JDBC URL *</label>
+            <input type="text" id="jdbcUrl" name="jdbcUrl" value="{{form.jdbcUrl}}" required
+                   placeholder="jdbc:mariadb://host:3306/db?useSSL=false">
+        </div>
+
+        <div class="row">
+            <div>
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" value="{{form.username}}">
+            </div>
+            <div>
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" value="{{form.password}}"
+                       placeholder="{{#isEdit}}변경 시에만 입력 (빈칸 = 기존 유지){{/isEdit}}{{^isEdit}}plain text or ${ENV_VAR}{{/isEdit}}">
+                <div class="hint">{{#isEdit}}빈 칸으로 두면 기존 비밀번호 유지.{{/isEdit}}{{^isEdit}}<code>${DB_PASSWORD}</code> 형태로 환경변수 치환 가능.{{/isEdit}}</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div>
+                <label for="driverClass">Driver Class</label>
+                <input type="text" id="driverClass" name="driverClass" value="{{form.driverClass}}"
+                       placeholder="org.mariadb.jdbc.Driver / oracle.jdbc.OracleDriver / org.h2.Driver">
+                <div class="hint">비워두면 URL에서 자동 추론.</div>
+            </div>
+            <div>
+                <label for="dialect">Dialect</label>
+                <input type="text" id="dialect" name="dialect" value="{{form.dialect}}"
+                       placeholder="mariadb / oracle / h2">
+                <div class="hint">비워두면 URL에서 추론. 'oracle' 포함 → OracleDialect, 그 외 → MariaDbDialect.</div>
+            </div>
+        </div>
+
+        <div>
+            <label for="hikariOptionsJson">Hikari Options (JSON)</label>
+            <textarea id="hikariOptionsJson" name="hikariOptionsJson"
+                      placeholder='{"maximum-pool-size":"10","connection-timeout":"30000"}'>{{form.hikariOptionsJson}}</textarea>
+            <div class="hint">Map&lt;String,String&gt; 형태 JSON. 지원 키: <code>maximum-pool-size</code>, <code>minimum-idle</code>,
+                <code>connection-timeout</code>, <code>idle-timeout</code>, <code>max-lifetime</code>,
+                <code>connection-test-query</code>, <code>auto-commit</code>.</div>
+        </div>
+
+        <div>
+            <label>
+                <input type="checkbox" name="enabled" value="Y" {{#form.enabled}}checked{{/form.enabled}}>
+                Enabled — 체크 해제 시 풀 미생성 / 비활성화 (DB 행은 유지)
+            </label>
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="swe-btn-primary">{{submitLabel}}</button>
+            <a href="/admin/datasources" class="swe-btn-secondary">Cancel</a>
+        </div>
+
+    </form>
+
+</div>
+</body>
+</html>
