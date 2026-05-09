@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/logo/station8.svg" alt="Station8" width="320">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/station8-dark.svg">
+    <img src="assets/logo/station8-light.svg" alt="Station8" width="320">
+  </picture>
 </p>
 
 # Station8
