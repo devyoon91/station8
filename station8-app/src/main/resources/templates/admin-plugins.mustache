@@ -19,6 +19,9 @@
                 {{^dirExists}}<span style="color: var(--accent-yellow);">(디렉토리 없음 — 업로드 시 자동 생성)</span>{{/dirExists}}
             </p>
         </div>
+        <form action="/admin/plugins/reload" method="post" style="margin: 0;">
+            <button type="submit" class="swe-btn-tertiary" title="새로 업로드된 jar의 @Activity를 등록 (Add only)">↻ Reload now</button>
+        </form>
     </div>
 
     <!-- 인증 미적용 경고 (#121에서 Spring Security 도입 시 제거 가능) -->
@@ -32,6 +35,34 @@
         <code style="color: var(--ink); font-size: 0.95em;">{{uploadMsg}}</code>
     </div>
     {{/uploadMsg}}
+
+    {{#reloadMsg}}
+    <div class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid {{#reloadOk}}var(--accent-green){{/reloadOk}}{{^reloadOk}}var(--accent-pink){{/reloadOk}};">
+        <code style="color: var(--ink); font-size: 0.95em;">{{reloadMsg}}</code>
+        {{#hasAdded}}
+        <div style="margin-top: var(--space-sm);"><strong style="color: var(--accent-green);">Added:</strong>
+            {{#reloadAdded}}<code style="margin: 0 var(--space-xs);">{{name}}</code>{{/reloadAdded}}
+        </div>
+        {{/hasAdded}}
+        {{#hasConflicts}}
+        <div style="margin-top: var(--space-sm);"><strong style="color: var(--accent-yellow);">Conflicts (skipped):</strong>
+            {{#reloadConflicts}}<code style="margin: 0 var(--space-xs);">{{name}}</code>{{/reloadConflicts}}
+        </div>
+        {{/hasConflicts}}
+        {{#hasSkippedJars}}
+        <div style="margin-top: var(--space-sm); color: var(--mute);"><strong>Skipped jars (no new activities):</strong>
+            {{#reloadSkippedJars}}<code style="margin: 0 var(--space-xs);">{{name}}</code>{{/reloadSkippedJars}}
+        </div>
+        {{/hasSkippedJars}}
+        {{#hasFailedJars}}
+        <div style="margin-top: var(--space-sm);"><strong style="color: var(--accent-pink);">Failed jars:</strong>
+            <ul style="margin: var(--space-xs) 0 0; padding-left: var(--space-lg);">
+            {{#reloadFailedJars}}<li><code>{{name}}</code> — {{error}}</li>{{/reloadFailedJars}}
+            </ul>
+        </div>
+        {{/hasFailedJars}}
+    </div>
+    {{/reloadMsg}}
 
     <!-- 업로드 폼 -->
     <div class="swe-card swe-mb-xl">

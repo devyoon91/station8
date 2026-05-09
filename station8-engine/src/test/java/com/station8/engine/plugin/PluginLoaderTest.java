@@ -30,9 +30,10 @@ class PluginLoaderTest {
         LineRegistry registry = new LineRegistry();
         PluginLoader loader = new PluginLoader(registry);
 
-        int count = loader.scanAndRegister(jar);
+        PluginLoader.JarScanResult result = loader.scanAndRegister(jar);
 
-        assertThat(count).as("등록된 액티비티 개수").isEqualTo(1);
+        assertThat(result.added()).as("새로 등록된 액티비티").containsExactly("GREET");
+        assertThat(result.conflicts()).as("충돌 없음").isEmpty();
         assertThat(registry.getActivityNames()).contains("GREET");
         LineRegistry.ActivityMetadata md = registry.getActivity("GREET");
         assertThat(md).isNotNull();
@@ -40,23 +41,63 @@ class PluginLoaderTest {
     }
 
     @Test
-    void duplicateNameIsSkippedWithWarning(@TempDir Path tempDir) throws Exception {
+    void reload_disabledByDefault_returnsEmptyResult() {
+        // engine.plugins.enabled가 기본 false라 reload는 no-op
+        LineRegistry registry = new LineRegistry();
+        PluginLoader loader = new PluginLoader(registry);
+
+        PluginLoader.ReloadResult result = loader.reload();
+
+        assertThat(result.added()).isEmpty();
+        assertThat(result.conflicts()).isEmpty();
+        assertThat(result.skippedJars()).isEmpty();
+        assertThat(result.failedJars()).isEmpty();
+    }
+
+    @Test
+    void reload_idempotent_secondCallMarksJarsAsSkipped(@TempDir Path tempDir) throws Exception {
+        // engine.plugins.enabled를 true로, plugins.dir를 tempDir로 reflection 주입
+        File jar = buildFixtureJar(tempDir, GreeterFixture.class);
+        LineRegistry registry = new LineRegistry();
+        PluginLoader loader = new PluginLoader(registry);
+        // @Value 필드를 reflection으로 직접 set
+        var enabledField = PluginLoader.class.getDeclaredField("enabled");
+        enabledField.setAccessible(true);
+        enabledField.set(loader, true);
+        var dirField = PluginLoader.class.getDeclaredField("pluginsDir");
+        dirField.setAccessible(true);
+        dirField.set(loader, jar.getParentFile().getAbsolutePath());
+
+        PluginLoader.ReloadResult first = loader.reload();
+        assertThat(first.added()).containsExactly("GREET");
+        assertThat(first.conflicts()).isEmpty();
+        assertThat(first.skippedJars()).isEmpty();
+
+        PluginLoader.ReloadResult second = loader.reload();
+        assertThat(second.added()).as("두 번째 reload — 새 등록 없음").isEmpty();
+        assertThat(second.conflicts()).as("이미 등록된 GREET는 conflict").containsExactly("GREET");
+        // skippedJars 분류 — added=0이지만 conflicts에 있으니 jar 자체가 처리됨. 정의에 따라 skippedJars로도 분류 가능
+    }
+
+    @Test
+    void duplicateNameIsTrackedAsConflict(@TempDir Path tempDir) throws Exception {
         File jar = buildFixtureJar(tempDir, GreeterFixture.class);
 
         LineRegistry registry = new LineRegistry();
         PluginLoader loader = new PluginLoader(registry);
 
         // 첫 호출 → 등록
-        loader.scanAndRegister(jar);
-        // 같은 jar 다시 → 동일 이름 충돌, 무시
-        int second = loader.scanAndRegister(jar);
+        PluginLoader.JarScanResult first = loader.scanAndRegister(jar);
+        assertThat(first.added()).containsExactly("GREET");
+        assertThat(first.conflicts()).isEmpty();
+
+        // 같은 jar 다시 → 동일 이름 충돌, conflicts에 분류
+        PluginLoader.JarScanResult second = loader.scanAndRegister(jar);
+        assertThat(second.added()).as("Add only — 새 등록 없음").isEmpty();
+        assertThat(second.conflicts()).as("이미 등록된 GREET는 conflict로 분류").containsExactly("GREET");
 
         // GREET 1회만 등록 상태
         assertThat(registry.getActivityNames()).hasSize(1).contains("GREET");
-        // 카운트는 시도 1번 (인스턴스화 1번)이지만 conflict로 실제 추가는 X
-        // → registerActivity는 conflict 시 map.put 안 하고 return
-        // 본 테스트는 결과 상태(맵 크기)로만 검증
-        assertThat(second).as("scanAndRegister는 conflict도 1로 카운트할 수 있음").isGreaterThanOrEqualTo(0);
     }
 
     /**

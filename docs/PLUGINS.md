@@ -129,9 +129,29 @@ engine.plugins.enabled=false
 
 또는 jar를 `plugins/` 외부로 이동 후 재시작.
 
-### 5-3. 핫 리로드 (현재 미지원)
+### 5-3. 핫 리로드 (#103)
 
-현재 PluginLoader는 부팅 시 1회만 스캔합니다. 운영 중 jar 교체는 **앱 재시작 필요**. 핫 리로드는 후속 마일스톤에서 검토.
+`/admin/plugins`의 **↻ Reload now** 버튼 또는 `POST /admin/plugins/reload`로 앱 재시작 없이 `plugins/` 디렉토리를 다시 스캔.
+
+**Add only 모드 (D1=a):**
+- 새로 발견된 `@Activity`만 등록. 기존 등록은 변경 없음.
+- 같은 이름이 이미 등록되어 있으면 conflict로 분류 + WARN 로그 + skip.
+- "v2 → v3 교체"는 본 모드에서 지원 안 함 — 재시작 또는 별개 후속 이슈에서.
+
+**ClassLoader 라이프사이클 (D2=b):**
+- 매 reload마다 모든 jar에 새 `URLClassLoader` 생성.
+- 새 등록이 0건인 jar(이미 등록 끝났거나 conflict로 모두 skip된 경우)는 즉시 close → 메모리 누적 최소화.
+- 새로 등록된 jar의 ClassLoader는 활동 인스턴스가 reference하므로 JVM 종료까지 살아있음.
+
+**응답 분류 (D6):**
+- `added` — 이번 reload에서 새로 등록된 액티비티 이름
+- `conflicts` — 같은 이름이 이미 있어 무시된 액티비티
+- `skippedJars` — 새 등록 0건이었던 jar (다음 reload에도 동일)
+- `failedJars` — 로드/스캔 실패 jar + 사유
+
+**동시성:** reload는 `synchronized`로 직렬화. 동시 호출 시 두 번째는 첫 번째 종료까지 대기.
+
+**자동 트리거 미지원:** 명시적 버튼/API 호출만. 파일시스템 watcher는 비범위.
 
 ## 6. 디버깅
 
