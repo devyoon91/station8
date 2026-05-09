@@ -1,6 +1,7 @@
 package com.station8.engine.core;
 
 import com.station8.engine.entity.ActivityExecution;
+import com.station8.engine.entity.LineInstance;
 import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
@@ -92,6 +93,14 @@ public class DagInterpreter {
      */
     @Transactional
     public void onNodeCompleted(String instanceId, String completedNodeId) {
+        // #101 — 인스턴스가 TERMINATED면 fan-out 차단 (RUNNING 액티비티가 늦게 완료되어도 후행 활성화 안 함)
+        LineInstance instance = activityRepository.findInstanceById(instanceId);
+        if (instance != null && "TERMINATED".equals(instance.statusSt())) {
+            log.info("Instance is TERMINATED — fan-out blocked: instanceId={}, completedNodeId={}",
+                    instanceId, completedNodeId);
+            return;
+        }
+
         List<LineTrack> outgoing = definitionRepository.findOutgoingEdges(completedNodeId);
         if (outgoing.isEmpty()) {
             log.debug("Terminal node completed: instanceId={}, nodeId={}", instanceId, completedNodeId);

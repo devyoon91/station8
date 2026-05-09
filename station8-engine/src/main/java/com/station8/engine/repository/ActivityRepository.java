@@ -107,5 +107,14 @@ public interface ActivityRepository {
      * 실패하거나 중단된 작업을 다시 PENDING 상태로 복구합니다.
      */
     void resetToPending(String executionId);
+
+    /**
+     * 인스턴스 종료(#101) 시 — {@code PENDING} / {@code WAITING_DEPENDENCIES} 액티비티들을 한 번에
+     * 새 상태(예: {@code TERMINATED})로 전이한다. {@code RUNNING}/{@code COMPLETED}/{@code FAILED}는
+     * 영향 없음.
+     *
+     * @return 영향받은 행 수
+     */
+    int bulkUpdateNotStartedStatuses(String instanceId, String toStatus);
 }
 
