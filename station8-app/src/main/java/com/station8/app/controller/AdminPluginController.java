@@ -1,5 +1,6 @@
 package com.station8.app.controller;
 
+import com.station8.engine.plugin.PluginLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,9 +54,12 @@ public class AdminPluginController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final String pluginsDir;
+    private final PluginLoader pluginLoader;
 
-    public AdminPluginController(@Value("${engine.plugins.dir:plugins}") String pluginsDir) {
+    public AdminPluginController(@Value("${engine.plugins.dir:plugins}") String pluginsDir,
+                                 PluginLoader pluginLoader) {
         this.pluginsDir = pluginsDir;
+        this.pluginLoader = pluginLoader;
     }
 
     @GetMapping
@@ -88,6 +92,43 @@ public class AdminPluginController {
         model.addAttribute("maxSizeMb", MAX_FILE_BYTES / 1024 / 1024);
         model.addAttribute("navAdminPlugins", true);
         return "admin-plugins";
+    }
+
+    /**
+     * #103 — 핫 리로드. PluginLoader가 ``synchronized``로 직렬화하므로 동시 호출 안전.
+     */
+    @PostMapping("/reload")
+    public String reload(RedirectAttributes flash) {
+        try {
+            PluginLoader.ReloadResult r = pluginLoader.reload();
+            StringBuilder msg = new StringBuilder("[OK] Reload 완료 — ");
+            msg.append("added=").append(r.added().size())
+               .append(", conflicts=").append(r.conflicts().size())
+               .append(", skippedJars=").append(r.skippedJars().size())
+               .append(", failedJars=").append(r.failedJars().size());
+            flash.addFlashAttribute("reloadMsg", msg.toString());
+            flash.addFlashAttribute("reloadOk", true);
+            // Mustache 렌더용 — String 리스트는 {{name}} 키로 감싸서 list of maps
+            flash.addFlashAttribute("reloadAdded", r.added().stream()
+                    .map(n -> Map.of("name", n)).toList());
+            flash.addFlashAttribute("reloadConflicts", r.conflicts().stream()
+                    .map(n -> Map.of("name", n)).toList());
+            flash.addFlashAttribute("reloadSkippedJars", r.skippedJars().stream()
+                    .map(n -> Map.of("name", n)).toList());
+            flash.addFlashAttribute("reloadFailedJars", r.failedJars().stream()
+                    .map(f -> Map.<String, Object>of("name", f.name(), "error", f.error())).toList());
+            flash.addFlashAttribute("hasAdded", !r.added().isEmpty());
+            flash.addFlashAttribute("hasConflicts", !r.conflicts().isEmpty());
+            flash.addFlashAttribute("hasSkippedJars", !r.skippedJars().isEmpty());
+            flash.addFlashAttribute("hasFailedJars", !r.failedJars().isEmpty());
+            log.info("Plugin reload triggered: added={}, conflicts={}, skipped={}, failed={}",
+                    r.added().size(), r.conflicts().size(), r.skippedJars().size(), r.failedJars().size());
+        } catch (Exception ex) {
+            log.warn("Plugin reload failed: {}: {}", ex.getClass().getSimpleName(), ex.getMessage());
+            flash.addFlashAttribute("reloadMsg", "[FAIL] Reload 실패: " + ex.getMessage());
+            flash.addFlashAttribute("reloadOk", false);
+        }
+        return "redirect:/admin/plugins";
     }
 
     @PostMapping

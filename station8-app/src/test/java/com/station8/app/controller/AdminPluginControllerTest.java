@@ -174,6 +174,33 @@ class AdminPluginControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("jar</span>")));
     }
 
+    /**
+     * #103 reload 검증 — engine.plugins.enabled=false (테스트 기본)이라 added=0이지만,
+     * 엔드포인트 동작 + redirect + flash 메시지 자체 동작 검증.
+     */
+    @Test
+    void reload_returns_redirect_andFlashSummary() throws Exception {
+        var result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/admin/plugins/reload"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/plugins"))
+                .andReturn();
+
+        var flash = result.getFlashMap();
+        org.assertj.core.api.Assertions.assertThat(flash.get("reloadOk")).isEqualTo(true);
+        org.assertj.core.api.Assertions.assertThat((String) flash.get("reloadMsg"))
+                .startsWith("[OK] Reload 완료");
+    }
+
+    @Test
+    void list_pageRendersReloadButton() throws Exception {
+        mockMvc.perform(get("/admin/plugins"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "/admin/plugins/reload")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Reload now")));
+    }
+
     /** 가장 짧은 유효 jar — 매니페스트만 있고 클래스 없음. */
     private static byte[] buildMinimalJar() throws Exception {
         Manifest manifest = new Manifest();
