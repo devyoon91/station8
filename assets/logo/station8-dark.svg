@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Station8 가로 lockup — dark 변형.
+  GitHub 다크 테마 / 어두운 배경에서 사용. 트랙·워드마크 = #e6edf3 (GitHub 다크 본문 색).
+  역 링만 8호선 핑크 고정. 역 안쪽은 다크 표면 #0d1117.
+  README의 <picture> source media="(prefers-color-scheme: dark)"용.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 100" fill="none" role="img" aria-label="Station8">
+  <title>Station8</title>
+  <g transform="translate(8,5)">
+    <path d="M 50 14 C 30 14 30 42 50 50 C 70 58 70 86 50 86 C 30 86 30 58 50 50 C 70 42 70 14 50 14 Z"
+          stroke="#e6edf3" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="50" cy="14" r="7" fill="#0d1117" stroke="#e6197f" stroke-width="4"/>
+    <circle cx="50" cy="86" r="7" fill="#0d1117" stroke="#e6197f" stroke-width="4"/>
+  </g>
+  <text x="120" y="66" font-family="Inter, system-ui, -apple-system, sans-serif"
+        font-weight="600" font-size="48" fill="#e6edf3" letter-spacing="-1.5">Station8</text>
+</svg>
