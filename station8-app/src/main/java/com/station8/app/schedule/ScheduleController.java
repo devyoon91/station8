@@ -1,5 +1,6 @@
 package com.station8.app.schedule;
 
+import com.station8.app.util.PaginationModel;
 import com.station8.engine.entity.LineSchedule;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -40,10 +41,16 @@ public class ScheduleController {
     // ========== UI ==========
 
     @GetMapping("/line/schedules")
-    public String list(Model model) {
-        List<LineSchedule> all = scheduleService.listAll();
-        // Mustache view용 — isPaused boolean을 미리 계산 (helper 미지원 회피)
-        List<java.util.Map<String, Object>> view = all.stream().map(s -> {
+    public String list(@RequestParam(value = "page", required = false) Integer page,
+                       @RequestParam(value = "size", required = false) Integer size,
+                       Model model) {
+        int pageSize = PaginationModel.normalizeSize(size);
+        long totalCount = scheduleService.count();
+        int totalPages = (totalCount <= 0) ? 0 : (int) ((totalCount + pageSize - 1) / pageSize);
+        int currPage = PaginationModel.normalizePage(page, totalPages);
+
+        List<LineSchedule> rows = scheduleService.listPage(currPage * pageSize, pageSize);
+        List<java.util.Map<String, Object>> view = rows.stream().map(s -> {
             java.util.Map<String, Object> m = new java.util.HashMap<>();
             m.put("id", s.id());
             m.put("definitionId", s.definitionId());
@@ -55,10 +62,14 @@ public class ScheduleController {
             return m;
         }).toList();
         model.addAttribute("schedules", view);
-        model.addAttribute("activeCount", all.stream().filter(s -> "N".equals(s.pausedFl())).count());
-        model.addAttribute("pausedCount", all.stream().filter(s -> "Y".equals(s.pausedFl())).count());
-        model.addAttribute("totalCount", all.size());
-        // nav active
+
+        // 헤더 통계 — 페이지 외 전체 기준. GROUP BY PAUSED_FL 한 방으로 처리.
+        Map<String, Long> byPaused = scheduleService.countByPaused();
+        model.addAttribute("activeCount", byPaused.getOrDefault("N", 0L));
+        model.addAttribute("pausedCount", byPaused.getOrDefault("Y", 0L));
+        model.addAttribute("totalCount", totalCount);
+        model.addAttribute("pagination",
+                PaginationModel.build("/line/schedules", currPage, pageSize, totalCount, Map.of()));
         model.addAttribute("navSchedules", true);
         return "schedules";
     }

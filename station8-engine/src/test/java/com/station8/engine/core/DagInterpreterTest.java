@@ -32,6 +32,9 @@ class DagInterpreterTest {
 
     private static final DbDialect H2_DIALECT = new DbDialect() {
         @Override public String limit(int limit) { return " FETCH FIRST " + limit + " ROWS ONLY"; }
+        @Override public String offsetLimit(int offset, int limit) {
+            return "OFFSET " + offset + " ROWS FETCH NEXT " + limit + " ROWS ONLY";
+        }
         @Override public String currentTimestamp() { return "CURRENT_TIMESTAMP"; }
     };
 
@@ -49,7 +52,7 @@ class DagInterpreterTest {
 
         jdbcTemplate = new JdbcTemplate(dataSource);
         activityRepo = new JdbcActivityRepository(jdbcTemplate, H2_DIALECT);
-        defRepo = new JdbcLineDefinitionRepository(jdbcTemplate);
+        defRepo = new JdbcLineDefinitionRepository(jdbcTemplate, H2_DIALECT);
 
         DagValidator validator = new DagValidator();
         // 본 인터프리터 테스트는 검증을 우회 (모든 activity 이름이 등록된 것으로 가정)

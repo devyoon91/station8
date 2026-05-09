@@ -49,6 +49,9 @@ public class JdbcActivityRepositoryTest {
     void init() {
         repository = new JdbcActivityRepository(jdbcTemplate, new com.station8.engine.dialect.DbDialect() {
             @Override public String limit(int limit) { return " FETCH FIRST " + limit + " ROWS ONLY"; }
+            @Override public String offsetLimit(int offset, int limit) {
+                return "OFFSET " + offset + " ROWS FETCH NEXT " + limit + " ROWS ONLY";
+            }
             @Override public String currentTimestamp() { return "CURRENT_TIMESTAMP"; }
         });
         jdbcTemplate.execute("DELETE FROM H_LINE_ACTIVITY_EXECUTION");

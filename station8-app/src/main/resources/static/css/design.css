@@ -628,3 +628,34 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
   padding: var(--space-section) 0;
   color: var(--mute);
 }
+
+/* ============================================================================
+   Pagination (#97) — 리스트 페이지 공통 네비
+   ============================================================================ */
+.swe-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+.swe-pagination-info { font-size: 13px; color: var(--body); }
+.swe-pagination-pageinfo { margin-left: var(--space-xs); }
+.swe-pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.swe-pagination-size {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.swe-pagination-size .swe-pill { font-size: 13px; padding: 4px 8px; min-width: 34px; text-align: center; }
+.swe-pagination-disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+@media (max-width: 768px) {
+  .swe-pagination { justify-content: center; }
+}

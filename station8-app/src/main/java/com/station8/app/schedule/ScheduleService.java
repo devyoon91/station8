@@ -70,6 +70,24 @@ public class ScheduleService {
         return scheduleRepository.findAll();
     }
 
+    /** 페이지 조회 (#97). */
+    @Transactional(readOnly = true)
+    public List<LineSchedule> listPage(int offset, int limit) {
+        return scheduleRepository.findPage(offset, limit);
+    }
+
+    /** 살아있는 스케줄 총 행 수 (#97). */
+    @Transactional(readOnly = true)
+    public long count() {
+        return scheduleRepository.count();
+    }
+
+    /** PAUSED_FL별 카운트 — 헤더 통계용 (#97). */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> countByPaused() {
+        return scheduleRepository.countByPaused();
+    }
+
     @Transactional(readOnly = true)
     public LineSchedule findById(String id) {
         LineSchedule s = scheduleRepository.findById(id);

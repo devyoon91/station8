@@ -2,6 +2,7 @@ package com.station8.app.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.station8.app.util.PaginationModel;
 import com.station8.engine.core.LineExecutor;
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.entity.DlqEntry;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -47,24 +49,27 @@ public class LineMonitoringController {
     }
 
     /**
-     * 전체 라인 인스턴스 목록 대시보드
+     * 전체 라인 인스턴스 목록 대시보드 (#97 페이징 적용).
+     * 필터/페이징은 SQL로 내려가며, 헤더 통계 카드는 ``GROUP BY STATUS_ST`` 한 방.
      */
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(value = "workflowName", required = false) String workflowName,
                             @RequestParam(value = "statusSt", required = false) String statusSt,
                             @RequestParam(value = "instanceId", required = false) String instanceId,
+                            @RequestParam(value = "page", required = false) Integer page,
+                            @RequestParam(value = "size", required = false) Integer size,
                             Model model) {
-        List<LineInstance> instances = activityRepository.findAllInstances();
-        
-        // 필터링 적용 (메모리 필터링 - 소규모 앱용)
-        List<LineInstance> filtered = instances.stream()
-                .filter(i -> workflowName == null || workflowName.isEmpty() || i.workflowName().contains(workflowName))
-                .filter(i -> statusSt == null || statusSt.isEmpty() || i.statusSt().equals(statusSt))
-                .filter(i -> instanceId == null || instanceId.isEmpty() || i.id().contains(instanceId))
-                .collect(Collectors.toList());
+        int pageSize = PaginationModel.normalizeSize(size);
 
-        // Mustache는 helper 미지원 — instance마다 배지 색상 클래스를 미리 계산해 view에 전달
-        List<java.util.Map<String, Object>> instanceViews = filtered.stream().map(i -> {
+        long matchingCount = activityRepository.countInstances(workflowName, statusSt, instanceId);
+        int totalPages = (matchingCount <= 0) ? 0 : (int) ((matchingCount + pageSize - 1) / pageSize);
+        int currPage = PaginationModel.normalizePage(page, totalPages);
+        int offset = currPage * pageSize;
+
+        List<LineInstance> rows = activityRepository.findInstancesPage(
+                workflowName, statusSt, instanceId, offset, pageSize);
+
+        List<java.util.Map<String, Object>> instanceViews = rows.stream().map(i -> {
             String badge = switch (i.statusSt() == null ? "" : i.statusSt()) {
                 case "COMPLETED" -> "success";
                 case "RUNNING" -> "warning";
@@ -81,27 +86,31 @@ public class LineMonitoringController {
             return m;
         }).collect(Collectors.toList());
         model.addAttribute("instances", instanceViews);
-        
-        // 검색 필드 유지를 위해 다시 모델에 추가
+
         model.addAttribute("workflowName", workflowName);
         model.addAttribute("statusSt", statusSt);
         model.addAttribute("instanceId", instanceId);
-        // Mustache(JMustache)는 ``{{#equals}}`` helper 미지원 — selected 상태를 미리 boolean으로 계산
         model.addAttribute("selectedRunning", "RUNNING".equals(statusSt));
         model.addAttribute("selectedCompleted", "COMPLETED".equals(statusSt));
         model.addAttribute("selectedFailed", "FAILED".equals(statusSt));
         model.addAttribute("selectedTerminated", "TERMINATED".equals(statusSt));
-        
-        // 전체 통계 계산 (필터링 전 데이터 기준)
-        long runningCount = instances.stream().filter(i -> "RUNNING".equals(i.statusSt())).count();
-        long completedCount = instances.stream().filter(i -> "COMPLETED".equals(i.statusSt())).count();
-        long failedCount = instances.stream().filter(i -> "FAILED".equals(i.statusSt())).count();
-        
-        model.addAttribute("runningCount", runningCount);
-        model.addAttribute("completedCount", completedCount);
-        model.addAttribute("failedCount", failedCount);
-        model.addAttribute("totalCount", instances.size());
+
+        // 헤더 통계 — 필터와 무관한 글로벌 카운트 (GROUP BY 한 방)
+        Map<String, Long> byStatus = activityRepository.countInstancesByStatus();
+        model.addAttribute("runningCount", byStatus.getOrDefault("RUNNING", 0L));
+        model.addAttribute("completedCount", byStatus.getOrDefault("COMPLETED", 0L));
+        model.addAttribute("failedCount", byStatus.getOrDefault("FAILED", 0L));
+        long totalAll = byStatus.values().stream().mapToLong(Long::longValue).sum();
+        model.addAttribute("totalCount", totalAll);
         model.addAttribute("navDashboard", true);
+
+        // 페이지네이션 — 검색 폼 값 보존
+        Map<String, String> preserve = new LinkedHashMap<>();
+        preserve.put("workflowName", workflowName);
+        preserve.put("statusSt", statusSt);
+        preserve.put("instanceId", instanceId);
+        model.addAttribute("pagination",
+                PaginationModel.build("/line/dashboard", currPage, pageSize, matchingCount, preserve));
 
         return "dashboard";
     }
@@ -271,12 +280,18 @@ public class LineMonitoringController {
     }
 
     /**
-     * DLQ 목록 조회
+     * DLQ 목록 조회 (#97 페이징 적용).
      */
     @GetMapping("/dlq")
-    public String dlqList(Model model) {
-        List<DlqEntry> dlqEntries = dlqRepository.findAll();
-        // view-derived 필드를 미리 계산
+    public String dlqList(@RequestParam(value = "page", required = false) Integer page,
+                          @RequestParam(value = "size", required = false) Integer size,
+                          Model model) {
+        int pageSize = PaginationModel.normalizeSize(size);
+        long totalCount = dlqRepository.count();
+        int totalPages = (totalCount <= 0) ? 0 : (int) ((totalCount + pageSize - 1) / pageSize);
+        int currPage = PaginationModel.normalizePage(page, totalPages);
+
+        List<DlqEntry> dlqEntries = dlqRepository.findPage(currPage * pageSize, pageSize);
         List<java.util.Map<String, Object>> view = dlqEntries.stream().map(e -> {
             java.util.Map<String, Object> m = new java.util.HashMap<>();
             m.put("id", e.id());
@@ -296,13 +311,14 @@ public class LineMonitoringController {
             return m;
         }).toList();
         model.addAttribute("dlqEntries", view);
-        long newCount = dlqEntries.stream().filter(e -> "NEW".equals(e.dlqStatusSt())).count();
-        long requeuedCount = dlqEntries.stream().filter(e -> "REQUEUED".equals(e.dlqStatusSt())).count();
-        long discardedCount = dlqEntries.stream().filter(e -> "DISCARDED".equals(e.dlqStatusSt())).count();
-        model.addAttribute("newCount", newCount);
-        model.addAttribute("requeuedCount", requeuedCount);
-        model.addAttribute("discardedCount", discardedCount);
-        model.addAttribute("totalDlqCount", dlqEntries.size());
+
+        Map<String, Long> byStatus = dlqRepository.countByStatus();
+        model.addAttribute("newCount", byStatus.getOrDefault("NEW", 0L));
+        model.addAttribute("requeuedCount", byStatus.getOrDefault("REQUEUED", 0L));
+        model.addAttribute("discardedCount", byStatus.getOrDefault("DISCARDED", 0L));
+        model.addAttribute("totalDlqCount", totalCount);
+        model.addAttribute("pagination",
+                PaginationModel.build("/line/dlq", currPage, pageSize, totalCount, Map.of()));
         model.addAttribute("navDlq", true);
         return "dlq";
     }

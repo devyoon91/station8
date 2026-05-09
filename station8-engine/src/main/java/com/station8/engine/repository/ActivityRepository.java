@@ -3,6 +3,7 @@ package com.station8.engine.repository;
 import com.station8.engine.entity.ActivityExecution;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * DB 기반 작업 큐 폴링을 위한 리포지토리 인터페이스
@@ -67,6 +68,30 @@ public interface ActivityRepository {
      * 라인 인스턴스 목록을 조회합니다.
      */
     List<com.station8.engine.entity.LineInstance> findAllInstances();
+
+    /**
+     * 인스턴스 페이지 조회 — 필터(부분일치 / 정확일치)와 페이징을 SQL로 처리한다 (#97).
+     * 모든 인자는 ``null``/빈문자 허용 → 해당 조건 무시.
+     *
+     * @param workflowName ``WORKFLOW_NAME LIKE '%name%'``
+     * @param statusSt     ``STATUS_ST = ?`` 정확일치
+     * @param instanceId   ``ID LIKE '%id%'`` 부분일치
+     * @param offset       건너뛸 행 수 (0-based)
+     * @param limit        반환할 최대 행 수
+     */
+    List<com.station8.engine.entity.LineInstance> findInstancesPage(
+            String workflowName, String statusSt, String instanceId, int offset, int limit);
+
+    /**
+     * 동일 필터 조건에서의 총 행 수 (#97 — 페이지 네비용).
+     */
+    long countInstances(String workflowName, String statusSt, String instanceId);
+
+    /**
+     * 상태별 인스턴스 카운트 — Dashboard 헤더 통계 카드용 (#97).
+     * 키는 ``STATUS_ST`` 그대로(예: RUNNING/COMPLETED/FAILED). 값은 행 수.
+     */
+    Map<String, Long> countInstancesByStatus();
 
     /**
      * 특정 인스턴스의 상세 정보를 조회합니다.

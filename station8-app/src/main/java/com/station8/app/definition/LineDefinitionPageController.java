@@ -2,12 +2,14 @@ package com.station8.app.definition;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.station8.app.util.PaginationModel;
 import com.station8.engine.entity.LineDefinition;
 import com.station8.engine.repository.LineDefinitionRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.HashMap;
 import java.util.List;
@@ -39,8 +41,16 @@ public class LineDefinitionPageController {
     }
 
     @GetMapping("/line/definitions")
-    public String list(Model model) {
-        List<LineDefinition> defs = definitionRepository.findAllActiveDefinitions();
+    public String list(@RequestParam(value = "page", required = false) Integer page,
+                       @RequestParam(value = "size", required = false) Integer size,
+                       Model model) {
+        int pageSize = PaginationModel.normalizeSize(size);
+        long totalCount = definitionRepository.countActiveDefinitions();
+        int totalPages = (totalCount <= 0) ? 0 : (int) ((totalCount + pageSize - 1) / pageSize);
+        int currPage = PaginationModel.normalizePage(page, totalPages);
+
+        List<LineDefinition> defs = definitionRepository.findActiveDefinitionsPage(
+                currPage * pageSize, pageSize);
         List<Map<String, Object>> rows = defs.stream().map(d -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", d.id());
@@ -51,7 +61,9 @@ public class LineDefinitionPageController {
             return m;
         }).toList();
         model.addAttribute("definitions", rows);
-        model.addAttribute("totalCount", rows.size());
+        model.addAttribute("totalCount", totalCount);
+        model.addAttribute("pagination",
+                PaginationModel.build("/line/definitions", currPage, pageSize, totalCount, Map.of()));
         model.addAttribute("navLines", true);
         return "definitions";
     }

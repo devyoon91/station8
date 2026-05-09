@@ -10,7 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class JdbcLineScheduleRepository implements LineScheduleRepository {
@@ -53,6 +55,34 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
         return jdbcTemplate.query(
                 "SELECT * FROM U_LINE_SCHEDULE WHERE DEL_FL = 'N' ORDER BY REG_DT DESC",
                 new ScheduleMapper());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LineSchedule> findPage(int offset, int limit) {
+        // 만료 임박 순(NEXT_RUN_DT ASC). NULL은 마지막에 — H2/MariaDB/Oracle 모두 ``ORDER BY ... NULLS LAST``
+        // 또는 ``CASE WHEN NEXT_RUN_DT IS NULL THEN 1 ELSE 0 END`` 보조 키. 후자가 모든 dialect에서 동작.
+        String sql = "SELECT * FROM U_LINE_SCHEDULE WHERE DEL_FL = 'N' "
+                + "ORDER BY CASE WHEN NEXT_RUN_DT IS NULL THEN 1 ELSE 0 END, NEXT_RUN_DT ASC, REG_DT DESC "
+                + dbDialect.offsetLimit(offset, limit);
+        return jdbcTemplate.query(sql, new ScheduleMapper());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long count() {
+        Long n = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM U_LINE_SCHEDULE WHERE DEL_FL = 'N'", Long.class);
+        return n == null ? 0L : n;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Long> countByPaused() {
+        String sql = "SELECT PAUSED_FL, COUNT(*) FROM U_LINE_SCHEDULE WHERE DEL_FL = 'N' GROUP BY PAUSED_FL";
+        Map<String, Long> out = new HashMap<>();
+        jdbcTemplate.query(sql, rs -> { out.put(rs.getString(1), rs.getLong(2)); });
+        return out;
     }
 
     @Override
