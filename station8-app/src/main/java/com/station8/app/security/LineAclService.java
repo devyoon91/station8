@@ -12,7 +12,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * #140 — 라인 정의별 ACL 평가 SPI. SpEL bean으로 노출 — {@code @PreAuthorize("@lineAcl.canExecute(#id)")}.
@@ -25,9 +27,10 @@ import java.util.List;
  *   <li>ACL entry 있음 → 사용자의 명시 grant만 인정. {@code ADMIN}은 {WRITE/EXECUTE/SCHEDULE/READ} 자동 cascade</li>
  * </ol>
  *
- * <h3>READ 정책 (1차 비범위)</h3>
- * <p>1차 스코프: WRITE/EXECUTE/SCHEDULE만 enforce. READ는 모든 인증된 USER 자동 통과.
- * Dashboard/list 필터링은 별도 follow-up 이슈.</p>
+ * <h3>READ enforcement (#159)</h3>
+ * <p>{@link #visibleDefinitionIds(java.util.Collection)} / {@link #visibleWorkflowNames(java.util.Collection)}로
+ * 라인 정의 list / Dashboard / DLQ / Schedules 페이지에서 사용자별 가시성 필터를 제공.
+ * legacy 정의(ACL 0건)는 모든 인증된 USER에게 노출되므로 후방 호환 유지.</p>
  *
  * <h3>인스턴스 → 정의 해석</h3>
  * <p>인스턴스는 정의 ID가 아닌 {@code workflowName}만 보유. {@link #canExecuteInstance(String)}는
@@ -101,6 +104,63 @@ public class LineAclService {
             return false;  // 글로벌 ADMIN은 위에서 이미 통과
         }
         return canExecute(def.id());
+    }
+
+    // ========== #159 — list 필터링 (Dashboard / DLQ / Schedules / Definitions) ==========
+
+    /**
+     * 현재 사용자가 볼 수 있는 라인 정의 ID 집합.
+     *
+     * <ul>
+     *   <li>{@code null} 반환 — 필터 불필요 (글로벌 ADMIN). 호출 측은 모든 행을 노출</li>
+     *   <li>비어 있는 set — 인증 없거나 사용자 매핑 실패 — 아무것도 노출하지 않음</li>
+     *   <li>그 외 set — 명시 grant 가진 정의 + ACL entry 0건인 legacy 정의를 합집합</li>
+     * </ul>
+     *
+     * <p>SQL 1회(ACL entry 보유 정의) + SQL 1회(사용자 grant) + 인메모리 합집합.
+     * Active 정의 enumeration은 호출 측에서 이미 갖고 있으므로 본 메서드는 def 목록을 다시 로드하지 않음 —
+     * 필터 적용은 {@link #filterVisibleDefinitionIds(java.util.Collection)}로 위임.</p>
+     */
+    public Set<String> visibleDefinitionIds(java.util.Collection<String> candidateDefinitionIds) {
+        if (isGlobalAdmin()) return null;
+        if (!isAuthenticated()) return Set.of();
+        String userId = currentUserId();
+        if (userId == null) return Set.of();
+
+        Set<String> withAcl = aclRepo.findDefinitionIdsWithAcl();
+        Set<String> grants = aclRepo.findDefinitionIdsForUser(userId);
+
+        Set<String> visible = new HashSet<>();
+        for (String id : candidateDefinitionIds) {
+            // legacy(ACL 0건) 또는 사용자에게 명시 grant 있는 정의
+            if (!withAcl.contains(id) || grants.contains(id)) visible.add(id);
+        }
+        return visible;
+    }
+
+    /**
+     * {@link #visibleDefinitionIds(java.util.Collection)}와 동일한 의미를 workflow_name 기준으로 반환.
+     * 인스턴스/DLQ는 정의 ID가 아닌 workflow_name(정의 이름)을 보유하므로 dashboard/dlq 필터에 사용.
+     *
+     * @param activeDefinitions 현재 활성 정의 목록 (호출자가 이미 로드)
+     * @return null = 필터 불필요(ADMIN), 그 외 = 노출 가능한 workflow_name 집합
+     */
+    public Set<String> visibleWorkflowNames(java.util.Collection<? extends LineDefinition> activeDefinitions) {
+        if (isGlobalAdmin()) return null;
+        if (!isAuthenticated()) return Set.of();
+        String userId = currentUserId();
+        if (userId == null) return Set.of();
+
+        Set<String> withAcl = aclRepo.findDefinitionIdsWithAcl();
+        Set<String> grants = aclRepo.findDefinitionIdsForUser(userId);
+
+        Set<String> visibleNames = new HashSet<>();
+        for (LineDefinition d : activeDefinitions) {
+            if (!withAcl.contains(d.id()) || grants.contains(d.id())) {
+                if (d.definitionNm() != null) visibleNames.add(d.definitionNm());
+            }
+        }
+        return visibleNames;
     }
 
     private boolean hasPermission(String definitionId, String required) {

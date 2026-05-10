@@ -27,7 +27,8 @@ public record DlqQueryFilter(
         LocalDateTime failedAtFrom,
         LocalDateTime failedAtTo,
         String sortBy,
-        String sortDir
+        String sortDir,
+        Set<String> workflowNameAllowList
 ) {
     public static final Set<String> ALLOWED_SORT = Set.of("REG_DT", "FAILED_AT_DT", "ACTIVITY_NAME");
     public static final Set<String> ALLOWED_DIR = Set.of("ASC", "DESC");
@@ -45,8 +46,22 @@ public record DlqQueryFilter(
         }
     }
 
+    /** #159 이전 8-arg 시그니처 — workflowNameAllowList=null로 위임. */
+    public DlqQueryFilter(String workflowName, String activityName, String errorMessage,
+                          List<String> dlqStatusList, LocalDateTime failedAtFrom, LocalDateTime failedAtTo,
+                          String sortBy, String sortDir) {
+        this(workflowName, activityName, errorMessage, dlqStatusList,
+                failedAtFrom, failedAtTo, sortBy, sortDir, null);
+    }
+
     /** 빈 필터 (전체 조회). */
     public static DlqQueryFilter empty() {
         return new DlqQueryFilter(null, null, null, null, null, null, null, null);
+    }
+
+    /** #159 — workflow_name IN 제약 추가 사본. null=ADMIN/필터 없음, 빈 set=0행. */
+    public DlqQueryFilter withWorkflowNameAllowList(Set<String> allowList) {
+        return new DlqQueryFilter(workflowName, activityName, errorMessage, dlqStatusList,
+                failedAtFrom, failedAtTo, sortBy, sortDir, allowList);
     }
 }

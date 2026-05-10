@@ -247,6 +247,19 @@ public class JdbcActivityRepository implements ActivityRepository {
                 conditions.add("START_DT <= ?");
                 args.add(java.sql.Timestamp.valueOf(f.startDtTo()));
             }
+            // #159 — ACL READ 가시성 필터: WORKFLOW_NAME IN (?, ?, ...)
+            if (f.workflowNameAllowList() != null) {
+                if (f.workflowNameAllowList().isEmpty()) {
+                    // 빈 set → 0행 보장: 항상 false
+                    conditions.add("1=0");
+                } else {
+                    String placeholders = f.workflowNameAllowList().stream()
+                            .map(s -> "?")
+                            .collect(java.util.stream.Collectors.joining(", "));
+                    conditions.add("WORKFLOW_NAME IN (" + placeholders + ")");
+                    args.addAll(f.workflowNameAllowList());
+                }
+            }
         }
         String where() {
             return conditions.isEmpty() ? "" : "WHERE " + String.join(" AND ", conditions);

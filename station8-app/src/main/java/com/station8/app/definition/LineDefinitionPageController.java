@@ -87,15 +87,22 @@ public class LineDefinitionPageController {
         // 정의 수가 더 큰 환경에선 SQL 레벨 필터로 마이그레이션 (별도 이슈).
         List<LineDefinition> allActive = definitionRepository.findActiveDefinitionsPage(0, 10000);
 
+        // #159 — ACL READ 가시성 필터: ADMIN은 null(전체), USER는 명시 grant + legacy 정의만 노출
+        java.util.Set<String> visibleIds = aclService.visibleDefinitionIds(
+                allActive.stream().map(LineDefinition::id).toList());
+        boolean hasVisibilityFilter = visibleIds != null;
+
         // 태그 필터: 매칭 정의 ID 집합 미리 조회
         java.util.Set<String> tagMatchIds = null;
         if (hasTagFilter) {
             tagMatchIds = new java.util.HashSet<>(definitionRepository.findDefinitionIdsByTag(normalizedTag));
         }
 
-        // in-memory 필터 (이름 LIKE + tag IN)
+        // in-memory 필터 (visibility + 이름 LIKE + tag IN)
         java.util.Set<String> finalTagMatchIds = tagMatchIds;
+        java.util.Set<String> finalVisibleIds = visibleIds;
         List<LineDefinition> filtered = allActive.stream()
+                .filter(d -> !hasVisibilityFilter || finalVisibleIds.contains(d.id()))
                 .filter(d -> !hasNameFilter
                         || (d.definitionNm() != null
                             && d.definitionNm().toLowerCase().contains(nameFilter.trim().toLowerCase())))
@@ -133,14 +140,40 @@ public class LineDefinitionPageController {
         model.addAttribute("filterName", hasNameFilter ? nameFilter : null);
         model.addAttribute("filterTag", hasTagFilter ? normalizedTag : null);
 
-        // #142 — 태그 클라우드 (전체 통계, 필터 무관)
-        List<LineDefinitionRepository.TagCount> cloud = definitionRepository.findAllTagsWithCount();
-        model.addAttribute("hasTagCloud", !cloud.isEmpty());
-        model.addAttribute("tagCloud", cloud.stream().map(tc -> Map.of(
-                "tag", tc.tag(),
-                "count", tc.count(),
-                "colorClass", colorClassFor(tc.tag())
-        )).toList());
+        // #142 — 태그 클라우드 (필터/페이징 무관, 단 #159 가시성 필터는 적용)
+        // ADMIN(visibleIds=null)은 single SQL로 빠른 글로벌 카운트, USER는 가시 정의의 태그만 합산.
+        List<Map<String, Object>> tagCloudView;
+        if (!hasVisibilityFilter) {
+            List<LineDefinitionRepository.TagCount> cloud = definitionRepository.findAllTagsWithCount();
+            tagCloudView = cloud.stream().<Map<String, Object>>map(tc -> Map.of(
+                    "tag", tc.tag(),
+                    "count", tc.count(),
+                    "colorClass", colorClassFor(tc.tag())
+            )).toList();
+        } else if (visibleIds.isEmpty()) {
+            tagCloudView = List.of();
+        } else {
+            // 가시 정의의 태그만 합산해 cloud 재구성 (활성 정의 ≤ 10000 가정 — #142와 같음)
+            java.util.Map<String, java.util.List<String>> tagsByVisible =
+                    definitionRepository.findTagsForDefinitions(visibleIds);
+            java.util.Map<String, Long> counts = new java.util.HashMap<>();
+            for (java.util.List<String> tags : tagsByVisible.values()) {
+                for (String t : tags) counts.merge(t, 1L, Long::sum);
+            }
+            tagCloudView = counts.entrySet().stream()
+                    .sorted((a, b) -> {
+                        int byCount = Long.compare(b.getValue(), a.getValue());  // count desc
+                        return byCount != 0 ? byCount : a.getKey().compareTo(b.getKey());  // tag asc
+                    })
+                    .<Map<String, Object>>map(e -> Map.of(
+                            "tag", e.getKey(),
+                            "count", e.getValue(),
+                            "colorClass", colorClassFor(e.getKey())
+                    ))
+                    .toList();
+        }
+        model.addAttribute("hasTagCloud", !tagCloudView.isEmpty());
+        model.addAttribute("tagCloud", tagCloudView);
 
         // 페이지네이션 — 필터 보존
         java.util.LinkedHashMap<String, String> preserve = new java.util.LinkedHashMap<>();

@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -21,9 +22,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * #142 — Builder 태그 input + definitions 페이지 태그 뱃지/필터/클라우드 렌더 검증.
+ *
+ * <p>#159 ACL READ enforcement 도입 후 — 렌더 테스트는 ADMIN으로 인증하여
+ * 가시성 필터 우회. 필터 자체는 {@code AclReadEnforcementTest}에서 검증.</p>
  */
 @SpringBootTest(classes = Application.class)
 @AutoConfigureMockMvc
+@WithMockUser(username = "admin-render", roles = "ADMIN")
 class TagsUiRenderTest {
 
     @Autowired LineDefinitionService service;

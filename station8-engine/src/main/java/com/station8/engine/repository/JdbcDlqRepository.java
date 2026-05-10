@@ -113,6 +113,18 @@ public class JdbcDlqRepository implements DlqRepository {
                 conditions.add("FAILED_AT_DT <= ?");
                 args.add(java.sql.Timestamp.valueOf(f.failedAtTo()));
             }
+            // #159 — ACL READ 가시성 필터: WORKFLOW_NAME IN (?, ?, ...)
+            if (f.workflowNameAllowList() != null) {
+                if (f.workflowNameAllowList().isEmpty()) {
+                    conditions.add("1=0");  // 빈 set → 0행 보장
+                } else {
+                    String placeholders = f.workflowNameAllowList().stream()
+                            .map(s -> "?")
+                            .collect(java.util.stream.Collectors.joining(", "));
+                    conditions.add("WORKFLOW_NAME IN (" + placeholders + ")");
+                    args.addAll(f.workflowNameAllowList());
+                }
+            }
         }
         String where() {
             return conditions.isEmpty() ? "" : "WHERE " + String.join(" AND ", conditions);

@@ -1,6 +1,7 @@
 package com.station8.app.security;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * #140 — U_LINE_DEFINITION_ACL 리포지토리 인터페이스.
@@ -24,4 +25,12 @@ public interface LineAclRepository {
 
     /** 정의의 전체 ACL entry 수 — 0이면 legacy/open 상태로 간주. */
     int countEntriesForDefinition(String definitionId);
+
+    // ========== #159 — list 필터링용 ==========
+
+    /** ACL entry가 1건 이상 있는 정의 ID 집합 — 여기 포함되지 않은 정의는 legacy/open. */
+    Set<String> findDefinitionIdsWithAcl();
+
+    /** 사용자가 어떤 권한이든 보유한 정의 ID 집합 — 명시 grant. */
+    Set<String> findDefinitionIdsForUser(String userId);
 }
