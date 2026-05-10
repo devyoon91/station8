@@ -15,9 +15,10 @@ public record LineInstance(
     String inputData,         // INPUT_DATA (CLOB/LONGTEXT - JSON)
     String outputData,        // OUTPUT_DATA (CLOB/LONGTEXT - JSON)
     String stateData,         // STATE_DATA (CLOB/LONGTEXT - JSON)
+    String runOptions,        // RUN_OPTIONS (#134) — 인스턴스 단위 실행 옵션 raw JSON
     LocalDateTime startDt,    // START_DT
     LocalDateTime endDt,      // END_DT
-    
+
     // 공통 컬럼
     String useFl,             // USE_FL
     String viewFl,            // VIEW_FL
@@ -33,6 +34,7 @@ public record LineInstance(
             workflowName,
             "RUNNING",
             inputData,
+            null,
             null,
             null,
             LocalDateTime.now(),

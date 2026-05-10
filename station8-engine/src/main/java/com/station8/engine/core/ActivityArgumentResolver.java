@@ -20,6 +20,7 @@ import java.util.Map;
  *   <li>{@code String} — 첫 번째 등장 시 ``inputData``를 그대로 전달</li>
  *   <li>{@link DataSourceRegistry} — 멀티 DS 액세스 직접 호출 (#108 D3, #113에서 deprecated 권장)</li>
  *   <li>{@code @BoundDataSource("role") JdbcTemplate} — station 바인딩(#113) 기반 자동 주입</li>
+ *   <li>{@link LineContext} — 인스턴스 메타 + runtime params(#134 D7) 접근</li>
  * </ul>
  *
  * <p>지원하지 않는 타입이 선언되면 {@link IllegalStateException}을 던져 등록 단계가 아닌
@@ -72,6 +73,9 @@ public class ActivityArgumentResolver {
             } else if (t.isAssignableFrom(DataSourceRegistry.class)
                     || DataSourceRegistry.class.isAssignableFrom(t)) {
                 args[i] = dataSourceRegistry;
+            } else if (LineContext.class.isAssignableFrom(t)) {
+                // #134 D7 — LineContext 주입 (runtime params 접근용)
+                args[i] = ctx.lineContext();
             } else {
                 throw new IllegalStateException(
                         "Unsupported activity parameter type: " + t.getName()
@@ -79,7 +83,7 @@ public class ActivityArgumentResolver {
                                 + method.getDeclaringClass().getSimpleName()
                                 + "#" + method.getName()
                                 + " — supported: String (input), DataSourceRegistry, "
-                                + "@BoundDataSource JdbcTemplate");
+                                + "@BoundDataSource JdbcTemplate, LineContext");
             }
         }
         return args;
@@ -90,7 +94,7 @@ public class ActivityArgumentResolver {
      * 새 코드는 {@link #resolve(Method, Context)} 사용 권장.
      */
     public Object[] resolve(Method method, String inputData) {
-        return resolve(method, new Context(inputData, Collections.emptyMap()));
+        return resolve(method, new Context(inputData, Collections.emptyMap(), null));
     }
 
     private JdbcTemplate resolveBoundDataSource(Method method, int paramIndex,
@@ -123,10 +127,19 @@ public class ActivityArgumentResolver {
      *
      * @param inputData          액티비티 입력 페이로드
      * @param datasourceBindings station의 role→DS name 매핑 (null이면 빈 맵으로 처리)
+     * @param lineContext        활동에 주입할 {@link LineContext} (null이면 활동이 LineContext를 인자로
+     *                           받았을 때 null이 주입됨 — 워커가 인스턴스 메타로부터 빌드해 넘긴다)
      */
-    public record Context(String inputData, Map<String, String> datasourceBindings) {
+    public record Context(String inputData,
+                          Map<String, String> datasourceBindings,
+                          LineContext lineContext) {
         public Context {
             if (datasourceBindings == null) datasourceBindings = Collections.emptyMap();
+        }
+
+        /** 후방 호환 — 2-arg 생성자 (lineContext null). */
+        public Context(String inputData, Map<String, String> datasourceBindings) {
+            this(inputData, datasourceBindings, null);
         }
     }
 }

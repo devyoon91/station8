@@ -149,6 +149,41 @@
             빈 값 OK — 입력 없이 실행. 본문은 자유 텍스트(액티비티가 직접 파싱). JSON 강제 X.
         </div>
     </div>
+
+    <!-- #134 — Advanced options (collapsed by default) -->
+    <details style="margin-top:var(--space-md);">
+        <summary style="cursor:pointer; font-weight:600; user-select:none;">Advanced options</summary>
+        <div style="margin-top:var(--space-md); display:flex; flex-direction:column; gap:var(--space-md);">
+            <div>
+                <label for="run-on-failure" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">On failure</label>
+                <select id="run-on-failure"
+                        style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                               color:var(--ink); border-radius:var(--radius-sm); font-size:0.9em;">
+                    <option value="CONTINUE" selected>CONTINUE — 활동 실패 시 다른 활동은 계속 (기본)</option>
+                    <option value="ABORT">ABORT — 활동 최종 실패 시 인스턴스 즉시 종료</option>
+                </select>
+            </div>
+            <div>
+                <label for="run-runtime-params" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">Runtime params (JSON object, optional)</label>
+                <textarea id="run-runtime-params" rows="4" placeholder='{"region": "KR", "tier": "premium"}'
+                          style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                                 color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"></textarea>
+                <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
+                    LineContext.runtimeParams()로 활동에 전달되는 string→string 맵. 비워두면 빈 맵.
+                </div>
+            </div>
+            <div>
+                <label for="run-webhook" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">Notification webhook URL (optional)</label>
+                <input type="text" id="run-webhook" placeholder="https://hooks.example.com/dlq"
+                       style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                              color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"/>
+                <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
+                    DLQ 적재 시 전역 webhook 대신 이 URL로 알림. 비워두면 전역(engine.dlq.webhook-url) 사용.
+                </div>
+            </div>
+        </div>
+    </details>
+
     <div id="run-modal-error" style="display:none; color:var(--accent-pink); font-size:13px; margin-top:var(--space-md);"></div>
     <div style="display:flex; gap:var(--space-md); margin-top:var(--space-lg); justify-content:flex-end;">
         <button type="button" class="swe-btn-tertiary" onclick="closeRunModal()">Cancel</button>
@@ -202,7 +237,35 @@ window.submitRun = async function () {
     submitBtn.textContent = 'Starting…';
     try {
         const inputData = document.getElementById('run-input-data').value.trim();
-        const body = inputData ? { input: inputData } : {};
+
+        // #134 — Advanced options
+        const onFailure = document.getElementById('run-on-failure').value;
+        const paramsRaw = document.getElementById('run-runtime-params').value.trim();
+        const webhook = document.getElementById('run-webhook').value.trim();
+
+        let runtimeParams = null;
+        if (paramsRaw) {
+            try {
+                const parsed = JSON.parse(paramsRaw);
+                if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                    throw new Error('객체(JSON object)여야 합니다');
+                }
+                runtimeParams = parsed;
+            } catch (parseErr) {
+                throw new Error('Runtime params 파싱 실패 — ' + parseErr.message);
+            }
+        }
+
+        // options는 default와 다를 때만 포함 (서버측 default 동작 유지)
+        const options = {};
+        if (onFailure && onFailure !== 'CONTINUE') options.onFailure = onFailure;
+        if (runtimeParams && Object.keys(runtimeParams).length > 0) options.runtimeParams = runtimeParams;
+        if (webhook) options.notificationWebhookUrl = webhook;
+
+        const body = {};
+        if (inputData) body.input = inputData;
+        if (Object.keys(options).length > 0) body.options = options;
+
         const res = await fetch('/api/line/definitions/' + DEFINITION_ID + '/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

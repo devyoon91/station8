@@ -133,6 +133,21 @@ class ActivityArgumentResolverTest {
                 .hasMessageContaining("@BoundDataSource is only supported on JdbcTemplate");
     }
 
+    @Test
+    void resolve_lineContextParameter_injectsContext() throws Exception {
+        // #134 D7 — LineContext 파라미터로 받으면 ctx.lineContext()를 그대로 주입
+        Method m = Probe.class.getMethod("withContext", String.class, LineContext.class);
+        DefaultLineContext ctx = new DefaultLineContext("inst-1", "wf", "act", 1, "input", null, null);
+        ctx.setRuntimeParams(Map.of("k", "v"));
+        Object[] args = resolver.resolve(m,
+                new ActivityArgumentResolver.Context("payload", Map.of(), ctx));
+
+        assertThat(args).hasSize(2);
+        assertThat(args[0]).isEqualTo("payload");
+        assertThat(args[1]).isSameAs(ctx);
+        assertThat(((LineContext) args[1]).runtimeParams()).containsEntry("k", "v");
+    }
+
     public static class Probe {
         public void noArg() {}
         public String singleString(String input) { return input; }
@@ -144,6 +159,7 @@ class ActivityArgumentResolverTest {
                                     @BoundDataSource("target") JdbcTemplate dst) { return input; }
         public String singleBoundJdbc(String input, @BoundDataSource("source") JdbcTemplate src) { return input; }
         public String invalidBoundOnString(@BoundDataSource("nope") String s) { return s; }
+        public String withContext(String input, LineContext ctx) { return input; }
     }
 
     /** jdbc(name) 호출만 동작하는 stub — bound binding 테스트용. */

@@ -288,6 +288,7 @@ public class JdbcActivityRepository implements ActivityRepository {
                 rs.getString("INPUT_DATA"),
                 rs.getString("OUTPUT_DATA"),
                 rs.getString("STATE_DATA"),
+                rs.getString("RUN_OPTIONS"),
                 rs.getTimestamp("START_DT") != null ? rs.getTimestamp("START_DT").toLocalDateTime() : null,
                 rs.getTimestamp("END_DT") != null ? rs.getTimestamp("END_DT").toLocalDateTime() : null,
                 rs.getString("USE_FL"),

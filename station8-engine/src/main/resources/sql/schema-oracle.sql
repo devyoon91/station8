@@ -6,6 +6,7 @@ CREATE TABLE U_LINE_INSTANCE (
     INPUT_DATA CLOB, -- JSON format
     OUTPUT_DATA CLOB, -- JSON format
     STATE_DATA CLOB, -- JSON format (Line Context State)
+    RUN_OPTIONS CLOB, -- #134: 인스턴스 단위 실행 옵션 JSON
     START_DT DATE,
     END_DT DATE,
     USE_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,

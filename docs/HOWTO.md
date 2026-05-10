@@ -218,6 +218,46 @@ curl -X POST http://localhost:8080/api/line/definitions/<DEF_ID>/run \
 
 `/line/dashboard`에서 인스턴스 진행 가시화.
 
+### 2.5. Run options (인스턴스 단위 옵션) — #134
+
+즉시 실행 시 본문에 `options`를 추가해 인스턴스 단위 실행 동작을 제어할 수 있다.
+`options`는 모두 선택 — 미지정 시 기존 동작과 동일(후방 호환).
+
+```bash
+curl -X POST http://localhost:8080/api/line/definitions/<DEF_ID>/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "{\"orderId\":\"42\"}",
+    "options": {
+      "onFailure": "ABORT",
+      "runtimeParams": { "region": "KR", "tier": "premium" },
+      "notificationWebhookUrl": "https://hooks.example.com/instance-dlq"
+    }
+  }'
+```
+
+| 옵션 | 의미 | 기본값 |
+|---|---|---|
+| `onFailure` | `CONTINUE` — 활동이 최종 실패해도 인스턴스의 다른 활동은 계속 진행 (기본 동작). `ABORT` — 활동이 retry 한도를 초과해 DLQ로 가면 인스턴스를 즉시 `TERMINATED`로 종료(#101 위임). | `CONTINUE` |
+| `runtimeParams` | 활동에서 `LineContext.runtimeParams()`로 접근하는 string→string 맵. 정의(`U_LINE_STATION.INPUT_PARAMS`)는 건드리지 않고 이번 실행에만 영향. | `{}` |
+| `notificationWebhookUrl` | DLQ 적재 시 전역 webhook(`engine.dlq.webhook-url`) 대신 이 URL로 알림 발송. | `null` (전역 사용) |
+
+저장 위치 — `U_LINE_INSTANCE.RUN_OPTIONS` CLOB(JSON). 기본값(전부 default)인 경우 NULL로 둔다.
+
+UI에서는 정의 미리보기 화면의 "▶ Run now" 모달 → "Advanced options" 확장 영역에서 동일한 항목을 입력할 수 있다.
+
+활동 코드에서 runtime params 접근:
+
+```java
+@Activity(name = "ChargeOrder")
+public String chargeOrder(String input, LineContext ctx) {
+    String region = ctx.runtimeParams().getOrDefault("region", "default");
+    // ...
+}
+```
+
+`LineContext` 파라미터는 다른 지원 타입(String, `DataSourceRegistry`, `@BoundDataSource JdbcTemplate`)과 자유롭게 조합 가능.
+
 ---
 
 ## 3. Cron 스케줄링

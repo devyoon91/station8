@@ -1,4 +1,6 @@
 -- Line Instance Table (Master) - H2
+-- RUN_OPTIONS (#134): 인스턴스 단위 실행 옵션 JSON
+--   {"onFailure":"continue|abort", "runtimeParams":{...}, "notificationWebhookUrl":"..."}
 CREATE TABLE IF NOT EXISTS U_LINE_INSTANCE (
     ID VARCHAR(50),
     WORKFLOW_NAME VARCHAR(100) NOT NULL,
@@ -6,6 +8,7 @@ CREATE TABLE IF NOT EXISTS U_LINE_INSTANCE (
     INPUT_DATA CLOB,
     OUTPUT_DATA CLOB,
     STATE_DATA CLOB,
+    RUN_OPTIONS CLOB,
     START_DT TIMESTAMP,
     END_DT TIMESTAMP,
     USE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
