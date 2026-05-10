@@ -42,6 +42,7 @@ public final class ErrorCodes {
     public static final String DAG_SELF_LOOP = "WF-E306";            // 자기-참조 엣지
     public static final String DAG_UNKNOWN_ACTIVITY = "WF-E307";     // 미등록 액티비티 참조
     public static final String DAG_DANGLING_EDGE = "WF-E308";        // 엣지가 정의 외부 역을 참조
+    public static final String DAG_INVALID_CONDITION = "WF-E309";    // 엣지 conditionExpr SpEL 컴파일 실패 (#152)
 
     // 4xx — Schedule / Cron
     public static final String SCHEDULE_NOT_FOUND = "WF-E401";

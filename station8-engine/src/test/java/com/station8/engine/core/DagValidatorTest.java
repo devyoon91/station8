@@ -4,6 +4,7 @@ import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.exception.ErrorCodes;
 import com.station8.engine.exception.LineEngineException;
+import com.station8.engine.util.JsonUtil;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -16,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class DagValidatorTest {
 
-    private final DagValidator validator = new DagValidator();
+    private final DagValidator validator = new DagValidator(new EdgeConditionEvaluator(new JsonUtil()));
     private final Set<String> registered = Set.of("A", "B", "C", "D");
 
     @Test
@@ -110,6 +111,46 @@ class DagValidatorTest {
         // A 단일 역 (시작이자 종료, 사이클 없음)
         List<LineStation> nodes = List.of(node("n-a", "A"));
         assertDoesNotThrow(() -> validator.validate(nodes, List.of(), registered));
+    }
+
+    // ---- #152 — 엣지 conditionExpr SpEL 컴파일 검증 ----
+
+    @Test
+    void valid_conditionExpr_passes() {
+        // SpEL 문법 OK — 조건이 있어도 정상 통과
+        List<LineStation> nodes = List.of(node("n-a", "A"), node("n-b", "B"));
+        LineTrack edge = new LineTrack("e1", "def-test", "n-a", "n-b",
+                "#result['success'] == true",
+                "Y", "Y", "N", null, null, null, null);
+        assertDoesNotThrow(() -> validator.validate(nodes, List.of(edge), registered));
+    }
+
+    @Test
+    void invalid_conditionExpr_throws_INVALID_CONDITION() {
+        // SpEL 파싱 실패 — DAG_INVALID_CONDITION 위반
+        List<LineStation> nodes = List.of(node("n-a", "A"), node("n-b", "B"));
+        LineTrack edge = new LineTrack("e1", "def-test", "n-a", "n-b",
+                "#result[ == ",  // 잘못된 SpEL 문법
+                "Y", "Y", "N", null, null, null, null);
+        LineEngineException ex = assertThrows(LineEngineException.class,
+                () -> validator.validate(nodes, List.of(edge), registered));
+        assertTrue(ex.getMessage().contains(ErrorCodes.DAG_INVALID_CONDITION), ex.getMessage());
+        assertTrue(ex.getMessage().contains("e1"), ex.getMessage());
+    }
+
+    @Test
+    void blank_conditionExpr_doesNotTriggerValidation() {
+        // 조건 없음 (null/blank) — 검증 패스
+        List<LineStation> nodes = List.of(node("n-a", "A"), node("n-b", "B"));
+        LineTrack edgeNull = new LineTrack("e1", "def-test", "n-a", "n-b", null,
+                "Y", "Y", "N", null, null, null, null);
+        LineTrack edgeBlank = new LineTrack("e2", "def-test", "n-a", "n-b", "   ",
+                "Y", "Y", "N", null, null, null, null);
+        assertDoesNotThrow(() -> validator.validate(nodes, List.of(edgeNull), registered));
+        // edgeBlank는 별개 검증 (같은 from→to 두 번 — DagValidator가 이걸 거부 안 하므로 OK)
+        assertDoesNotThrow(() -> validator.validate(nodes,
+                List.of(new LineTrack("e3", "def-test", "n-a", "n-b", "   ",
+                        "Y", "Y", "N", null, null, null, null)), registered));
     }
 
     @Test

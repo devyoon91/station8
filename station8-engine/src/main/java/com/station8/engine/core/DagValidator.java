@@ -35,6 +35,12 @@ import java.util.stream.Collectors;
 @Component
 public class DagValidator {
 
+    private final EdgeConditionEvaluator conditionEvaluator;
+
+    public DagValidator(EdgeConditionEvaluator conditionEvaluator) {
+        this.conditionEvaluator = conditionEvaluator;
+    }
+
     /**
      * 모든 위반을 수집하여 검증한다. 위반이 있으면 ``DAG_INVALID``로 묶어 한 번에 예외 발생.
      *
@@ -57,7 +63,7 @@ public class DagValidator {
 
         Set<String> nodeIds = nodes.stream().map(LineStation::id).collect(Collectors.toSet());
 
-        // 2) 자기-참조 + dangling edge
+        // 2) 자기-참조 + dangling edge + #152 conditionExpr SpEL 컴파일 검증
         for (LineTrack e : edges) {
             if (e.fromNodeId() != null && e.fromNodeId().equals(e.toNodeId())) {
                 violations.add(ErrorCodes.DAG_SELF_LOOP + ": edgeId=" + e.id() + ", node=" + e.fromNodeId());
@@ -65,6 +71,15 @@ public class DagValidator {
             if (!nodeIds.contains(e.fromNodeId()) || !nodeIds.contains(e.toNodeId())) {
                 violations.add(ErrorCodes.DAG_DANGLING_EDGE
                         + ": edgeId=" + e.id() + ", from=" + e.fromNodeId() + ", to=" + e.toNodeId());
+            }
+            if (e.conditionExpr() != null && !e.conditionExpr().isBlank()) {
+                try {
+                    conditionEvaluator.validateCompile(e.conditionExpr());
+                } catch (IllegalArgumentException ex) {
+                    violations.add(ErrorCodes.DAG_INVALID_CONDITION
+                            + ": edgeId=" + e.id() + ", expr='" + e.conditionExpr() + "' — "
+                            + ex.getMessage());
+                }
             }
         }
 

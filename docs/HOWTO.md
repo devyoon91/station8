@@ -207,6 +207,54 @@ START ─┤                ├─ JOIN_RESULT
 - **fan-in**: 한 역의 incoming edges를 여러 개 → 모든 선행이 COMPLETED일 때만 PENDING
 - 자기 참조(`from == to`), 사이클은 검증에서 거부 (`WF-E305`/`WF-E306`)
 
+### 2.3.1. 엣지 조건식 (#152)
+
+엣지에 SpEL 조건식을 붙이면 활동 결과 JSON 기준으로 조건부 분기가 가능하다. 빌더에서 엣지 우클릭 → "Add/Edit condition…" 모달에 SpEL 식 입력. 조건 있는 엣지는 노란색 dashed line + 라벨로 시각화.
+
+**표현식 형식 — SpEL** (Spring Expression Language):
+
+| 패턴 | 예시 |
+|---|---|
+| 불린 비교 | `#result['success'] == true` |
+| 숫자 비교 | `#result['count'] > 10` |
+| 문자열 동등 | `#result['status'] == 'OK'` |
+| 복합 논리 | `#result['status'] == 'OK' and #result['errors'] == 0` |
+| 배열 / 컬렉션 | `#result.size() > 0` · `#result[0] == 'first'` |
+
+활동 결과 binding:
+- 결과가 JSON object → `Map`으로 파싱, `#result['key']`로 접근
+- 결과가 JSON array → `List`로 파싱, `#result[0]`으로 접근
+- 결과가 JSON 아닌 raw string → `#result == 'OK'` 같은 직접 비교
+
+**시멘틱**:
+- 조건 만족하는 엣지만 활성화 (분기 시 mutually exclusive 조건으로 자연스럽게 분기)
+- 활성화된 엣지가 0건이면 인스턴스 `STATUS_ST = FAILED` + `OUTPUT_DATA`에 사유 기록 (`#152`)
+- 조건 평가 도중 예외 (잘못된 SpEL / 타입 불일치) → 동일하게 인스턴스 FAILED + 사유 명시
+
+**보안**: `SimpleEvaluationContext.forReadOnlyDataBinding()` 사용 — reflection / 임의 메서드 호출 차단 (`T(java.lang.Runtime).getRuntime().exec(...)` 같은 식은 평가 거부).
+
+**저장 시 검증**: 정의 저장 시 SpEL 컴파일 시도 → 실패하면 `400 Bad Request` + `WF-E309` (`DAG_INVALID_CONDITION`).
+
+REST 직접 호출 예:
+
+```bash
+curl -X POST http://localhost:8080/api/line/definitions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "definitionNm": "QualityGateFlow",
+    "nodes": [
+      {"nodeId":"n-validate","activityNm":"Validate"},
+      {"nodeId":"n-process","activityNm":"Process"}
+    ],
+    "edges": [
+      {"edgeId":"e-1","fromNodeId":"n-validate","toNodeId":"n-process",
+       "conditionExpr":"#result[\"errors\"] == 0"}
+    ]
+  }'
+```
+
+**비범위 (별도 이슈)**: `#input` / `#runtimeParams` / 다른 활동 결과 참조 등은 추후 확장.
+
 ### 2.4. 정의 즉시 실행
 
 ```bash

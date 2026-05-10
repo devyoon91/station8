@@ -141,6 +141,54 @@
             font-size: 13px;
         }
         .swe-validation-list { font-size: 12px; color: var(--accent-red); }
+
+        /* #152 — 조건식 있는 엣지: dashed line + 작은 라벨 */
+        .drawflow .connection.has-condition .main-path {
+            stroke-dasharray: 6 4;
+            stroke: var(--accent-yellow, #FBCA04);
+        }
+        .drawflow .connection.has-condition.selected .main-path {
+            stroke: var(--primary);
+        }
+        .swe-edge-cond-label {
+            position: absolute;
+            background: var(--surface-elevated);
+            border: 1px solid var(--accent-yellow, #FBCA04);
+            border-radius: var(--radius-sm);
+            padding: 2px 6px;
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--ink);
+            white-space: nowrap;
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        /* 조건식 편집 모달 */
+        #edge-cond-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: 1500;
+        }
+        #edge-cond-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 560px;
+            max-width: 90vw;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            z-index: 1600;
+        }
     </style>
 </head>
 <body>
@@ -237,6 +285,35 @@
 
 <!-- #136 — 떠다니는 컨텍스트 메뉴 (노드/엣지 우클릭) -->
 <ul id="ctx-menu" class="swe-ctx-menu" role="menu" tabindex="-1" aria-label="Context menu" style="display:none;"></ul>
+
+<!-- #152 — 엣지 조건식 편집 모달 -->
+<div id="edge-cond-backdrop"></div>
+<div id="edge-cond-modal" role="dialog" aria-modal="true" aria-labelledby="edge-cond-title">
+    <div class="swe-flex-between swe-mb-xl">
+        <h3 id="edge-cond-title" class="swe-heading-md" style="margin:0;">Edit edge condition (SpEL)</h3>
+        <button type="button" class="swe-btn-tertiary swe-btn-sm" onclick="closeEdgeCondModal()">✕</button>
+    </div>
+    <div style="margin-bottom: var(--space-md);">
+        <div id="edge-cond-info" class="swe-mute" style="font-size: 12px; margin-bottom: var(--space-md); font-family: 'JetBrains Mono', monospace;"></div>
+        <label for="edge-cond-input" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">SpEL 조건식</label>
+        <textarea id="edge-cond-input" rows="4"
+                  placeholder='#result["success"] == true'
+                  style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line); color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"></textarea>
+        <div class="swe-mute" style="font-size: 11px; margin-top: var(--space-xs); line-height: 1.5;">
+            활동 결과 JSON은 <code>#result</code>로 접근. 예시:<br>
+            <code>#result['success'] == true</code> · <code>#result['count'] &gt; 10</code> · <code>#result['status'] == 'OK' and #result['errors'] == 0</code><br>
+            빈 값으로 두면 조건 없이 진행. 모든 outgoing의 조건이 false면 인스턴스가 FAILED 처리됨 (#152).
+        </div>
+    </div>
+    <div id="edge-cond-error" style="display:none; color:var(--accent-pink); font-size:13px; margin-top:var(--space-md);"></div>
+    <div style="display:flex; gap:var(--space-md); margin-top:var(--space-lg); justify-content:space-between;">
+        <button type="button" class="swe-btn-tertiary swe-btn-danger" onclick="clearEdgeCond()">Clear condition</button>
+        <div style="display:flex; gap:var(--space-md);">
+            <button type="button" class="swe-btn-tertiary" onclick="closeEdgeCondModal()">Cancel</button>
+            <button type="button" class="swe-btn-primary" onclick="saveEdgeCond()">Save</button>
+        </div>
+    </div>
+</div>
 
 {{#existingDefinitionJson}}
 <script id="existing-definition-json" type="application/json">{{{existingDefinitionJson}}}</script>
@@ -608,12 +685,117 @@ function disconnectAllEdges(id) {
 
 function disconnectEdge(info) {
     try {
+        edgeConditions.delete(edgeKey(info));
         editor.removeSingleConnection(info.from, info.to, info.outputClass, info.inputClass);
         setStatus('Disconnected #' + info.from + ' → #' + info.to);
     } catch (e) {
         setStatus('Disconnect failed: ' + e.message);
     }
 }
+
+// ===== #152 — 엣지 조건식 (SpEL) =====
+
+// Drawflow는 엣지에 임의 데이터 attach API가 없어서 외부 Map으로 관리.
+// 키: "from|to|outputClass|inputClass" — 한 노드 쌍에 같은 포트 조합 1개만.
+const edgeConditions = new Map();
+let editingEdgeInfo = null;
+
+function edgeKey(info) {
+    return info.from + '|' + info.to + '|' + info.outputClass + '|' + info.inputClass;
+}
+
+window.openEdgeCondModal = function (info) {
+    editingEdgeInfo = info;
+    const existing = edgeConditions.get(edgeKey(info)) || '';
+    document.getElementById('edge-cond-info').textContent =
+        'Edge: #' + info.from + ' → #' + info.to + '  (' + info.outputClass + ' → ' + info.inputClass + ')';
+    document.getElementById('edge-cond-input').value = existing;
+    document.getElementById('edge-cond-error').style.display = 'none';
+    document.getElementById('edge-cond-backdrop').style.display = 'block';
+    document.getElementById('edge-cond-modal').style.display = 'block';
+    setTimeout(() => document.getElementById('edge-cond-input').focus(), 50);
+};
+
+window.closeEdgeCondModal = function () {
+    editingEdgeInfo = null;
+    document.getElementById('edge-cond-backdrop').style.display = 'none';
+    document.getElementById('edge-cond-modal').style.display = 'none';
+};
+
+window.clearEdgeCond = function () {
+    if (!editingEdgeInfo) return;
+    edgeConditions.delete(edgeKey(editingEdgeInfo));
+    setStatus('Cleared condition: #' + editingEdgeInfo.from + ' → #' + editingEdgeInfo.to);
+    closeEdgeCondModal();
+    refreshEdgeConditionVisualization();
+};
+
+window.saveEdgeCond = function () {
+    if (!editingEdgeInfo) return;
+    const expr = document.getElementById('edge-cond-input').value.trim();
+    if (!expr) {
+        // 빈 값은 condition 제거와 동일
+        edgeConditions.delete(edgeKey(editingEdgeInfo));
+    } else {
+        edgeConditions.set(edgeKey(editingEdgeInfo), expr);
+    }
+    setStatus(expr
+        ? 'Saved condition on #' + editingEdgeInfo.from + ' → #' + editingEdgeInfo.to
+        : 'Cleared condition: #' + editingEdgeInfo.from + ' → #' + editingEdgeInfo.to);
+    closeEdgeCondModal();
+    refreshEdgeConditionVisualization();
+};
+
+document.getElementById('edge-cond-backdrop').addEventListener('click', closeEdgeCondModal);
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('edge-cond-modal').style.display === 'block') {
+        closeEdgeCondModal();
+    }
+});
+
+/**
+ * 모든 엣지를 walk하면서 조건식이 있으면 .has-condition 클래스 + 라벨 추가.
+ * Drawflow는 connection을 다시 그릴 때마다 클래스가 reset되므로 connection 이벤트마다 재적용.
+ */
+function refreshEdgeConditionVisualization() {
+    // 기존 라벨 모두 제거
+    document.querySelectorAll('.swe-edge-cond-label').forEach(el => el.remove());
+    document.querySelectorAll('.connection.has-condition').forEach(el => el.classList.remove('has-condition'));
+
+    const drawflowEl = document.getElementById('drawflow');
+    document.querySelectorAll('.drawflow .connection').forEach(conn => {
+        const info = parseConnectionFromElement(conn);
+        if (!info) return;
+        const expr = edgeConditions.get(edgeKey(info));
+        if (!expr) return;
+        conn.classList.add('has-condition');
+
+        // 엣지 중간에 라벨 위치 — path bbox 중앙 (대략값)
+        const path = conn.querySelector('.main-path');
+        if (path) {
+            try {
+                const bbox = path.getBBox();
+                const cx = bbox.x + bbox.width / 2;
+                const cy = bbox.y + bbox.height / 2;
+                const label = document.createElement('div');
+                label.className = 'swe-edge-cond-label';
+                label.textContent = expr.length > 30 ? expr.substring(0, 28) + '…' : expr;
+                label.title = 'SpEL: ' + expr;
+                label.style.left = cx + 'px';
+                label.style.top = cy + 'px';
+                drawflowEl.appendChild(label);
+            } catch (e) {
+                // SVG 미렌더 상태 — 그냥 dashed line만
+            }
+        }
+    });
+}
+
+// connection 변경 시점마다 재적용
+editor.on('connectionCreated', () => setTimeout(refreshEdgeConditionVisualization, 0));
+editor.on('connectionRemoved', () => setTimeout(refreshEdgeConditionVisualization, 0));
+editor.on('translate', () => setTimeout(refreshEdgeConditionVisualization, 0));
+editor.on('zoom', () => setTimeout(refreshEdgeConditionVisualization, 0));
 
 // canvas 우클릭 인터셉트 (capture로 Drawflow 자체 메뉴 선점)
 document.getElementById('drawflow').addEventListener('contextmenu', e => {
@@ -637,10 +819,14 @@ document.getElementById('drawflow').addEventListener('contextmenu', e => {
             { label: 'Delete node', danger: true, action: () => deleteNode(id) }
         ]);
     } else if (conn) {
-        // 엣지 메뉴 — D2=b: Disconnect (확장 여지 있는 메뉴 형태로 유지)
+        // 엣지 메뉴 — D2=b 메뉴 형태 + #152 Edit condition 추가
         const info = parseConnectionFromElement(conn);
         if (info) {
+            const hasCond = edgeConditions.has(edgeKey(info));
             showCtxMenu(e.clientX, e.clientY, [
+                { label: hasCond ? 'Edit condition…' : 'Add condition…',
+                  action: () => openEdgeCondModal(info) },
+                { divider: true },
                 { label: 'Disconnect ' + info.from + ' → ' + info.to,
                   danger: true, action: () => disconnectEdge(info) }
             ]);
@@ -688,10 +874,14 @@ async function saveDefinition() {
         const n = data[k];
         Object.keys(n.outputs || {}).forEach(outKey => {
             (n.outputs[outKey].connections || []).forEach(c => {
+                // #152 — 엣지 조건식: edgeConditions Map에서 lookup (Drawflow 내부 ID 기준)
+                const condKey = n.id + '|' + c.node + '|' + outKey + '|' + c.output;
+                const conditionExpr = edgeConditions.get(condKey) || null;
                 edges.push({
                     edgeId: 'e-' + (++edgeCounter),
                     fromNodeId: idMap[n.id],
-                    toNodeId: idMap[c.node]
+                    toNodeId: idMap[c.node],
+                    conditionExpr: conditionExpr
                 });
             });
         });
@@ -780,6 +970,10 @@ function restoreExistingDefinition() {
         }
         try {
             editor.addConnection(fromId, toId, 'output_1', 'input_1');
+            // #152 — 기존 정의의 conditionExpr을 Map에 복원 (Drawflow는 default output_1/input_1 사용)
+            if (e.conditionExpr) {
+                edgeConditions.set(fromId + '|' + toId + '|output_1|input_1', e.conditionExpr);
+            }
         } catch (err) {
             console.warn('Edge restore failed:', err);
         }
@@ -864,6 +1058,8 @@ const _searchEl = document.getElementById('stations-search');
 if (_searchEl) _searchEl.addEventListener('input', refreshStationsList);
 // #130 — preload 직후 Drawflow 내부 상태가 늦게 업데이트되는 케이스 대비 한 tick 양보 후 재계산
 setTimeout(refreshExecutionOrder, 50);
+// #152 — preload된 엣지의 조건 시각화 적용
+setTimeout(refreshEdgeConditionVisualization, 60);
 </script>
 </body>
 </html>

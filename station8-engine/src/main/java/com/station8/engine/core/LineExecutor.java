@@ -35,5 +35,19 @@ public interface LineExecutor {
      * @param instanceId 라인 인스턴스 ID
      */
     void terminateLine(String instanceId);
+
+    /**
+     * 인스턴스를 {@code FAILED}로 마킹하고 사유를 {@code OUTPUT_DATA}에 기록한다 (#152).
+     *
+     * <p>{@link #terminateLine(String)}과 유사하지만 의미가 다르다 — TERMINATED는 운영자가
+     * 명시적으로 멈춘 경우, FAILED는 엔진이 자체 판단으로 진행 불가 결정한 경우(엣지 조건
+     * 0건 만족 / 조건 평가 예외 등). 활동들은 동일하게 PENDING/WAITING → TERMINATED.</p>
+     *
+     * <p>인스턴스 상태가 {@code RUNNING}이 아니면 idempotent하게 무시 (already failed/terminated).</p>
+     *
+     * @param instanceId 라인 인스턴스 ID
+     * @param reason     실패 사유 — JSON으로 직렬화돼 {@code OUTPUT_DATA}에 저장
+     */
+    void failLine(String instanceId, String reason);
 }
 

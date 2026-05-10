@@ -8,9 +8,11 @@ import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -42,15 +44,21 @@ public class DagInterpreter {
     private final ActivityRepository activityRepository;
     private final DagValidator dagValidator;
     private final LineRegistry workflowRegistry;
+    private final EdgeConditionEvaluator conditionEvaluator;
+    private final LineExecutor lineExecutor;
 
     public DagInterpreter(LineDefinitionRepository definitionRepository,
                           ActivityRepository activityRepository,
                           DagValidator dagValidator,
-                          LineRegistry workflowRegistry) {
+                          LineRegistry workflowRegistry,
+                          EdgeConditionEvaluator conditionEvaluator,
+                          @Lazy LineExecutor lineExecutor) {
         this.definitionRepository = definitionRepository;
         this.activityRepository = activityRepository;
         this.dagValidator = dagValidator;
         this.workflowRegistry = workflowRegistry;
+        this.conditionEvaluator = conditionEvaluator;
+        this.lineExecutor = lineExecutor;
     }
 
     /**
@@ -88,16 +96,20 @@ public class DagInterpreter {
     /**
      * 역 완료 통지. 후행 역들의 fan-in 조건을 점검하고, 모두 만족하면 PENDING으로 promote.
      *
+     * <p>#152 — 엣지에 {@code conditionExpr}이 있으면 SpEL 평가 후 만족하는 엣지만 활성화.
+     * 활성화된 엣지가 0건이면 인스턴스를 FAILED로 마킹 (조건 미달).
+     * 평가 도중 예외가 발생하면 표현식 오류로 인스턴스 FAILED.</p>
+     *
      * @param instanceId 인스턴스 ID
      * @param completedNodeId 방금 COMPLETED 된 역 ID
      */
     @Transactional
     public void onNodeCompleted(String instanceId, String completedNodeId) {
-        // #101 — 인스턴스가 TERMINATED면 fan-out 차단 (RUNNING 액티비티가 늦게 완료되어도 후행 활성화 안 함)
+        // #101 — 인스턴스가 TERMINATED/FAILED면 fan-out 차단
         LineInstance instance = activityRepository.findInstanceById(instanceId);
-        if (instance != null && "TERMINATED".equals(instance.statusSt())) {
-            log.info("Instance is TERMINATED — fan-out blocked: instanceId={}, completedNodeId={}",
-                    instanceId, completedNodeId);
+        if (instance != null && !"RUNNING".equals(instance.statusSt())) {
+            log.info("Instance is {} — fan-out blocked: instanceId={}, completedNodeId={}",
+                    instance.statusSt(), instanceId, completedNodeId);
             return;
         }
 
@@ -107,7 +119,47 @@ public class DagInterpreter {
             return;
         }
 
+        // #152 — 완료된 활동의 결과를 조건 평가의 #result로 사용
+        ActivityExecution completedExec = activityRepository.findByInstanceAndNode(instanceId, completedNodeId);
+        String resultJson = completedExec != null ? completedExec.outputData() : null;
+
+        // 조건 평가 — 만족하는 엣지만 활성화 후보로 수집 (D3=a)
+        List<LineTrack> activatedEdges = new ArrayList<>();
+        List<String> failedConditions = new ArrayList<>();
         for (LineTrack edge : outgoing) {
+            try {
+                if (conditionEvaluator.evaluate(edge.conditionExpr(), resultJson)) {
+                    activatedEdges.add(edge);
+                } else if (edge.conditionExpr() != null && !edge.conditionExpr().isBlank()) {
+                    failedConditions.add(edge.fromNodeId() + " → " + edge.toNodeId()
+                            + " [" + edge.conditionExpr() + "]");
+                } else {
+                    // 조건 없는데 false인 케이스는 없음 (evaluate는 null/blank이면 true 반환).
+                    // 이 분기는 도달 안 함 — defensive로 활성화 처리.
+                    activatedEdges.add(edge);
+                }
+            } catch (EdgeConditionEvaluator.ConditionEvaluationException ex) {
+                // D5=b — 조건 평가 예외는 인스턴스 FAILED 사유로 명시
+                String reason = "Edge condition evaluation failed at " + completedNodeId
+                        + " → " + edge.toNodeId() + ": " + ex.getMessage();
+                log.error("[#152] {}", reason, ex);
+                lineExecutor.failLine(instanceId, reason);
+                return;
+            }
+        }
+
+        // D4=a — 활성화된 엣지가 0건이면 인스턴스 FAILED. 활동 자체는 COMPLETED 그대로.
+        if (activatedEdges.isEmpty()) {
+            String reason = "All outgoing edges from " + completedNodeId
+                    + " failed condition: " + String.join("; ", failedConditions);
+            log.warn("[#152] Instance blocked — no edge satisfied: instanceId={}, {}",
+                    instanceId, reason);
+            lineExecutor.failLine(instanceId, reason);
+            return;
+        }
+
+        // 활성화된 엣지의 후행 노드 promote — fan-in 조건은 기존 그대로
+        for (LineTrack edge : activatedEdges) {
             String successorId = edge.toNodeId();
             if (allPredecessorsCompleted(instanceId, successorId)) {
                 ActivityExecution successorExec = activityRepository.findByInstanceAndNode(instanceId, successorId);

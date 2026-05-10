@@ -46,6 +46,7 @@
 | **WF-E306** `DAG_SELF_LOOP` | 자기-참조 엣지 | from == to 인 엣지 제거 |
 | **WF-E307** `DAG_UNKNOWN_ACTIVITY` | 미등록 액티비티 참조 | `/line/activities`에서 등록 목록 확인 후 역의 activityNm 정정 |
 | **WF-E308** `DAG_DANGLING_EDGE` | 엣지가 정의 외부 역을 참조 | 엣지의 from/to 역 ID가 동일 정의 안의 역인지 확인 |
+| **WF-E309** `DAG_INVALID_CONDITION` | 엣지 conditionExpr SpEL 컴파일 실패 (#152) | 엣지의 conditionExpr이 SpEL 문법으로 파싱 가능한지 확인. 예시: `#result['success'] == true` |
 
 ## 4xx — Schedule / Cron
 
