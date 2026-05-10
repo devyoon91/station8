@@ -81,6 +81,29 @@ public interface LineDefinitionRepository {
      */
     void updateDefinitionConcurrency(String definitionId, String concurrencyPolicy);
 
+    // ========== #142 — 태그 (many-to-many) ==========
+
+    /** 정의에 태그 부여 (이미 있으면 idempotent). */
+    void insertTag(String definitionId, String tag, String regId);
+
+    /** 정의의 모든 태그 삭제 (replace 시 사용). */
+    void deleteTagsByDefinition(String definitionId);
+
+    /** 정의의 태그 목록 (정렬: alphabetic). */
+    java.util.List<String> findTagsForDefinition(String definitionId);
+
+    /** 여러 정의의 태그를 한 번에 조회 (목록 페이지 N+1 방지). 반환: definitionId → 태그 list. */
+    java.util.Map<String, java.util.List<String>> findTagsForDefinitions(java.util.Collection<String> definitionIds);
+
+    /** 모든 태그 + 사용 횟수 (tag cloud 용). */
+    java.util.List<TagCount> findAllTagsWithCount();
+
+    /** 특정 태그를 가진 정의 ID 목록 (필터용). */
+    java.util.List<String> findDefinitionIdsByTag(String tag);
+
+    /** {@link #findAllTagsWithCount} 결과 행. */
+    record TagCount(String tag, long count) {}
+
     /** 정의 소프트 삭제 (DEL_FL='Y'). */
     void softDeleteDefinition(String definitionId);
 

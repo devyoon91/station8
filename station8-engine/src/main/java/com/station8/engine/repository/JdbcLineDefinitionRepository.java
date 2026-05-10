@@ -174,6 +174,78 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 """, concurrencyPolicy, definitionId);
     }
 
+    // ========== #142 — 태그 ==========
+
+    @Override
+    @Transactional
+    public void insertTag(String definitionId, String tag, String regId) {
+        try {
+            jdbcTemplate.update("""
+                INSERT INTO U_LINE_DEFINITION_TAG (DEFINITION_ID, TAG, REG_DT, REG_ID)
+                VALUES (?, ?, CURRENT_TIMESTAMP, ?)
+                """, definitionId, tag, regId);
+        } catch (org.springframework.dao.DuplicateKeyException ex) {
+            // (definition_id, tag) UNIQUE — 중복은 idempotent 무시
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deleteTagsByDefinition(String definitionId) {
+        jdbcTemplate.update("DELETE FROM U_LINE_DEFINITION_TAG WHERE DEFINITION_ID = ?", definitionId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<String> findTagsForDefinition(String definitionId) {
+        return jdbcTemplate.queryForList(
+                "SELECT TAG FROM U_LINE_DEFINITION_TAG WHERE DEFINITION_ID = ? ORDER BY TAG",
+                String.class, definitionId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Map<String, java.util.List<String>> findTagsForDefinitions(java.util.Collection<String> definitionIds) {
+        java.util.Map<String, java.util.List<String>> out = new java.util.LinkedHashMap<>();
+        if (definitionIds == null || definitionIds.isEmpty()) return out;
+        // IN-clause — placeholder 동적 생성
+        String placeholders = definitionIds.stream().map(s -> "?")
+                .collect(java.util.stream.Collectors.joining(", "));
+        String sql = "SELECT DEFINITION_ID, TAG FROM U_LINE_DEFINITION_TAG "
+                + "WHERE DEFINITION_ID IN (" + placeholders + ") ORDER BY DEFINITION_ID, TAG";
+        jdbcTemplate.query(sql, rs -> {
+            String defId = rs.getString("DEFINITION_ID");
+            String tag = rs.getString("TAG");
+            out.computeIfAbsent(defId, k -> new java.util.ArrayList<>()).add(tag);
+        }, definitionIds.toArray());
+        return out;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<TagCount> findAllTagsWithCount() {
+        // tag cloud — soft-deleted 정의는 제외
+        return jdbcTemplate.query("""
+                SELECT t.TAG, COUNT(*) AS CNT
+                FROM U_LINE_DEFINITION_TAG t
+                JOIN U_LINE_DEFINITION d ON d.ID = t.DEFINITION_ID
+                WHERE d.DEL_FL = 'N'
+                GROUP BY t.TAG
+                ORDER BY CNT DESC, t.TAG ASC
+                """,
+                (rs, n) -> new TagCount(rs.getString("TAG"), rs.getLong("CNT")));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<String> findDefinitionIdsByTag(String tag) {
+        return jdbcTemplate.queryForList("""
+                SELECT t.DEFINITION_ID FROM U_LINE_DEFINITION_TAG t
+                JOIN U_LINE_DEFINITION d ON d.ID = t.DEFINITION_ID
+                WHERE t.TAG = ? AND d.DEL_FL = 'N'
+                """, String.class, tag);
+    }
+
     @Override
     @Transactional
     public void softDeleteDefinition(String definitionId) {

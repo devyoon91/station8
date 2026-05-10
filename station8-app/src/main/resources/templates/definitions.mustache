@@ -19,11 +19,45 @@
         <a href="/line/builder" class="swe-btn-primary">+ New Line</a>
     </div>
 
+    <!-- #142 — 검색 / 태그 필터 -->
+    <div class="swe-card-elevated swe-mb-xl">
+        <form method="get" action="/line/definitions" class="swe-grid swe-grid-3" style="gap: var(--space-md); align-items: end;">
+            <div>
+                <label for="defs-name">Line name</label>
+                <input type="text" id="defs-name" name="name" class="swe-input"
+                       value="{{#filterName}}{{filterName}}{{/filterName}}" placeholder="이름 부분일치">
+            </div>
+            <div>
+                <label for="defs-tag">Tag</label>
+                <input type="text" id="defs-tag" name="tag" class="swe-input"
+                       value="{{#filterTag}}{{filterTag}}{{/filterTag}}" placeholder="정확 일치 (e.g. etl)">
+            </div>
+            <div style="display:flex; gap: var(--space-md); justify-content: flex-end;">
+                <a href="/line/definitions" class="swe-btn-secondary">Reset</a>
+                <button type="submit" class="swe-btn-primary">Apply</button>
+            </div>
+        </form>
+        {{#hasTagCloud}}
+        <div style="margin-top: var(--space-md); display: flex; flex-wrap: wrap; gap: var(--space-xs);">
+            <span class="swe-mute" style="font-size: 12px; align-self: center; margin-right: var(--space-xs);">Tag cloud:</span>
+            {{#tagCloud}}
+            <a href="/line/definitions?tag={{tag}}"
+               class="swe-tag swe-tag-{{colorClass}}"
+               title="{{count}} 개 라인"
+               style="text-decoration: none;">
+                {{tag}} <span class="swe-mute" style="font-size: 10px;">{{count}}</span>
+            </a>
+            {{/tagCloud}}
+        </div>
+        {{/hasTagCloud}}
+    </div>
+
     <div class="swe-card" style="padding: 0;">
         <table class="swe-table">
             <thead>
             <tr>
                 <th>Line Name</th>
+                <th>Tags</th>
                 <th>Description</th>
                 <th>Version</th>
                 <th>Created</th>
@@ -34,6 +68,11 @@
             {{#definitions}}
             <tr>
                 <td><strong>{{definitionNm}}</strong></td>
+                <td>
+                    {{#tagViews}}
+                    <a href="/line/definitions?tag={{tag}}" class="swe-tag swe-tag-{{colorClass}}" style="text-decoration:none; margin-right: 4px;">{{tag}}</a>
+                    {{/tagViews}}
+                </td>
                 <td class="swe-mute">{{#description}}{{description}}{{/description}}{{^description}}—{{/description}}</td>
                 <td>v{{versionNo}}</td>
                 <td class="swe-mute">{{#regDt}}{{regDt}}{{/regDt}}{{^regDt}}—{{/regDt}}</td>
@@ -45,8 +84,8 @@
             {{/definitions}}
             {{^definitions}}
             <tr>
-                <td colspan="5" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
-                    아직 라인이 없습니다. <a href="/line/builder" class="swe-ink">Builder</a>에서 새 라인을 만들어보세요.
+                <td colspan="6" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    {{#filterTag}}태그 "{{filterTag}}" 일치 없음{{/filterTag}}{{^filterTag}}{{#filterName}}이름 "{{filterName}}" 일치 없음{{/filterName}}{{^filterName}}아직 라인이 없습니다. <a href="/line/builder" class="swe-ink">Builder</a>에서 새 라인을 만들어보세요.{{/filterName}}{{/filterTag}}
                 </td>
             </tr>
             {{/definitions}}

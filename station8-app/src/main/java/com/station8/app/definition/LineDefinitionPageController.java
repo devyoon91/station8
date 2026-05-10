@@ -74,29 +74,89 @@ public class LineDefinitionPageController {
     @GetMapping("/line/definitions")
     public String list(@RequestParam(value = "page", required = false) Integer page,
                        @RequestParam(value = "size", required = false) Integer size,
+                       @RequestParam(value = "name", required = false) String nameFilter,
+                       @RequestParam(value = "tag", required = false) String tagFilter,
                        Model model) {
         int pageSize = PaginationModel.normalizeSize(size);
-        long totalCount = definitionRepository.countActiveDefinitions();
+
+        boolean hasNameFilter = nameFilter != null && !nameFilter.isBlank();
+        boolean hasTagFilter = tagFilter != null && !tagFilter.isBlank();
+        String normalizedTag = hasTagFilter ? tagFilter.trim().toLowerCase() : null;
+
+        // #142 — 필터 처리: tag/name 활성 시 in-memory 필터 (active 정의 최대 10000건 load 후 필터)
+        // 정의 수가 더 큰 환경에선 SQL 레벨 필터로 마이그레이션 (별도 이슈).
+        List<LineDefinition> allActive = definitionRepository.findActiveDefinitionsPage(0, 10000);
+
+        // 태그 필터: 매칭 정의 ID 집합 미리 조회
+        java.util.Set<String> tagMatchIds = null;
+        if (hasTagFilter) {
+            tagMatchIds = new java.util.HashSet<>(definitionRepository.findDefinitionIdsByTag(normalizedTag));
+        }
+
+        // in-memory 필터 (이름 LIKE + tag IN)
+        java.util.Set<String> finalTagMatchIds = tagMatchIds;
+        List<LineDefinition> filtered = allActive.stream()
+                .filter(d -> !hasNameFilter
+                        || (d.definitionNm() != null
+                            && d.definitionNm().toLowerCase().contains(nameFilter.trim().toLowerCase())))
+                .filter(d -> !hasTagFilter || finalTagMatchIds.contains(d.id()))
+                .toList();
+
+        long totalCount = filtered.size();
         int totalPages = (totalCount <= 0) ? 0 : (int) ((totalCount + pageSize - 1) / pageSize);
         int currPage = PaginationModel.normalizePage(page, totalPages);
+        int offset = currPage * pageSize;
+        int end = Math.min(offset + pageSize, filtered.size());
+        List<LineDefinition> pageDefs = (offset >= filtered.size()) ? List.of() : filtered.subList(offset, end);
 
-        List<LineDefinition> defs = definitionRepository.findActiveDefinitionsPage(
-                currPage * pageSize, pageSize);
-        List<Map<String, Object>> rows = defs.stream().map(d -> {
+        // 페이지 정의들의 태그 일괄 조회 (N+1 방지)
+        java.util.Map<String, List<String>> tagsByDef = definitionRepository.findTagsForDefinitions(
+                pageDefs.stream().map(LineDefinition::id).toList());
+
+        List<Map<String, Object>> rows = pageDefs.stream().map(d -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", d.id());
             m.put("definitionNm", d.definitionNm());
             m.put("description", d.description());
             m.put("versionNo", d.versionNo());
             m.put("regDt", d.regDt());
+            // #142 — 행별 태그 + 색상
+            List<String> tags = tagsByDef.getOrDefault(d.id(), List.of());
+            m.put("tagViews", tags.stream().map(t -> Map.of(
+                    "tag", t,
+                    "colorClass", colorClassFor(t)
+            )).toList());
             return m;
         }).toList();
         model.addAttribute("definitions", rows);
         model.addAttribute("totalCount", totalCount);
+        model.addAttribute("filterName", hasNameFilter ? nameFilter : null);
+        model.addAttribute("filterTag", hasTagFilter ? normalizedTag : null);
+
+        // #142 — 태그 클라우드 (전체 통계, 필터 무관)
+        List<LineDefinitionRepository.TagCount> cloud = definitionRepository.findAllTagsWithCount();
+        model.addAttribute("hasTagCloud", !cloud.isEmpty());
+        model.addAttribute("tagCloud", cloud.stream().map(tc -> Map.of(
+                "tag", tc.tag(),
+                "count", tc.count(),
+                "colorClass", colorClassFor(tc.tag())
+        )).toList());
+
+        // 페이지네이션 — 필터 보존
+        java.util.LinkedHashMap<String, String> preserve = new java.util.LinkedHashMap<>();
+        if (hasNameFilter) preserve.put("name", nameFilter);
+        if (hasTagFilter) preserve.put("tag", normalizedTag);
         model.addAttribute("pagination",
-                PaginationModel.build("/line/definitions", currPage, pageSize, totalCount, Map.of()));
+                PaginationModel.build("/line/definitions", currPage, pageSize, totalCount, preserve));
         model.addAttribute("navLines", true);
         return "definitions";
+    }
+
+    /** #142 — tag 문자열 → 안정적 색상 클래스 (auto hash). 6색 팔레트. */
+    private static String colorClassFor(String tag) {
+        if (tag == null) return "0";
+        int h = Math.abs(tag.hashCode()) % 6;
+        return String.valueOf(h);
     }
 
     @GetMapping("/line/definitions/{id}")

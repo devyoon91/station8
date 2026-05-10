@@ -36,20 +36,30 @@ public record DagDefinitionRequest(
         String slaAction,
         /** #141 — 동시 실행 정책 (`CONCURRENT` 기본 / `SKIP_IF_RUNNING`). null이면 CONCURRENT. */
         String concurrencyPolicy,
+        /** #142 — 라인 정의 태그 (free-form). null/empty면 태그 없음. 분류/필터 용도. */
+        List<String> tags,
         List<NodeDef> nodes,
         List<EdgeDef> edges
 ) {
-    /** 후방 호환 — SLA/concurrency 없이 기존 4-arg 생성. */
+    /** 후방 호환 — SLA/concurrency/tags 없이 기존 4-arg 생성. */
     public DagDefinitionRequest(String definitionNm, String description,
                                 List<NodeDef> nodes, List<EdgeDef> edges) {
-        this(definitionNm, description, null, null, null, nodes, edges);
+        this(definitionNm, description, null, null, null, null, nodes, edges);
     }
 
-    /** 후방 호환 — SLA만 받고 concurrency 없이 (#138 시그니처). */
+    /** 후방 호환 — SLA만 받고 concurrency/tags 없이 (#138 시그니처). */
     public DagDefinitionRequest(String definitionNm, String description,
                                 Long slaSeconds, String slaAction,
                                 List<NodeDef> nodes, List<EdgeDef> edges) {
-        this(definitionNm, description, slaSeconds, slaAction, null, nodes, edges);
+        this(definitionNm, description, slaSeconds, slaAction, null, null, nodes, edges);
+    }
+
+    /** 후방 호환 — SLA + concurrency 받고 tags 없이 (#141 시그니처). */
+    public DagDefinitionRequest(String definitionNm, String description,
+                                Long slaSeconds, String slaAction,
+                                String concurrencyPolicy,
+                                List<NodeDef> nodes, List<EdgeDef> edges) {
+        this(definitionNm, description, slaSeconds, slaAction, concurrencyPolicy, null, nodes, edges);
     }
     public record NodeDef(
             String nodeId,

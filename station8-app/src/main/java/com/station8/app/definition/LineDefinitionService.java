@@ -106,13 +106,39 @@ public class LineDefinitionService {
         for (LineStation n : nodes) definitionRepository.insertNode(n);
         for (LineTrack e : edges) definitionRepository.insertEdge(e);
 
-        log.info("DAG 정의 등록: id={}, nm={}, version={}, nodes={}, edges={}",
-                definitionId, req.definitionNm(), nextVersion, nodes.size(), edges.size());
+        // #142 — 태그 저장 (정규화 후 dedup)
+        persistTags(definitionId, req.tags());
+
+        log.info("DAG 정의 등록: id={}, nm={}, version={}, nodes={}, edges={}, tags={}",
+                definitionId, req.definitionNm(), nextVersion, nodes.size(), edges.size(),
+                normalizeTags(req.tags()));
 
         // #140 — 정의 생성자에게 ADMIN 자동 부여 (현재 인증된 사용자가 있을 때만)
         autoGrantAdminToCreator(definitionId);
 
         return definitionId;
+    }
+
+    /** #142 — 태그 정규화 + 저장. 빈/null tag, 공백, 중복 제거. */
+    private void persistTags(String definitionId, List<String> rawTags) {
+        java.util.Set<String> tags = normalizeTags(rawTags);
+        for (String tag : tags) {
+            definitionRepository.insertTag(definitionId, tag, "api");
+        }
+    }
+
+    /** 태그 정규화 — trim, lowercase, dedup, 50자 제한. */
+    private static java.util.Set<String> normalizeTags(List<String> rawTags) {
+        if (rawTags == null) return java.util.Set.of();
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        for (String t : rawTags) {
+            if (t == null) continue;
+            String trimmed = t.trim().toLowerCase();
+            if (trimmed.isEmpty()) continue;
+            if (trimmed.length() > 50) trimmed = trimmed.substring(0, 50);
+            out.add(trimmed);
+        }
+        return out;
     }
 
     /**
@@ -150,11 +176,14 @@ public class LineDefinitionService {
         }
         List<LineStation> nodes = definitionRepository.findNodesByDefinition(definitionId);
         List<LineTrack> edges = definitionRepository.findEdgesByDefinition(definitionId);
+        // #142 — 태그도 함께 반환
+        List<String> tags = definitionRepository.findTagsForDefinition(definitionId);
         return new DagDefinitionResponse(
                 def.id(), def.definitionNm(), def.description(),
                 def.versionNo(), def.activeFl(),
                 def.slaSeconds(), def.slaAction(),
                 def.concurrencyPolicy(),
+                tags,
                 nodes.stream().map(n -> new DagDefinitionRequest.NodeDef(
                         n.id(), n.nodeNm(), n.activityNm(), n.inputParams(),
                         n.posXNo(), n.posYNo(),
@@ -194,9 +223,13 @@ public class LineDefinitionService {
         for (LineStation n : nodes) definitionRepository.insertNode(n);
         for (LineTrack e : edges) definitionRepository.insertEdge(e);
 
-        log.info("DAG 정의 교체: id={}, nodes={}, edges={}, sla={}s/{}, concurrency={}",
+        // #142 — 태그 통째로 교체 (delete + insert)
+        definitionRepository.deleteTagsByDefinition(definitionId);
+        persistTags(definitionId, req.tags());
+
+        log.info("DAG 정의 교체: id={}, nodes={}, edges={}, sla={}s/{}, concurrency={}, tags={}",
                 definitionId, nodes.size(), edges.size(), req.slaSeconds(), req.slaAction(),
-                req.concurrencyPolicy());
+                req.concurrencyPolicy(), normalizeTags(req.tags()));
     }
 
     @Transactional
