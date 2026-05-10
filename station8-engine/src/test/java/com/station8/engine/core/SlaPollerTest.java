@@ -69,7 +69,8 @@ class SlaPollerTest {
         defRepo = new JdbcLineDefinitionRepository(jdbcTemplate, H2_DIALECT);
         lineExecutor = new JdbcLineExecutor(jdbcTemplate, activityRepo, jsonUtil);
         capturingNotifier = new CapturingSlaNotifier();
-        poller = new SlaPoller(activityRepo, defRepo, capturingNotifier, lineExecutor, jsonUtil);
+        poller = new SlaPoller(activityRepo, defRepo, capturingNotifier, lineExecutor, jsonUtil,
+                new RunOptionsCodec(jsonUtil));
     }
 
     @BeforeEach

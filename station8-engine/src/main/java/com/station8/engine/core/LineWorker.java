@@ -43,6 +43,7 @@ public class LineWorker {
     private final LineDefinitionRepository definitionRepository;
     private final LineExecutor lineExecutor;
     private final PipelineGate pipelineGate;
+    private final RunOptionsCodec runOptionsCodec;
 
     public LineWorker(ActivityRepository activityRepository,
                           TaskExecutor taskExecutor,
@@ -56,7 +57,8 @@ public class LineWorker {
                           ActivityArgumentResolver argumentResolver,
                           LineDefinitionRepository definitionRepository,
                           LineExecutor lineExecutor,
-                          PipelineGate pipelineGate) {
+                          PipelineGate pipelineGate,
+                          RunOptionsCodec runOptionsCodec) {
         this.activityRepository = activityRepository;
         this.taskExecutor = taskExecutor;
         this.workflowTaskExecutor = workflowTaskExecutor;
@@ -70,6 +72,7 @@ public class LineWorker {
         this.definitionRepository = definitionRepository;
         this.lineExecutor = lineExecutor;
         this.pipelineGate = pipelineGate;
+        this.runOptionsCodec = runOptionsCodec;
     }
 
     /**
@@ -129,9 +132,10 @@ public class LineWorker {
             return;
         }
 
-        // 2. 인스턴스 메타 + RunOptions 로드 (#134) — 실패해도 default로 fallback
+        // 2. 인스턴스 메타 + RunOptions 로드 — 실패해도 default로 fallback
         LineInstance instance = loadInstanceSafely(activity.instanceId());
-        RunOptions options = parseRunOptionsSafely(instance);
+        // RunOptionsCodec이 단일 진입점 — null instance / 파싱 실패 모두 default로 안전 처리
+        RunOptions options = runOptionsCodec.parseFromClob(instance == null ? null : instance.runOptions());
 
         // 3. 컨텍스트 생성 — workflowName은 instance에서, runtime params는 options에서 (#134 D7)
         String workflowName = (instance != null && instance.workflowName() != null)
@@ -217,21 +221,7 @@ public class LineWorker {
     }
 
     /**
-     * {@link LineInstance#runOptions()} CLOB JSON을 안전하게 파싱한다 — 파싱 실패 시 default로 fallback.
-     */
-    private RunOptions parseRunOptionsSafely(LineInstance instance) {
-        if (instance == null) return RunOptions.defaults();
-        try {
-            return RunOptions.parse(instance.runOptions(), jsonUtil);
-        } catch (Exception ex) {
-            log.warn("RunOptions 파싱 실패 — instanceId={}, fallback to defaults ({}: {})",
-                    instance.id(), ex.getClass().getSimpleName(), ex.getMessage());
-            return RunOptions.defaults();
-        }
-    }
-
-    /**
-     * #134 D1=γ — onFailure=ABORT 처리. 다른 액티비티가 먼저 트리거해 이미 종료된 경우는 idempotent하게 무시.
+     * onFailure=ABORT 처리. 다른 액티비티가 먼저 트리거해 이미 종료된 경우는 idempotent하게 무시.
      */
     private void abortInstance(String instanceId) {
         log.warn("[#134] onFailure=ABORT — terminating instance: {}", instanceId);

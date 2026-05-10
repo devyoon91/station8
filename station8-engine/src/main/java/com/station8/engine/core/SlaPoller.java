@@ -47,17 +47,20 @@ public class SlaPoller {
     private final SlaNotifier slaNotifier;
     private final LineExecutor lineExecutor;
     private final JsonUtil jsonUtil;
+    private final RunOptionsCodec runOptionsCodec;
 
     public SlaPoller(ActivityRepository activityRepository,
                      LineDefinitionRepository definitionRepository,
                      SlaNotifier slaNotifier,
                      LineExecutor lineExecutor,
-                     JsonUtil jsonUtil) {
+                     JsonUtil jsonUtil,
+                     RunOptionsCodec runOptionsCodec) {
         this.activityRepository = activityRepository;
         this.definitionRepository = definitionRepository;
         this.slaNotifier = slaNotifier;
         this.lineExecutor = lineExecutor;
         this.jsonUtil = jsonUtil;
+        this.runOptionsCodec = runOptionsCodec;
     }
 
     @Scheduled(fixedDelayString = "${engine.sla.polling-interval-ms:60000}")
@@ -83,8 +86,8 @@ public class SlaPoller {
     private void checkOne(LineInstance inst) {
         if (inst.startDt() == null) return;
 
-        // 1. 인스턴스 override 우선
-        RunOptions opts = RunOptions.parse(inst.runOptions(), jsonUtil);
+        // 1. 인스턴스 override 우선 — RunOptionsCodec 단일 진입점 사용
+        RunOptions opts = runOptionsCodec.parseFromClob(inst.runOptions());
         Long thresholdSeconds = opts.slaSeconds();
         SlaAction action = opts.slaAction();
 
