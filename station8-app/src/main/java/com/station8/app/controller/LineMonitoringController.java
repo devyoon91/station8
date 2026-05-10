@@ -144,6 +144,7 @@ public class LineMonitoringController {
 
         List<java.util.Map<String, Object>> actViews = activities.stream().map(a -> {
             java.util.Map<String, Object> m = new java.util.HashMap<>();
+            m.put("id", a.id());
             m.put("nodeId", a.nodeId());
             m.put("activityName", a.activityName());
             m.put("statusSt", a.statusSt());
@@ -204,16 +205,7 @@ public class LineMonitoringController {
         if (nodes.isEmpty()) return null;
         List<LineTrack> edges = definitionRepository.findEdgesByDefinition(definitionId);
 
-        Map<String, String> statusByNode = new HashMap<>();
-        for (ActivityExecution a : activities) {
-            if (a.nodeId() == null) continue;
-            String mapped = mapActivityStatus(a.statusSt());
-            // 같은 역에 다회 실행이 있으면 더 진행된 상태가 덮어쓴다
-            String prev = statusByNode.get(a.nodeId());
-            if (prev == null || rank(mapped) > rank(prev)) {
-                statusByNode.put(a.nodeId(), mapped);
-            }
-        }
+        Map<String, String> statusByNode = InstanceStateBuilder.buildStatusByNode(activities);
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("definitionId", definitionId);
@@ -239,44 +231,12 @@ public class LineMonitoringController {
         }
     }
 
-    private static String mapActivityStatus(String s) {
-        return switch (s == null ? "" : s) {
-            case "COMPLETED" -> "completed";
-            case "RUNNING" -> "running";
-            case "FAILED" -> "failed";
-            case "PENDING", "WAITING_DEPENDENCIES" -> "pending";
-            default -> "untouched";
-        };
-    }
-
-    /** 동일 역 다회 실행 시 더 진행된 상태로 덮어쓰기 위한 순서. */
-    private static int rank(String status) {
-        return switch (status) {
-            case "untouched" -> 0;
-            case "pending"   -> 1;
-            case "running"   -> 2;
-            case "failed"    -> 3;
-            case "completed" -> 4;
-            default          -> 0;
-        };
-    }
-
     private static String badgeFor(String status) {
-        return switch (status == null ? "" : status) {
-            case "COMPLETED" -> "success";
-            case "RUNNING" -> "warning";
-            case "FAILED" -> "danger";
-            default -> "mute";
-        };
+        return InstanceStateBuilder.badgeForInstanceStatus(status);
     }
 
     private static String dotFor(String status) {
-        return switch (status == null ? "" : status) {
-            case "COMPLETED" -> "completed";
-            case "RUNNING" -> "running";
-            case "FAILED" -> "failed";
-            default -> "pending";
-        };
+        return InstanceStateBuilder.dotForActivityStatus(status);
     }
 
     /**
