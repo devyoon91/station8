@@ -178,18 +178,18 @@ public class JdbcActivityRepository implements ActivityRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<LineInstance> findInstancesPage(String workflowName, String statusSt, String instanceId,
-                                                int offset, int limit) {
-        InstanceFilter f = new InstanceFilter(workflowName, statusSt, instanceId);
+    public List<LineInstance> findInstancesPage(InstanceQueryFilter filter, int offset, int limit) {
+        InstanceFilter f = new InstanceFilter(filter);
         String sql = "SELECT * FROM U_LINE_INSTANCE " + f.where()
-                + " ORDER BY REG_DT DESC " + dbDialect.offsetLimit(offset, limit);
+                + " ORDER BY " + filter.sortBy() + " " + filter.sortDir()
+                + " " + dbDialect.offsetLimit(offset, limit);
         return jdbcTemplate.query(sql, new LineInstanceRowMapper(), f.args().toArray());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public long countInstances(String workflowName, String statusSt, String instanceId) {
-        InstanceFilter f = new InstanceFilter(workflowName, statusSt, instanceId);
+    public long countInstances(InstanceQueryFilter filter) {
+        InstanceFilter f = new InstanceFilter(filter);
         String sql = "SELECT COUNT(*) FROM U_LINE_INSTANCE " + f.where();
         Long n = jdbcTemplate.queryForObject(sql, Long.class, f.args().toArray());
         return n == null ? 0L : n;
@@ -207,24 +207,38 @@ public class JdbcActivityRepository implements ActivityRepository {
     }
 
     /**
-     * Dashboard 필터(WORKFLOW_NAME LIKE / STATUS_ST = / ID LIKE)를 동적 WHERE로 빌드.
+     * Dashboard 필터를 동적 WHERE로 빌드 (#97 + #137).
      * 빈/null 인자는 무시. SQL 인젝션 방지를 위해 모두 ``?``로 바인딩한다.
+     * sortBy/sortDir은 {@link InstanceQueryFilter} 컴팩트 생성자에서 화이트리스트 정규화됨.
      */
     private static final class InstanceFilter {
         private final List<String> conditions = new ArrayList<>();
         private final List<Object> args = new ArrayList<>();
-        InstanceFilter(String workflowName, String statusSt, String instanceId) {
-            if (workflowName != null && !workflowName.isBlank()) {
+        InstanceFilter(InstanceQueryFilter f) {
+            if (f.workflowName() != null && !f.workflowName().isBlank()) {
                 conditions.add("WORKFLOW_NAME LIKE ?");
-                args.add("%" + workflowName + "%");
+                args.add("%" + f.workflowName() + "%");
             }
-            if (statusSt != null && !statusSt.isBlank()) {
-                conditions.add("STATUS_ST = ?");
-                args.add(statusSt);
+            // #137 — 다중 status: STATUS_ST IN (?, ?, ...)
+            if (f.statusList() != null && !f.statusList().isEmpty()) {
+                String placeholders = f.statusList().stream()
+                        .map(s -> "?")
+                        .collect(java.util.stream.Collectors.joining(", "));
+                conditions.add("STATUS_ST IN (" + placeholders + ")");
+                args.addAll(f.statusList());
             }
-            if (instanceId != null && !instanceId.isBlank()) {
+            if (f.instanceId() != null && !f.instanceId().isBlank()) {
                 conditions.add("ID LIKE ?");
-                args.add("%" + instanceId + "%");
+                args.add("%" + f.instanceId() + "%");
+            }
+            // #137 — 날짜 범위 (inclusive 양 끝, 컨트롤러가 to를 23:59:59로 확장)
+            if (f.startDtFrom() != null) {
+                conditions.add("START_DT >= ?");
+                args.add(java.sql.Timestamp.valueOf(f.startDtFrom()));
+            }
+            if (f.startDtTo() != null) {
+                conditions.add("START_DT <= ?");
+                args.add(java.sql.Timestamp.valueOf(f.startDtTo()));
             }
         }
         String where() {

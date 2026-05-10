@@ -78,14 +78,34 @@ public interface ActivityRepository {
      * @param instanceId   ``ID LIKE '%id%'`` 부분일치
      * @param offset       건너뛸 행 수 (0-based)
      * @param limit        반환할 최대 행 수
+     * @deprecated #137 — {@link #findInstancesPage(InstanceQueryFilter, int, int)} 사용 권장.
+     *             후방 호환을 위해 default 메서드로 남겨둠 (단일 status를 list로 변환해 위임).
+     */
+    @Deprecated
+    default List<com.station8.engine.entity.LineInstance> findInstancesPage(
+            String workflowName, String statusSt, String instanceId, int offset, int limit) {
+        return findInstancesPage(InstanceQueryFilter.ofLegacy(workflowName, statusSt, instanceId),
+                offset, limit);
+    }
+
+    /**
+     * 인스턴스 페이지 조회 (#137) — {@link InstanceQueryFilter}로 모든 필터 + 정렬 지정.
      */
     List<com.station8.engine.entity.LineInstance> findInstancesPage(
-            String workflowName, String statusSt, String instanceId, int offset, int limit);
+            InstanceQueryFilter filter, int offset, int limit);
 
     /**
      * 동일 필터 조건에서의 총 행 수 (#97 — 페이지 네비용).
+     *
+     * @deprecated #137 — {@link #countInstances(InstanceQueryFilter)} 사용 권장.
      */
-    long countInstances(String workflowName, String statusSt, String instanceId);
+    @Deprecated
+    default long countInstances(String workflowName, String statusSt, String instanceId) {
+        return countInstances(InstanceQueryFilter.ofLegacy(workflowName, statusSt, instanceId));
+    }
+
+    /** 인스턴스 페이지 카운트 (#137). */
+    long countInstances(InstanceQueryFilter filter);
 
     /**
      * 상태별 인스턴스 카운트 — Dashboard 헤더 통계 카드용 (#97).

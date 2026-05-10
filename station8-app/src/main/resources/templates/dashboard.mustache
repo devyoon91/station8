@@ -43,33 +43,70 @@
         </div>
     </div>
 
-    <!-- 검색/필터 -->
+    <!-- 검색/필터 (#137 — More filters 펼치기) -->
     <div class="swe-card-elevated swe-mb-xl">
-        <form method="get" action="/line/dashboard" class="swe-grid swe-grid-3">
-            <div>
-                <label for="workflowName">Line Name</label>
-                <input type="text" id="workflowName" name="workflowName" class="swe-input"
-                       value="{{#workflowName}}{{workflowName}}{{/workflowName}}" placeholder="Name substring">
+        <form method="get" action="/line/dashboard">
+            <div class="swe-grid swe-grid-3">
+                <div>
+                    <label for="workflowName">Line Name</label>
+                    <input type="text" id="workflowName" name="workflowName" class="swe-input"
+                           value="{{#workflowName}}{{workflowName}}{{/workflowName}}" placeholder="Name substring">
+                </div>
+                <div>
+                    <label for="instanceId">Instance ID</label>
+                    <input type="text" id="instanceId" name="instanceId" class="swe-input"
+                           value="{{#instanceId}}{{instanceId}}{{/instanceId}}" placeholder="UUID substring">
+                </div>
+                <div style="display: flex; align-items: end; gap: var(--space-md); justify-content: flex-end;">
+                    <a href="/line/dashboard" class="swe-btn-secondary">Reset</a>
+                    <button type="submit" class="swe-btn-primary">Apply</button>
+                </div>
             </div>
-            <div>
-                <label for="statusSt">Status</label>
-                <select class="swe-input" id="statusSt" name="statusSt">
-                    <option value="">All</option>
-                    <option value="RUNNING" {{#selectedRunning}}selected{{/selectedRunning}}>RUNNING</option>
-                    <option value="COMPLETED" {{#selectedCompleted}}selected{{/selectedCompleted}}>COMPLETED</option>
-                    <option value="FAILED" {{#selectedFailed}}selected{{/selectedFailed}}>FAILED</option>
-                    <option value="TERMINATED" {{#selectedTerminated}}selected{{/selectedTerminated}}>TERMINATED</option>
-                </select>
-            </div>
-            <div>
-                <label for="instanceId">Instance ID</label>
-                <input type="text" id="instanceId" name="instanceId" class="swe-input"
-                       value="{{#instanceId}}{{instanceId}}{{/instanceId}}" placeholder="UUID substring">
-            </div>
-            <div style="grid-column: 1 / -1; display: flex; gap: var(--space-md); justify-content: flex-end;">
-                <a href="/line/dashboard" class="swe-btn-secondary">Reset</a>
-                <button type="submit" class="swe-btn-primary">Apply</button>
-            </div>
+            <details {{#advancedOpen}}open{{/advancedOpen}} style="margin-top: var(--space-md);">
+                <summary style="cursor: pointer; font-weight: 600; user-select: none;">More filters</summary>
+                <div style="margin-top: var(--space-md); display: flex; flex-direction: column; gap: var(--space-md);">
+                    <div>
+                        <label style="display:block; margin-bottom: var(--space-xs); font-weight: 600;">Status (다중 선택)</label>
+                        <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
+                            <label style="display:flex; align-items:center; gap: var(--space-xs); cursor: pointer;">
+                                <input type="checkbox" name="statusSt" value="RUNNING" {{#selectedRunning}}checked{{/selectedRunning}}>
+                                <span class="swe-badge swe-badge-warning">RUNNING</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap: var(--space-xs); cursor: pointer;">
+                                <input type="checkbox" name="statusSt" value="COMPLETED" {{#selectedCompleted}}checked{{/selectedCompleted}}>
+                                <span class="swe-badge swe-badge-success">COMPLETED</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap: var(--space-xs); cursor: pointer;">
+                                <input type="checkbox" name="statusSt" value="FAILED" {{#selectedFailed}}checked{{/selectedFailed}}>
+                                <span class="swe-badge swe-badge-danger">FAILED</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap: var(--space-xs); cursor: pointer;">
+                                <input type="checkbox" name="statusSt" value="TERMINATED" {{#selectedTerminated}}checked{{/selectedTerminated}}>
+                                <span class="swe-badge swe-badge-secondary">TERMINATED</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="swe-grid swe-grid-2" style="gap: var(--space-md);">
+                        <div>
+                            <label for="startDtFrom">시작일 from</label>
+                            <input type="date" id="startDtFrom" name="startDtFrom" class="swe-input"
+                                   value="{{startDtFrom}}">
+                        </div>
+                        <div>
+                            <label for="startDtTo">시작일 to</label>
+                            <input type="date" id="startDtTo" name="startDtTo" class="swe-input"
+                                   value="{{startDtTo}}">
+                        </div>
+                    </div>
+                    <div class="swe-mute" style="font-size: 11px;">
+                        날짜 범위는 <code>START_DT</code> 기준 inclusive 양 끝 (to는 23:59:59까지 포함).
+                        정렬은 컬럼 헤더 클릭으로 변경 (시작/종료/등록일).
+                    </div>
+                </div>
+            </details>
+            <!-- 정렬 키 hidden — 헤더 클릭으로만 변경 -->
+            <input type="hidden" name="sortBy" value="{{sortBy}}">
+            <input type="hidden" name="sortDir" value="{{sortDir}}">
         </form>
     </div>
 
@@ -81,8 +118,16 @@
                 <th>ID</th>
                 <th>Line</th>
                 <th>Status</th>
-                <th>Started</th>
-                <th>Ended</th>
+                <th>
+                    <a href="{{{startDtSortHref}}}" class="swe-mute" style="text-decoration: none;">
+                        Started {{#sortStartDt}}{{#sortAsc}}▲{{/sortAsc}}{{^sortAsc}}▼{{/sortAsc}}{{/sortStartDt}}
+                    </a>
+                </th>
+                <th>
+                    <a href="{{{endDtSortHref}}}" class="swe-mute" style="text-decoration: none;">
+                        Ended {{#sortEndDt}}{{#sortAsc}}▲{{/sortAsc}}{{^sortAsc}}▼{{/sortAsc}}{{/sortEndDt}}
+                    </a>
+                </th>
                 <th class="swe-text-right">Action</th>
             </tr>
             </thead>

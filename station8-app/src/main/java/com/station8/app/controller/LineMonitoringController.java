@@ -10,8 +10,11 @@ import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineInstance;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
+import com.station8.engine.repository.DlqQueryFilter;
 import com.station8.engine.repository.DlqRepository;
+import com.station8.engine.repository.InstanceQueryFilter;
 import com.station8.engine.repository.LineDefinitionRepository;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,10 +23,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Controller
@@ -57,8 +64,14 @@ public class LineMonitoringController {
 
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(value = "workflowName", required = false) String workflowName,
-                            @RequestParam(value = "statusSt", required = false) String statusSt,
+                            @RequestParam(value = "statusSt", required = false) List<String> statusSt,
                             @RequestParam(value = "instanceId", required = false) String instanceId,
+                            @RequestParam(value = "startDtFrom", required = false)
+                                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDtFrom,
+                            @RequestParam(value = "startDtTo", required = false)
+                                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDtTo,
+                            @RequestParam(value = "sortBy", required = false) String sortBy,
+                            @RequestParam(value = "sortDir", required = false) String sortDir,
                             @RequestParam(value = "page", required = false) Integer page,
                             @RequestParam(value = "size", required = false) Integer size,
                             @RequestParam(value = "auto", required = false) String auto,
@@ -68,13 +81,26 @@ public class LineMonitoringController {
         model.addAttribute("autoRefreshIntervalSeconds", AUTO_REFRESH_INTERVAL_SECONDS);
         int pageSize = PaginationModel.normalizeSize(size);
 
-        long matchingCount = activityRepository.countInstances(workflowName, statusSt, instanceId);
+        // #137 — D5 inclusive 양 끝: from은 자정, to는 23:59:59
+        LocalDateTime startFromDt = startDtFrom != null ? startDtFrom.atStartOfDay() : null;
+        LocalDateTime startToDt = startDtTo != null ? startDtTo.atTime(23, 59, 59) : null;
+
+        // null/빈 statusSt 정규화 (D2 다중 status)
+        List<String> normalizedStatuses = (statusSt == null || statusSt.isEmpty())
+                ? null
+                : statusSt.stream().filter(s -> s != null && !s.isBlank()).toList();
+        if (normalizedStatuses != null && normalizedStatuses.isEmpty()) normalizedStatuses = null;
+
+        InstanceQueryFilter filter = new InstanceQueryFilter(
+                workflowName, normalizedStatuses, instanceId,
+                startFromDt, startToDt, sortBy, sortDir);
+
+        long matchingCount = activityRepository.countInstances(filter);
         int totalPages = (matchingCount <= 0) ? 0 : (int) ((matchingCount + pageSize - 1) / pageSize);
         int currPage = PaginationModel.normalizePage(page, totalPages);
         int offset = currPage * pageSize;
 
-        List<LineInstance> rows = activityRepository.findInstancesPage(
-                workflowName, statusSt, instanceId, offset, pageSize);
+        List<LineInstance> rows = activityRepository.findInstancesPage(filter, offset, pageSize);
 
         List<java.util.Map<String, Object>> instanceViews = rows.stream().map(i -> {
             String badge = switch (i.statusSt() == null ? "" : i.statusSt()) {
@@ -94,13 +120,31 @@ public class LineMonitoringController {
         }).collect(Collectors.toList());
         model.addAttribute("instances", instanceViews);
 
+        // 폼 값 보존 (값이 있으면 input value로 노출)
         model.addAttribute("workflowName", workflowName);
-        model.addAttribute("statusSt", statusSt);
         model.addAttribute("instanceId", instanceId);
-        model.addAttribute("selectedRunning", "RUNNING".equals(statusSt));
-        model.addAttribute("selectedCompleted", "COMPLETED".equals(statusSt));
-        model.addAttribute("selectedFailed", "FAILED".equals(statusSt));
-        model.addAttribute("selectedTerminated", "TERMINATED".equals(statusSt));
+        model.addAttribute("startDtFrom", startDtFrom == null ? "" : startDtFrom.toString());
+        model.addAttribute("startDtTo", startDtTo == null ? "" : startDtTo.toString());
+        // 다중 status 체크박스 selected 상태
+        Set<String> selStatus = normalizedStatuses == null ? Set.of() : Set.copyOf(normalizedStatuses);
+        model.addAttribute("selectedRunning", selStatus.contains("RUNNING"));
+        model.addAttribute("selectedCompleted", selStatus.contains("COMPLETED"));
+        model.addAttribute("selectedFailed", selStatus.contains("FAILED"));
+        model.addAttribute("selectedTerminated", selStatus.contains("TERMINATED"));
+        // 정렬 상태 — 컬럼 헤더에서 화살표 표시 (D3=b 헤더 클릭 정렬)
+        String effectiveSortBy = filter.sortBy();
+        String effectiveSortDir = filter.sortDir();
+        model.addAttribute("sortBy", effectiveSortBy);
+        model.addAttribute("sortDir", effectiveSortDir);
+        model.addAttribute("sortStartDt", "START_DT".equals(effectiveSortBy));
+        model.addAttribute("sortEndDt", "END_DT".equals(effectiveSortBy));
+        model.addAttribute("sortRegDt", "REG_DT".equals(effectiveSortBy));
+        model.addAttribute("sortAsc", "ASC".equals(effectiveSortDir));
+        // Advanced 필터 영역이 펼쳐진 상태인지 (날짜/다중상태/정렬 중 하나라도 사용 시 자동 펼침)
+        boolean hasAdvanced = (startDtFrom != null || startDtTo != null
+                || (normalizedStatuses != null && !normalizedStatuses.isEmpty())
+                || (sortBy != null && !sortBy.isBlank()));
+        model.addAttribute("advancedOpen", hasAdvanced);
 
         // 헤더 통계 — 필터와 무관한 글로벌 카운트 (GROUP BY 한 방)
         Map<String, Long> byStatus = activityRepository.countInstancesByStatus();
@@ -111,15 +155,54 @@ public class LineMonitoringController {
         model.addAttribute("totalCount", totalAll);
         model.addAttribute("navDashboard", true);
 
-        // 페이지네이션 — 검색 폼 값 보존
+        // 페이지네이션 — 검색 폼 값 보존 (다중 status는 콤마-조인으로 한 키에 — Spring이 자동 split)
         Map<String, String> preserve = new LinkedHashMap<>();
         preserve.put("workflowName", workflowName);
-        preserve.put("statusSt", statusSt);
+        if (normalizedStatuses != null && !normalizedStatuses.isEmpty()) {
+            preserve.put("statusSt", String.join(",", normalizedStatuses));
+        }
         preserve.put("instanceId", instanceId);
+        if (startDtFrom != null) preserve.put("startDtFrom", startDtFrom.toString());
+        if (startDtTo != null) preserve.put("startDtTo", startDtTo.toString());
+        if (sortBy != null && !sortBy.isBlank()) preserve.put("sortBy", effectiveSortBy);
+        if (sortDir != null && !sortDir.isBlank()) preserve.put("sortDir", effectiveSortDir);
         model.addAttribute("pagination",
                 PaginationModel.build("/line/dashboard", currPage, pageSize, matchingCount, preserve));
 
+        // #137 — 컬럼 헤더용 sort href (클릭 시 정렬 토글)
+        Map<String, String> sortPreserve = new LinkedHashMap<>(preserve);
+        sortPreserve.remove("sortBy");
+        sortPreserve.remove("sortDir");
+        model.addAttribute("startDtSortHref",
+                buildSortHref("/line/dashboard", "START_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("endDtSortHref",
+                buildSortHref("/line/dashboard", "END_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("regDtSortHref",
+                buildSortHref("/line/dashboard", "REG_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+
         return "dashboard";
+    }
+
+    /**
+     * #137 — 컬럼 헤더 클릭용 정렬 href 생성.
+     * 같은 컬럼 재클릭 시 방향 토글, 다른 컬럼 첫 클릭은 DESC (D8=b).
+     */
+    private static String buildSortHref(String base, String column,
+                                        String currentSortBy, String currentSortDir,
+                                        Map<String, String> preserveQuery) {
+        String newDir = column.equals(currentSortBy)
+                ? ("ASC".equals(currentSortDir) ? "DESC" : "ASC")
+                : "DESC";
+        StringBuilder sb = new StringBuilder(base)
+                .append("?sortBy=").append(column)
+                .append("&sortDir=").append(newDir);
+        for (Map.Entry<String, String> e : preserveQuery.entrySet()) {
+            String v = e.getValue();
+            if (v == null || v.isBlank()) continue;
+            sb.append('&').append(e.getKey()).append('=')
+                    .append(java.net.URLEncoder.encode(v, java.nio.charset.StandardCharsets.UTF_8));
+        }
+        return sb.toString();
     }
 
     /**
@@ -267,18 +350,41 @@ public class LineMonitoringController {
     }
 
     /**
-     * DLQ 목록 조회 (#97 페이징 적용).
+     * DLQ 목록 조회 (#97 페이징 + #137 필터 강화).
      */
     @GetMapping("/dlq")
-    public String dlqList(@RequestParam(value = "page", required = false) Integer page,
+    public String dlqList(@RequestParam(value = "workflowName", required = false) String workflowName,
+                          @RequestParam(value = "activityName", required = false) String activityName,
+                          @RequestParam(value = "errorMessage", required = false) String errorMessage,
+                          @RequestParam(value = "dlqStatusSt", required = false) List<String> dlqStatusSt,
+                          @RequestParam(value = "failedAtFrom", required = false)
+                              @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate failedAtFrom,
+                          @RequestParam(value = "failedAtTo", required = false)
+                              @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate failedAtTo,
+                          @RequestParam(value = "sortBy", required = false) String sortBy,
+                          @RequestParam(value = "sortDir", required = false) String sortDir,
+                          @RequestParam(value = "page", required = false) Integer page,
                           @RequestParam(value = "size", required = false) Integer size,
                           Model model) {
         int pageSize = PaginationModel.normalizeSize(size);
-        long totalCount = dlqRepository.count();
+
+        LocalDateTime failedFromDt = failedAtFrom != null ? failedAtFrom.atStartOfDay() : null;
+        LocalDateTime failedToDt = failedAtTo != null ? failedAtTo.atTime(23, 59, 59) : null;
+        List<String> normalizedStatuses = (dlqStatusSt == null || dlqStatusSt.isEmpty())
+                ? null
+                : dlqStatusSt.stream().filter(s -> s != null && !s.isBlank()).toList();
+        if (normalizedStatuses != null && normalizedStatuses.isEmpty()) normalizedStatuses = null;
+
+        DlqQueryFilter filter = new DlqQueryFilter(
+                workflowName, activityName, errorMessage,
+                normalizedStatuses, failedFromDt, failedToDt,
+                sortBy, sortDir);
+
+        long totalCount = dlqRepository.count(filter);
         int totalPages = (totalCount <= 0) ? 0 : (int) ((totalCount + pageSize - 1) / pageSize);
         int currPage = PaginationModel.normalizePage(page, totalPages);
 
-        List<DlqEntry> dlqEntries = dlqRepository.findPage(currPage * pageSize, pageSize);
+        List<DlqEntry> dlqEntries = dlqRepository.findPage(filter, currPage * pageSize, pageSize);
         List<java.util.Map<String, Object>> view = dlqEntries.stream().map(e -> {
             java.util.Map<String, Object> m = new java.util.HashMap<>();
             m.put("id", e.id());
@@ -299,13 +405,63 @@ public class LineMonitoringController {
         }).toList();
         model.addAttribute("dlqEntries", view);
 
+        // 폼 값 보존
+        model.addAttribute("workflowName", workflowName);
+        model.addAttribute("activityName", activityName);
+        model.addAttribute("errorMessage", errorMessage);
+        model.addAttribute("failedAtFrom", failedAtFrom == null ? "" : failedAtFrom.toString());
+        model.addAttribute("failedAtTo", failedAtTo == null ? "" : failedAtTo.toString());
+        Set<String> selStatus = normalizedStatuses == null ? Set.of() : Set.copyOf(normalizedStatuses);
+        model.addAttribute("selectedNew", selStatus.contains("NEW"));
+        model.addAttribute("selectedRequeued", selStatus.contains("REQUEUED"));
+        model.addAttribute("selectedDiscarded", selStatus.contains("DISCARDED"));
+        // 정렬 상태
+        String effectiveSortBy = filter.sortBy();
+        String effectiveSortDir = filter.sortDir();
+        model.addAttribute("sortBy", effectiveSortBy);
+        model.addAttribute("sortDir", effectiveSortDir);
+        model.addAttribute("sortFailedAt", "FAILED_AT_DT".equals(effectiveSortBy));
+        model.addAttribute("sortActivity", "ACTIVITY_NAME".equals(effectiveSortBy));
+        model.addAttribute("sortRegDt", "REG_DT".equals(effectiveSortBy));
+        model.addAttribute("sortAsc", "ASC".equals(effectiveSortDir));
+        boolean hasAdvanced = (failedAtFrom != null || failedAtTo != null
+                || (normalizedStatuses != null && !normalizedStatuses.isEmpty())
+                || (errorMessage != null && !errorMessage.isBlank())
+                || (sortBy != null && !sortBy.isBlank()));
+        model.addAttribute("advancedOpen", hasAdvanced);
+
         Map<String, Long> byStatus = dlqRepository.countByStatus();
         model.addAttribute("newCount", byStatus.getOrDefault("NEW", 0L));
         model.addAttribute("requeuedCount", byStatus.getOrDefault("REQUEUED", 0L));
         model.addAttribute("discardedCount", byStatus.getOrDefault("DISCARDED", 0L));
         model.addAttribute("totalDlqCount", totalCount);
+
+        // 페이지네이션 폼 보존
+        Map<String, String> preserve = new LinkedHashMap<>();
+        preserve.put("workflowName", workflowName);
+        preserve.put("activityName", activityName);
+        preserve.put("errorMessage", errorMessage);
+        if (normalizedStatuses != null && !normalizedStatuses.isEmpty()) {
+            preserve.put("dlqStatusSt", String.join(",", normalizedStatuses));
+        }
+        if (failedAtFrom != null) preserve.put("failedAtFrom", failedAtFrom.toString());
+        if (failedAtTo != null) preserve.put("failedAtTo", failedAtTo.toString());
+        if (sortBy != null && !sortBy.isBlank()) preserve.put("sortBy", effectiveSortBy);
+        if (sortDir != null && !sortDir.isBlank()) preserve.put("sortDir", effectiveSortDir);
         model.addAttribute("pagination",
-                PaginationModel.build("/line/dlq", currPage, pageSize, totalCount, Map.of()));
+                PaginationModel.build("/line/dlq", currPage, pageSize, totalCount, preserve));
+
+        // #137 — DLQ 컬럼 헤더 sort href
+        Map<String, String> sortPreserve = new LinkedHashMap<>(preserve);
+        sortPreserve.remove("sortBy");
+        sortPreserve.remove("sortDir");
+        model.addAttribute("failedAtSortHref",
+                buildSortHref("/line/dlq", "FAILED_AT_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("activitySortHref",
+                buildSortHref("/line/dlq", "ACTIVITY_NAME", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("regDtSortHref",
+                buildSortHref("/line/dlq", "REG_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+
         model.addAttribute("navDlq", true);
         return "dlq";
     }
