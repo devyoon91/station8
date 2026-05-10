@@ -7,11 +7,16 @@ import com.station8.engine.core.RunOptions;
 import com.station8.engine.entity.LineDefinition;
 import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
+import com.station8.app.security.LineAclRepository;
+import com.station8.app.security.LineUser;
+import com.station8.app.security.LineUserRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
 import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,19 +39,25 @@ public class LineDefinitionService {
     private final DagInterpreter dagInterpreter;
     private final JdbcTemplate jdbcTemplate;
     private final JsonUtil jsonUtil;
+    private final LineAclRepository aclRepository;
+    private final LineUserRepository userRepository;
 
     public LineDefinitionService(LineDefinitionRepository definitionRepository,
                                      DagValidator dagValidator,
                                      LineRegistry workflowRegistry,
                                      DagInterpreter dagInterpreter,
                                      JdbcTemplate jdbcTemplate,
-                                     JsonUtil jsonUtil) {
+                                     JsonUtil jsonUtil,
+                                     LineAclRepository aclRepository,
+                                     LineUserRepository userRepository) {
         this.definitionRepository = definitionRepository;
         this.dagValidator = dagValidator;
         this.workflowRegistry = workflowRegistry;
         this.dagInterpreter = dagInterpreter;
         this.jdbcTemplate = jdbcTemplate;
         this.jsonUtil = jsonUtil;
+        this.aclRepository = aclRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -95,7 +106,38 @@ public class LineDefinitionService {
 
         log.info("DAG 정의 등록: id={}, nm={}, version={}, nodes={}, edges={}",
                 definitionId, req.definitionNm(), nextVersion, nodes.size(), edges.size());
+
+        // #140 — 정의 생성자에게 ADMIN 자동 부여 (현재 인증된 사용자가 있을 때만)
+        autoGrantAdminToCreator(definitionId);
+
         return definitionId;
+    }
+
+    /**
+     * #140 — 정의 생성 시 현재 인증된 사용자에게 ADMIN 권한 부여.
+     * 인증 컨텍스트가 없거나(시스템/테스트) 사용자가 DB에 없으면 skip.
+     */
+    private void autoGrantAdminToCreator(String definitionId) {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()
+                    || "anonymousUser".equals(auth.getPrincipal())) {
+                log.debug("[#140] 정의 생성 — 인증 컨텍스트 없음, ADMIN auto-grant skip: id={}", definitionId);
+                return;
+            }
+            String username = auth.getName();
+            LineUser user = userRepository.findByUsername(username);
+            if (user == null) {
+                log.warn("[#140] 정의 생성 — 사용자 '{}' DB에 없음, ADMIN auto-grant skip: id={}",
+                        username, definitionId);
+                return;
+            }
+            aclRepository.grant(definitionId, user.id(), "ADMIN", username);
+            log.info("[#140] 정의 생성자에게 ADMIN 자동 부여: definitionId={}, user={}", definitionId, username);
+        } catch (Exception ex) {
+            // ACL 부여 실패가 정의 생성 실패로 이어지지 않도록 — 정의는 성공, 권한은 운영자가 수동 grant
+            log.error("[#140] ADMIN auto-grant 실패 (definition은 그대로 저장됨): id={}", definitionId, ex);
+        }
     }
 
     @Transactional(readOnly = true)

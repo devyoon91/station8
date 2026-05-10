@@ -5,6 +5,7 @@ import com.station8.engine.entity.LineSchedule;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.support.CronExpression;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -76,8 +77,10 @@ public class ScheduleController {
 
     // ========== REST API ==========
 
+    /** #140 — SCHEDULE 권한 필요 (대상 정의 ID는 body에서). */
     @ResponseBody
     @PostMapping("/api/line/schedules")
+    @PreAuthorize("@lineAcl.canSchedule(#req.definitionId())")
     public ResponseEntity<Map<String, String>> create(@RequestBody CreateRequest req) {
         String id = scheduleService.create(req.definitionId(), req.cronExpr(), req.inputData());
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("scheduleId", id));
@@ -97,6 +100,7 @@ public class ScheduleController {
 
     @ResponseBody
     @PutMapping("/api/line/schedules/{id}")
+    @PreAuthorize("@lineAcl.canScheduleByScheduleId(#id)")
     public ResponseEntity<Void> updateCron(@PathVariable("id") String id,
                                             @RequestBody UpdateCronRequest req) {
         scheduleService.updateCron(id, req.cronExpr());
@@ -105,6 +109,7 @@ public class ScheduleController {
 
     @ResponseBody
     @DeleteMapping("/api/line/schedules/{id}")
+    @PreAuthorize("@lineAcl.canScheduleByScheduleId(#id)")
     public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         scheduleService.delete(id);
         return ResponseEntity.noContent().build();
@@ -112,6 +117,7 @@ public class ScheduleController {
 
     @ResponseBody
     @PutMapping("/api/line/schedules/{id}/pause")
+    @PreAuthorize("@lineAcl.canScheduleByScheduleId(#id)")
     public ResponseEntity<Void> pause(@PathVariable("id") String id) {
         scheduleService.pause(id);
         return ResponseEntity.noContent().build();
@@ -119,13 +125,16 @@ public class ScheduleController {
 
     @ResponseBody
     @PutMapping("/api/line/schedules/{id}/resume")
+    @PreAuthorize("@lineAcl.canScheduleByScheduleId(#id)")
     public ResponseEntity<Void> resume(@PathVariable("id") String id) {
         scheduleService.resume(id);
         return ResponseEntity.noContent().build();
     }
 
+    /** #140 — run-now는 EXECUTE 권한 (실행 행위라). 스케줄은 트리거 매개체일 뿐. */
     @ResponseBody
     @PostMapping("/api/line/schedules/{id}/run-now")
+    @PreAuthorize("@lineAcl.canScheduleByScheduleId(#id)")
     public ResponseEntity<Map<String, String>> runNow(@PathVariable("id") String id) {
         String instanceId = scheduleService.runNow(id);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("instanceId", instanceId));

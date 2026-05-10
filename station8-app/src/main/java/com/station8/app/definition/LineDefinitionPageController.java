@@ -2,16 +2,24 @@ package com.station8.app.definition;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.station8.app.security.LineAclEntry;
+import com.station8.app.security.LineAclRepository;
+import com.station8.app.security.LineAclService;
+import com.station8.app.security.LineUser;
+import com.station8.app.security.LineUserRepository;
 import com.station8.app.util.PaginationModel;
 import com.station8.engine.entity.LineDefinition;
 import com.station8.engine.entity.LineInstance;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -43,15 +51,24 @@ public class LineDefinitionPageController {
     private final LineDefinitionService definitionService;
     private final ObjectMapper objectMapper;
     private final ActivityRepository activityRepository;
+    private final LineAclRepository aclRepository;
+    private final LineAclService aclService;
+    private final LineUserRepository userRepository;
 
     public LineDefinitionPageController(LineDefinitionRepository definitionRepository,
                                         LineDefinitionService definitionService,
                                         ObjectMapper objectMapper,
-                                        ActivityRepository activityRepository) {
+                                        ActivityRepository activityRepository,
+                                        LineAclRepository aclRepository,
+                                        LineAclService aclService,
+                                        LineUserRepository userRepository) {
         this.definitionRepository = definitionRepository;
         this.definitionService = definitionService;
         this.objectMapper = objectMapper;
         this.activityRepository = activityRepository;
+        this.aclRepository = aclRepository;
+        this.aclService = aclService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/line/definitions")
@@ -126,7 +143,79 @@ public class LineDefinitionPageController {
                 "/line/dashboard?workflowName=" + java.net.URLEncoder.encode(
                         wf, java.nio.charset.StandardCharsets.UTF_8));
 
+        // #140 — ACL 관리 영역 (현재 사용자가 ADMIN일 때만 노출)
+        boolean canAdmin = aclService.canAdmin(id);
+        model.addAttribute("canAdmin", canAdmin);
+        if (canAdmin) {
+            List<LineAclEntry> entries = aclRepository.findByDefinition(id);
+            // user_id → username 매핑 (entry는 ID만 보유 — UI는 username 필요)
+            List<Map<String, Object>> aclViews = new ArrayList<>(entries.size());
+            for (LineAclEntry e : entries) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("entryId", e.id());
+                m.put("userId", e.userId());
+                m.put("permission", e.permission());
+                LineUser user = userRepository.findById(e.userId());
+                m.put("username", user == null ? e.userId() : user.username());
+                m.put("displayNm", user == null ? null : user.displayNm());
+                m.put("isAdmin", "ADMIN".equals(e.permission()));
+                aclViews.add(m);
+            }
+            model.addAttribute("aclEntries", aclViews);
+            model.addAttribute("aclEmpty", aclViews.isEmpty());
+        }
+
         return "definition-preview";
+    }
+
+    /** #140 — 권한 부여 (ADMIN만). */
+    @PostMapping("/line/definitions/{id}/acl/grant")
+    @PreAuthorize("@lineAcl.canAdmin(#id)")
+    public String grantAcl(@PathVariable("id") String id,
+                           @RequestParam("username") String username,
+                           @RequestParam("permission") String permission,
+                           org.springframework.security.core.Authentication auth,
+                           RedirectAttributes flash) {
+        LineUser target = userRepository.findByUsername(username);
+        if (target == null) {
+            flash.addFlashAttribute("aclMsg", "[FAIL] 사용자 '" + username + "'를 찾을 수 없습니다.");
+            flash.addFlashAttribute("aclOk", false);
+            return "redirect:/line/definitions/" + id;
+        }
+        if (!java.util.Set.of("READ", "WRITE", "EXECUTE", "SCHEDULE", "ADMIN").contains(permission)) {
+            flash.addFlashAttribute("aclMsg", "[FAIL] 알 수 없는 권한 '" + permission + "'.");
+            flash.addFlashAttribute("aclOk", false);
+            return "redirect:/line/definitions/" + id;
+        }
+        aclRepository.grant(id, target.id(), permission, auth.getName());
+        flash.addFlashAttribute("aclMsg", "[OK] " + username + " ← " + permission + " grant.");
+        flash.addFlashAttribute("aclOk", true);
+        return "redirect:/line/definitions/" + id;
+    }
+
+    /** #140 — 권한 회수 (ADMIN만, 자기 자신의 마지막 ADMIN 강등은 거부). */
+    @PostMapping("/line/definitions/{id}/acl/revoke")
+    @PreAuthorize("@lineAcl.canAdmin(#id)")
+    public String revokeAcl(@PathVariable("id") String id,
+                            @RequestParam("userId") String userId,
+                            @RequestParam("permission") String permission,
+                            org.springframework.security.core.Authentication auth,
+                            RedirectAttributes flash) {
+        // 자기 마지막 ADMIN 강등 보호
+        if ("ADMIN".equals(permission)) {
+            LineUser current = userRepository.findByUsername(auth.getName());
+            int adminCount = aclRepository.countAdminsForDefinition(id);
+            if (current != null && current.id().equals(userId) && adminCount <= 1) {
+                flash.addFlashAttribute("aclMsg",
+                        "[FAIL] 자기 자신의 마지막 ADMIN 권한은 회수할 수 없습니다 (다른 ADMIN을 먼저 추가하세요).");
+                flash.addFlashAttribute("aclOk", false);
+                return "redirect:/line/definitions/" + id;
+            }
+        }
+        aclRepository.revoke(id, userId, permission);
+        flash.addFlashAttribute("aclMsg", "[OK] " + permission + " revoke.");
+        flash.addFlashAttribute("aclOk", true);
+        return "redirect:/line/definitions/" + id;
     }
 
     // ---- helpers (#133) ----

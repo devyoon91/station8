@@ -124,7 +124,9 @@ class InstanceTerminateTest {
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
     void rest_terminate_returns200_andMarksInstance() throws Exception {
+        // #140 — 글로벌 ADMIN으로 ACL 우회 (legacy/open 정의는 모두 통과지만, 명시 ADMIN으로 보장)
         String instanceId = createRunningInstanceWithActivities();
 
         mockMvc.perform(post("/api/line/instances/" + instanceId + "/terminate").with(csrf()))
@@ -136,12 +138,15 @@ class InstanceTerminateTest {
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
     void rest_terminate_unknownInstance_returns404() throws Exception {
+        // 글로벌 ADMIN이라 ACL 통과 후 존재하지 않는 instance에서 404
         mockMvc.perform(post("/api/line/instances/ghost/terminate").with(csrf()))
                 .andExpect(status().isNotFound());
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
     void rest_terminate_completedInstance_returns409() throws Exception {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""

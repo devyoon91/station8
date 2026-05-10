@@ -142,6 +142,80 @@
         </table>
     </div>
 
+    {{#canAdmin}}
+    <!-- #140 — 권한 관리 (정의의 ADMIN만 노출) -->
+    <h2 class="swe-heading-md" style="margin-top: var(--space-section); margin-bottom: var(--space-md);">Permissions</h2>
+
+    {{#aclMsg}}
+    <div class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid {{#aclOk}}var(--accent-green){{/aclOk}}{{^aclOk}}var(--accent-pink){{/aclOk}};">
+        <code style="color: var(--ink); font-size: 0.95em;">{{aclMsg}}</code>
+    </div>
+    {{/aclMsg}}
+
+    <div class="swe-card swe-mb-xl" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Permission</th>
+                    <th class="swe-text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#aclEntries}}
+                <tr>
+                    <td>{{username}}{{#displayNm}} <span class="swe-mute" style="font-size:12px;">— {{displayNm}}</span>{{/displayNm}}</td>
+                    <td><span class="swe-badge swe-badge-{{#isAdmin}}danger{{/isAdmin}}{{^isAdmin}}info{{/isAdmin}}">{{permission}}</span></td>
+                    <td class="swe-text-right">
+                        <form action="/line/definitions/{{definitionId}}/acl/revoke" method="post" style="display:inline;"
+                              onsubmit="return confirm('{{username}}의 {{permission}} 권한을 회수합니까?');">
+                            {{> _csrf}}
+                            <input type="hidden" name="userId" value="{{userId}}">
+                            <input type="hidden" name="permission" value="{{permission}}">
+                            <button type="submit" class="swe-btn-tertiary swe-btn-sm swe-btn-danger">Revoke</button>
+                        </form>
+                    </td>
+                </tr>
+                {{/aclEntries}}
+                {{#aclEmpty}}
+                <tr>
+                    <td colspan="3" style="text-align:center; padding: var(--space-lg) 0; color: var(--mute);">
+                        ACL entry가 없습니다 (legacy/open 모드 — 모든 인증된 USER 통과). grant 추가 시 managed로 전환됩니다.
+                    </td>
+                </tr>
+                {{/aclEmpty}}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg);">
+        <h3 class="swe-heading-sm" style="margin: 0 0 var(--space-md);">Grant permission</h3>
+        <form action="/line/definitions/{{definitionId}}/acl/grant" method="post" class="swe-grid swe-grid-3" style="gap: var(--space-md); align-items: end;">
+            {{> _csrf}}
+            <div>
+                <label for="acl-username">Username</label>
+                <input type="text" id="acl-username" name="username" class="swe-input" placeholder="alice" required>
+            </div>
+            <div>
+                <label for="acl-permission">Permission</label>
+                <select id="acl-permission" name="permission" class="swe-input" required>
+                    <option value="READ">READ — 조회 (1차 비범위)</option>
+                    <option value="WRITE">WRITE — 정의 수정/삭제</option>
+                    <option value="EXECUTE">EXECUTE — 실행 + 인스턴스 제어</option>
+                    <option value="SCHEDULE">SCHEDULE — cron 등록/수정</option>
+                    <option value="ADMIN">ADMIN — 위 전체 + 권한 관리</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="swe-btn-primary swe-w-full">Grant</button>
+            </div>
+        </form>
+        <div class="swe-mute" style="font-size:11px; margin-top: var(--space-md);">
+            ADMIN은 다른 권한을 자동 cascade. 같은 USER+권한 조합은 idempotent (중복 grant 무시). 글로벌 ROLE_ADMIN은 ACL 우회.
+        </div>
+    </div>
+    {{/canAdmin}}
+
 </div>
 
 <!-- #133 — Run now 모달 (D6=a) -->
