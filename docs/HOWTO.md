@@ -308,17 +308,34 @@ public class MyBatchConfig {
 Station8은 자체 사용자 계정 + Spring Security 기반 form login을 제공.
 
 **부팅 시 초기 ADMIN 시드:**
-```bash
-STATION8_INITIAL_ADMIN_USERNAME=admin \
-STATION8_INITIAL_ADMIN_PASSWORD='Hello!1234' \
-java -jar station8-app.jar
-```
-또는 `application.properties`:
-```properties
-station8.security.initial-admin.username=admin
-station8.security.initial-admin.password=Hello!1234
-```
-비밀번호가 비어있으면 시드 안 함. 같은 username이 이미 있으면 멱등(skip).
+
+세 가지 시드 동작 (멱등):
+
+1. **명시 비밀번호** — 환경변수 또는 properties로 주입:
+   ```bash
+   STATION8_INITIAL_ADMIN_USERNAME=admin \
+   STATION8_INITIAL_ADMIN_PASSWORD='Hello!1234' \
+   java -jar station8-app.jar
+   ```
+   또는 `application.properties`:
+   ```properties
+   station8.security.initial-admin.username=admin
+   station8.security.initial-admin.password=Hello!1234
+   ```
+
+2. **자동 생성** (env 미설정 + DB가 빈 첫 부팅) — 정책 충족 랜덤 16자 비밀번호 생성, 콘솔에 1회 출력:
+   ```
+   ============================================================
+     Auto-generated initial ADMIN account
+       username: admin
+       password: aB7kQz9xMpRtFn2!
+     This password is shown ONCE. Save it now.
+     After login, change it via /me/password ...
+   ============================================================
+   ```
+   → chicken-and-egg(env 안 줘서 로그인 불가) 방지. 첫 로그인 후 `/me/password`에서 변경 권장.
+
+3. **Skip** — 같은 username 존재 또는 (env 미설정 + 다른 사용자 이미 존재).
 
 **비밀번호 정책:** 최소 8자 + 숫자 1+ + 특수문자 1+.
 
