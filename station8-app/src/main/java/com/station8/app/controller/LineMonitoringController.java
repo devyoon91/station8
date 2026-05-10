@@ -10,9 +10,7 @@ import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineInstance;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
-import com.station8.engine.repository.DlqQueryFilter;
 import com.station8.engine.repository.DlqRepository;
-import com.station8.engine.repository.InstanceQueryFilter;
 import com.station8.engine.repository.LineDefinitionRepository;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,14 +23,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/line")
@@ -44,23 +39,29 @@ public class LineMonitoringController {
     private final LineDefinitionRepository definitionRepository;
     private final ObjectMapper objectMapper;
     private final com.station8.app.security.LineAclService aclService;
+    private final com.station8.app.controller.dashboard.DashboardModelBuilder dashboardModelBuilder;
+    private final com.station8.app.controller.dlq.DlqModelBuilder dlqModelBuilder;
 
     public LineMonitoringController(ActivityRepository activityRepository,
                                         LineExecutor workflowExecutor,
                                         DlqRepository dlqRepository,
                                         LineDefinitionRepository definitionRepository,
                                         ObjectMapper objectMapper,
-                                        com.station8.app.security.LineAclService aclService) {
+                                        com.station8.app.security.LineAclService aclService,
+                                        com.station8.app.controller.dashboard.DashboardModelBuilder dashboardModelBuilder,
+                                        com.station8.app.controller.dlq.DlqModelBuilder dlqModelBuilder) {
         this.activityRepository = activityRepository;
         this.workflowExecutor = workflowExecutor;
         this.dlqRepository = dlqRepository;
         this.definitionRepository = definitionRepository;
         this.objectMapper = objectMapper;
         this.aclService = aclService;
+        this.dashboardModelBuilder = dashboardModelBuilder;
+        this.dlqModelBuilder = dlqModelBuilder;
     }
 
     /**
-     * #159 — ACL READ 가시성 필터에 사용할 활성 정의 → workflow_name 매핑 로드.
+     * ACL READ 가시성 필터에 사용할 활성 정의 → workflow_name 매핑 로드 (DLQ 빌더에서 사용).
      * Active 정의 ≤ 10000 가정. ADMIN은 null 반환(필터 미적용).
      */
     private Set<String> currentVisibleWorkflowNames() {
@@ -70,12 +71,8 @@ public class LineMonitoringController {
     }
 
     /**
-     * 전체 라인 인스턴스 목록 대시보드 (#97 페이징 적용).
-     * 필터/페이징은 SQL로 내려가며, 헤더 통계 카드는 ``GROUP BY STATUS_ST`` 한 방.
+     * 전체 라인 인스턴스 목록 대시보드 — 모델 조립은 {@link com.station8.app.controller.dashboard.DashboardModelBuilder}.
      */
-    /** Auto-refresh interval (seconds) when {@code ?auto=1} (#100). 워커 폴링 주기 1초 + 여유. */
-    private static final int AUTO_REFRESH_INTERVAL_SECONDS = 5;
-
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(value = "workflowName", required = false) String workflowName,
                             @RequestParam(value = "statusSt", required = false) List<String> statusSt,
@@ -90,114 +87,14 @@ public class LineMonitoringController {
                             @RequestParam(value = "size", required = false) Integer size,
                             @RequestParam(value = "auto", required = false) String auto,
                             Model model) {
-        boolean autoRefresh = "1".equals(auto) || "true".equalsIgnoreCase(auto);
-        model.addAttribute("autoRefresh", autoRefresh);
-        model.addAttribute("autoRefreshIntervalSeconds", AUTO_REFRESH_INTERVAL_SECONDS);
-        int pageSize = PaginationModel.normalizeSize(size);
-
-        // #137 — D5 inclusive 양 끝: from은 자정, to는 23:59:59
-        LocalDateTime startFromDt = startDtFrom != null ? startDtFrom.atStartOfDay() : null;
-        LocalDateTime startToDt = startDtTo != null ? startDtTo.atTime(23, 59, 59) : null;
-
-        // null/빈 statusSt 정규화 (D2 다중 status)
-        List<String> normalizedStatuses = (statusSt == null || statusSt.isEmpty())
-                ? null
-                : statusSt.stream().filter(s -> s != null && !s.isBlank()).toList();
-        if (normalizedStatuses != null && normalizedStatuses.isEmpty()) normalizedStatuses = null;
-
-        InstanceQueryFilter filter = new InstanceQueryFilter(
-                workflowName, normalizedStatuses, instanceId,
-                startFromDt, startToDt, sortBy, sortDir);
-
-        // #159 — ACL READ 필터: ADMIN(null) 외엔 가시 workflow 이름만 노출
-        Set<String> visibleNames = currentVisibleWorkflowNames();
-        if (visibleNames != null) filter = filter.withWorkflowNameAllowList(visibleNames);
-
-        long matchingCount = activityRepository.countInstances(filter);
-        int totalPages = (matchingCount <= 0) ? 0 : (int) ((matchingCount + pageSize - 1) / pageSize);
-        int currPage = PaginationModel.normalizePage(page, totalPages);
-        int offset = currPage * pageSize;
-
-        List<LineInstance> rows = activityRepository.findInstancesPage(filter, offset, pageSize);
-
-        List<java.util.Map<String, Object>> instanceViews = rows.stream().map(i -> {
-            String badge = switch (i.statusSt() == null ? "" : i.statusSt()) {
-                case "COMPLETED" -> "success";
-                case "RUNNING" -> "warning";
-                case "FAILED" -> "danger";
-                default -> "secondary";
-            };
-            java.util.Map<String, Object> m = new java.util.HashMap<>();
-            m.put("id", i.id());
-            m.put("workflowName", i.workflowName());
-            m.put("statusSt", i.statusSt());
-            m.put("startDt", i.startDt());
-            m.put("endDt", i.endDt());
-            m.put("badgeClass", badge);
-            return m;
-        }).collect(Collectors.toList());
-        model.addAttribute("instances", instanceViews);
-
-        // 폼 값 보존 (값이 있으면 input value로 노출)
-        model.addAttribute("workflowName", workflowName);
-        model.addAttribute("instanceId", instanceId);
-        model.addAttribute("startDtFrom", startDtFrom == null ? "" : startDtFrom.toString());
-        model.addAttribute("startDtTo", startDtTo == null ? "" : startDtTo.toString());
-        // 다중 status 체크박스 selected 상태
-        Set<String> selStatus = normalizedStatuses == null ? Set.of() : Set.copyOf(normalizedStatuses);
-        model.addAttribute("selectedRunning", selStatus.contains("RUNNING"));
-        model.addAttribute("selectedCompleted", selStatus.contains("COMPLETED"));
-        model.addAttribute("selectedFailed", selStatus.contains("FAILED"));
-        model.addAttribute("selectedTerminated", selStatus.contains("TERMINATED"));
-        // 정렬 상태 — 컬럼 헤더에서 화살표 표시 (D3=b 헤더 클릭 정렬)
-        String effectiveSortBy = filter.sortBy();
-        String effectiveSortDir = filter.sortDir();
-        model.addAttribute("sortBy", effectiveSortBy);
-        model.addAttribute("sortDir", effectiveSortDir);
-        model.addAttribute("sortStartDt", "START_DT".equals(effectiveSortBy));
-        model.addAttribute("sortEndDt", "END_DT".equals(effectiveSortBy));
-        model.addAttribute("sortRegDt", "REG_DT".equals(effectiveSortBy));
-        model.addAttribute("sortAsc", "ASC".equals(effectiveSortDir));
-        // Advanced 필터 영역이 펼쳐진 상태인지 (날짜/다중상태/정렬 중 하나라도 사용 시 자동 펼침)
-        boolean hasAdvanced = (startDtFrom != null || startDtTo != null
-                || (normalizedStatuses != null && !normalizedStatuses.isEmpty())
-                || (sortBy != null && !sortBy.isBlank()));
-        model.addAttribute("advancedOpen", hasAdvanced);
-
-        // 헤더 통계 — 필터와 무관한 글로벌 카운트 (GROUP BY 한 방)
-        Map<String, Long> byStatus = activityRepository.countInstancesByStatus();
-        model.addAttribute("runningCount", byStatus.getOrDefault("RUNNING", 0L));
-        model.addAttribute("completedCount", byStatus.getOrDefault("COMPLETED", 0L));
-        model.addAttribute("failedCount", byStatus.getOrDefault("FAILED", 0L));
-        long totalAll = byStatus.values().stream().mapToLong(Long::longValue).sum();
-        model.addAttribute("totalCount", totalAll);
-        model.addAttribute("navDashboard", true);
-
-        // 페이지네이션 — 검색 폼 값 보존 (다중 status는 콤마-조인으로 한 키에 — Spring이 자동 split)
-        Map<String, String> preserve = new LinkedHashMap<>();
-        preserve.put("workflowName", workflowName);
-        if (normalizedStatuses != null && !normalizedStatuses.isEmpty()) {
-            preserve.put("statusSt", String.join(",", normalizedStatuses));
-        }
-        preserve.put("instanceId", instanceId);
-        if (startDtFrom != null) preserve.put("startDtFrom", startDtFrom.toString());
-        if (startDtTo != null) preserve.put("startDtTo", startDtTo.toString());
-        if (sortBy != null && !sortBy.isBlank()) preserve.put("sortBy", effectiveSortBy);
-        if (sortDir != null && !sortDir.isBlank()) preserve.put("sortDir", effectiveSortDir);
-        model.addAttribute("pagination",
-                PaginationModel.build("/line/dashboard", currPage, pageSize, matchingCount, preserve));
-
-        // #137 — 컬럼 헤더용 sort href (클릭 시 정렬 토글) — #176 PaginationModel.toggleSortHref로 통합
-        Map<String, String> sortPreserve = new LinkedHashMap<>(preserve);
-        sortPreserve.remove("sortBy");
-        sortPreserve.remove("sortDir");
-        model.addAttribute("startDtSortHref", PaginationModel.toggleSortHref(
-                "/line/dashboard", "START_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
-        model.addAttribute("endDtSortHref", PaginationModel.toggleSortHref(
-                "/line/dashboard", "END_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
-        model.addAttribute("regDtSortHref", PaginationModel.toggleSortHref(
-                "/line/dashboard", "REG_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
-
+        // 컨트롤러는 라우팅 + 파라미터 패킹만 담당 — 모델 조립은 빌더에 위임 (#180)
+        com.station8.app.controller.dashboard.DashboardRequest req =
+                new com.station8.app.controller.dashboard.DashboardRequest(
+                        workflowName, statusSt, instanceId,
+                        startDtFrom, startDtTo,
+                        sortBy, sortDir,
+                        page, size, auto);
+        dashboardModelBuilder.build(req, model);
         return "dashboard";
     }
 
@@ -399,7 +296,7 @@ public class LineMonitoringController {
     }
 
     /**
-     * DLQ 목록 조회 (#97 페이징 + #137 필터 강화).
+     * DLQ 목록 조회 — 모델 조립은 {@link com.station8.app.controller.dlq.DlqModelBuilder}.
      */
     @GetMapping("/dlq")
     public String dlqList(@RequestParam(value = "workflowName", required = false) String workflowName,
@@ -415,107 +312,10 @@ public class LineMonitoringController {
                           @RequestParam(value = "page", required = false) Integer page,
                           @RequestParam(value = "size", required = false) Integer size,
                           Model model) {
-        int pageSize = PaginationModel.normalizeSize(size);
-
-        LocalDateTime failedFromDt = failedAtFrom != null ? failedAtFrom.atStartOfDay() : null;
-        LocalDateTime failedToDt = failedAtTo != null ? failedAtTo.atTime(23, 59, 59) : null;
-        List<String> normalizedStatuses = (dlqStatusSt == null || dlqStatusSt.isEmpty())
-                ? null
-                : dlqStatusSt.stream().filter(s -> s != null && !s.isBlank()).toList();
-        if (normalizedStatuses != null && normalizedStatuses.isEmpty()) normalizedStatuses = null;
-
-        DlqQueryFilter filter = new DlqQueryFilter(
-                workflowName, activityName, errorMessage,
-                normalizedStatuses, failedFromDt, failedToDt,
-                sortBy, sortDir);
-
-        // #159 — ACL READ 필터
-        Set<String> visibleNames = currentVisibleWorkflowNames();
-        if (visibleNames != null) filter = filter.withWorkflowNameAllowList(visibleNames);
-
-        long totalCount = dlqRepository.count(filter);
-        int totalPages = (totalCount <= 0) ? 0 : (int) ((totalCount + pageSize - 1) / pageSize);
-        int currPage = PaginationModel.normalizePage(page, totalPages);
-
-        List<DlqEntry> dlqEntries = dlqRepository.findPage(filter, currPage * pageSize, pageSize);
-        List<java.util.Map<String, Object>> view = dlqEntries.stream().map(e -> {
-            java.util.Map<String, Object> m = new java.util.HashMap<>();
-            m.put("id", e.id());
-            m.put("workflowName", e.workflowName());
-            m.put("activityName", e.activityName());
-            m.put("dlqStatusSt", e.dlqStatusSt());
-            m.put("retryCnt", e.retryCnt());
-            m.put("maxRetryCnt", e.maxRetryCnt());
-            m.put("failedAtDt", e.failedAtDt());
-            m.put("isNew", "NEW".equals(e.dlqStatusSt()));
-            String badge = switch (e.dlqStatusSt() == null ? "" : e.dlqStatusSt()) {
-                case "NEW" -> "danger";
-                case "REQUEUED" -> "info";
-                default -> "mute";
-            };
-            m.put("badgeClass", badge);
-            return m;
-        }).toList();
-        model.addAttribute("dlqEntries", view);
-
-        // 폼 값 보존
-        model.addAttribute("workflowName", workflowName);
-        model.addAttribute("activityName", activityName);
-        model.addAttribute("errorMessage", errorMessage);
-        model.addAttribute("failedAtFrom", failedAtFrom == null ? "" : failedAtFrom.toString());
-        model.addAttribute("failedAtTo", failedAtTo == null ? "" : failedAtTo.toString());
-        Set<String> selStatus = normalizedStatuses == null ? Set.of() : Set.copyOf(normalizedStatuses);
-        model.addAttribute("selectedNew", selStatus.contains("NEW"));
-        model.addAttribute("selectedRequeued", selStatus.contains("REQUEUED"));
-        model.addAttribute("selectedDiscarded", selStatus.contains("DISCARDED"));
-        // 정렬 상태
-        String effectiveSortBy = filter.sortBy();
-        String effectiveSortDir = filter.sortDir();
-        model.addAttribute("sortBy", effectiveSortBy);
-        model.addAttribute("sortDir", effectiveSortDir);
-        model.addAttribute("sortFailedAt", "FAILED_AT_DT".equals(effectiveSortBy));
-        model.addAttribute("sortActivity", "ACTIVITY_NAME".equals(effectiveSortBy));
-        model.addAttribute("sortRegDt", "REG_DT".equals(effectiveSortBy));
-        model.addAttribute("sortAsc", "ASC".equals(effectiveSortDir));
-        boolean hasAdvanced = (failedAtFrom != null || failedAtTo != null
-                || (normalizedStatuses != null && !normalizedStatuses.isEmpty())
-                || (errorMessage != null && !errorMessage.isBlank())
-                || (sortBy != null && !sortBy.isBlank()));
-        model.addAttribute("advancedOpen", hasAdvanced);
-
-        Map<String, Long> byStatus = dlqRepository.countByStatus();
-        model.addAttribute("newCount", byStatus.getOrDefault("NEW", 0L));
-        model.addAttribute("requeuedCount", byStatus.getOrDefault("REQUEUED", 0L));
-        model.addAttribute("discardedCount", byStatus.getOrDefault("DISCARDED", 0L));
-        model.addAttribute("totalDlqCount", totalCount);
-
-        // 페이지네이션 폼 보존
-        Map<String, String> preserve = new LinkedHashMap<>();
-        preserve.put("workflowName", workflowName);
-        preserve.put("activityName", activityName);
-        preserve.put("errorMessage", errorMessage);
-        if (normalizedStatuses != null && !normalizedStatuses.isEmpty()) {
-            preserve.put("dlqStatusSt", String.join(",", normalizedStatuses));
-        }
-        if (failedAtFrom != null) preserve.put("failedAtFrom", failedAtFrom.toString());
-        if (failedAtTo != null) preserve.put("failedAtTo", failedAtTo.toString());
-        if (sortBy != null && !sortBy.isBlank()) preserve.put("sortBy", effectiveSortBy);
-        if (sortDir != null && !sortDir.isBlank()) preserve.put("sortDir", effectiveSortDir);
-        model.addAttribute("pagination",
-                PaginationModel.build("/line/dlq", currPage, pageSize, totalCount, preserve));
-
-        // #137 — DLQ 컬럼 헤더 sort href — #176 PaginationModel.toggleSortHref로 통합
-        Map<String, String> sortPreserve = new LinkedHashMap<>(preserve);
-        sortPreserve.remove("sortBy");
-        sortPreserve.remove("sortDir");
-        model.addAttribute("failedAtSortHref", PaginationModel.toggleSortHref(
-                "/line/dlq", "FAILED_AT_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
-        model.addAttribute("activitySortHref", PaginationModel.toggleSortHref(
-                "/line/dlq", "ACTIVITY_NAME", effectiveSortBy, effectiveSortDir, sortPreserve));
-        model.addAttribute("regDtSortHref", PaginationModel.toggleSortHref(
-                "/line/dlq", "REG_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
-
-        model.addAttribute("navDlq", true);
+        com.station8.app.controller.dlq.DlqRequest req = new com.station8.app.controller.dlq.DlqRequest(
+                workflowName, activityName, errorMessage, dlqStatusSt,
+                failedAtFrom, failedAtTo, sortBy, sortDir, page, size);
+        dlqModelBuilder.build(req, model);
         return "dlq";
     }
 

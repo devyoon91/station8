@@ -7,8 +7,6 @@ import com.station8.app.security.LineAclRepository;
 import com.station8.app.security.LineAclService;
 import com.station8.app.security.LineUser;
 import com.station8.app.security.LineUserRepository;
-import com.station8.app.util.PaginationModel;
-import com.station8.engine.entity.LineDefinition;
 import com.station8.engine.entity.LineInstance;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
@@ -54,6 +52,7 @@ public class LineDefinitionPageController {
     private final LineAclRepository aclRepository;
     private final LineAclService aclService;
     private final LineUserRepository userRepository;
+    private final com.station8.app.definition.list.DefinitionsListModelBuilder definitionsListModelBuilder;
 
     public LineDefinitionPageController(LineDefinitionRepository definitionRepository,
                                         LineDefinitionService definitionService,
@@ -61,7 +60,8 @@ public class LineDefinitionPageController {
                                         ActivityRepository activityRepository,
                                         LineAclRepository aclRepository,
                                         LineAclService aclService,
-                                        LineUserRepository userRepository) {
+                                        LineUserRepository userRepository,
+                                        com.station8.app.definition.list.DefinitionsListModelBuilder definitionsListModelBuilder) {
         this.definitionRepository = definitionRepository;
         this.definitionService = definitionService;
         this.objectMapper = objectMapper;
@@ -69,127 +69,22 @@ public class LineDefinitionPageController {
         this.aclRepository = aclRepository;
         this.aclService = aclService;
         this.userRepository = userRepository;
+        this.definitionsListModelBuilder = definitionsListModelBuilder;
     }
 
+    /**
+     * 활성 정의 목록 — 모델 조립은 {@link com.station8.app.definition.list.DefinitionsListModelBuilder} (#180).
+     */
     @GetMapping("/line/definitions")
     public String list(@RequestParam(value = "page", required = false) Integer page,
                        @RequestParam(value = "size", required = false) Integer size,
                        @RequestParam(value = "name", required = false) String nameFilter,
                        @RequestParam(value = "tag", required = false) String tagFilter,
                        Model model) {
-        int pageSize = PaginationModel.normalizeSize(size);
-
-        boolean hasNameFilter = nameFilter != null && !nameFilter.isBlank();
-        boolean hasTagFilter = tagFilter != null && !tagFilter.isBlank();
-        String normalizedTag = hasTagFilter ? tagFilter.trim().toLowerCase() : null;
-
-        // #142 — 필터 처리: tag/name 활성 시 in-memory 필터 (active 정의 최대 10000건 load 후 필터)
-        // 정의 수가 더 큰 환경에선 SQL 레벨 필터로 마이그레이션 (별도 이슈).
-        List<LineDefinition> allActive = definitionRepository.findActiveDefinitionsPage(0, 10000);
-
-        // #159 — ACL READ 가시성 필터: ADMIN은 null(전체), USER는 명시 grant + legacy 정의만 노출
-        java.util.Set<String> visibleIds = aclService.visibleDefinitionIds(
-                allActive.stream().map(LineDefinition::id).toList());
-        boolean hasVisibilityFilter = visibleIds != null;
-
-        // 태그 필터: 매칭 정의 ID 집합 미리 조회
-        java.util.Set<String> tagMatchIds = null;
-        if (hasTagFilter) {
-            tagMatchIds = new java.util.HashSet<>(definitionRepository.findDefinitionIdsByTag(normalizedTag));
-        }
-
-        // in-memory 필터 (visibility + 이름 LIKE + tag IN)
-        java.util.Set<String> finalTagMatchIds = tagMatchIds;
-        java.util.Set<String> finalVisibleIds = visibleIds;
-        List<LineDefinition> filtered = allActive.stream()
-                .filter(d -> !hasVisibilityFilter || finalVisibleIds.contains(d.id()))
-                .filter(d -> !hasNameFilter
-                        || (d.definitionNm() != null
-                            && d.definitionNm().toLowerCase().contains(nameFilter.trim().toLowerCase())))
-                .filter(d -> !hasTagFilter || finalTagMatchIds.contains(d.id()))
-                .toList();
-
-        long totalCount = filtered.size();
-        int totalPages = (totalCount <= 0) ? 0 : (int) ((totalCount + pageSize - 1) / pageSize);
-        int currPage = PaginationModel.normalizePage(page, totalPages);
-        int offset = currPage * pageSize;
-        int end = Math.min(offset + pageSize, filtered.size());
-        List<LineDefinition> pageDefs = (offset >= filtered.size()) ? List.of() : filtered.subList(offset, end);
-
-        // 페이지 정의들의 태그 일괄 조회 (N+1 방지)
-        java.util.Map<String, List<String>> tagsByDef = definitionRepository.findTagsForDefinitions(
-                pageDefs.stream().map(LineDefinition::id).toList());
-
-        List<Map<String, Object>> rows = pageDefs.stream().map(d -> {
-            Map<String, Object> m = new HashMap<>();
-            m.put("id", d.id());
-            m.put("definitionNm", d.definitionNm());
-            m.put("description", d.description());
-            m.put("versionNo", d.versionNo());
-            m.put("regDt", d.regDt());
-            // #142 — 행별 태그 + 색상
-            List<String> tags = tagsByDef.getOrDefault(d.id(), List.of());
-            m.put("tagViews", tags.stream().map(t -> Map.of(
-                    "tag", t,
-                    "colorClass", colorClassFor(t)
-            )).toList());
-            return m;
-        }).toList();
-        model.addAttribute("definitions", rows);
-        model.addAttribute("totalCount", totalCount);
-        model.addAttribute("filterName", hasNameFilter ? nameFilter : null);
-        model.addAttribute("filterTag", hasTagFilter ? normalizedTag : null);
-
-        // #142 — 태그 클라우드 (필터/페이징 무관, 단 #159 가시성 필터는 적용)
-        // ADMIN(visibleIds=null)은 single SQL로 빠른 글로벌 카운트, USER는 가시 정의의 태그만 합산.
-        List<Map<String, Object>> tagCloudView;
-        if (!hasVisibilityFilter) {
-            List<LineDefinitionRepository.TagCount> cloud = definitionRepository.findAllTagsWithCount();
-            tagCloudView = cloud.stream().<Map<String, Object>>map(tc -> Map.of(
-                    "tag", tc.tag(),
-                    "count", tc.count(),
-                    "colorClass", colorClassFor(tc.tag())
-            )).toList();
-        } else if (visibleIds.isEmpty()) {
-            tagCloudView = List.of();
-        } else {
-            // 가시 정의의 태그만 합산해 cloud 재구성 (활성 정의 ≤ 10000 가정 — #142와 같음)
-            java.util.Map<String, java.util.List<String>> tagsByVisible =
-                    definitionRepository.findTagsForDefinitions(visibleIds);
-            java.util.Map<String, Long> counts = new java.util.HashMap<>();
-            for (java.util.List<String> tags : tagsByVisible.values()) {
-                for (String t : tags) counts.merge(t, 1L, Long::sum);
-            }
-            tagCloudView = counts.entrySet().stream()
-                    .sorted((a, b) -> {
-                        int byCount = Long.compare(b.getValue(), a.getValue());  // count desc
-                        return byCount != 0 ? byCount : a.getKey().compareTo(b.getKey());  // tag asc
-                    })
-                    .<Map<String, Object>>map(e -> Map.of(
-                            "tag", e.getKey(),
-                            "count", e.getValue(),
-                            "colorClass", colorClassFor(e.getKey())
-                    ))
-                    .toList();
-        }
-        model.addAttribute("hasTagCloud", !tagCloudView.isEmpty());
-        model.addAttribute("tagCloud", tagCloudView);
-
-        // 페이지네이션 — 필터 보존
-        java.util.LinkedHashMap<String, String> preserve = new java.util.LinkedHashMap<>();
-        if (hasNameFilter) preserve.put("name", nameFilter);
-        if (hasTagFilter) preserve.put("tag", normalizedTag);
-        model.addAttribute("pagination",
-                PaginationModel.build("/line/definitions", currPage, pageSize, totalCount, preserve));
-        model.addAttribute("navLines", true);
+        com.station8.app.definition.list.DefinitionsListRequest req =
+                new com.station8.app.definition.list.DefinitionsListRequest(page, size, nameFilter, tagFilter);
+        definitionsListModelBuilder.build(req, model);
         return "definitions";
-    }
-
-    /** #142 — tag 문자열 → 안정적 색상 클래스 (auto hash). 6색 팔레트. */
-    private static String colorClassFor(String tag) {
-        if (tag == null) return "0";
-        int h = Math.abs(tag.hashCode()) % 6;
-        return String.valueOf(h);
     }
 
     @GetMapping("/line/definitions/{id}")
