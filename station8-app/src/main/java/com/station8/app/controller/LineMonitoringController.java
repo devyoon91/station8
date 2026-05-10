@@ -223,6 +223,7 @@ public class LineMonitoringController {
         instView.put("isFailed", "FAILED".equals(instance.statusSt()));
         instView.put("isRunning", "RUNNING".equals(instance.statusSt()));
         instView.put("isTerminated", "TERMINATED".equals(instance.statusSt()));
+        instView.put("isPaused", "PAUSED".equals(instance.statusSt()));  // #139
         model.addAttribute("instance", instView);
 
         List<java.util.Map<String, Object>> actViews = activities.stream().map(a -> {
@@ -240,6 +241,7 @@ public class LineMonitoringController {
             m.put("hasRetry", a.retryCnt() > 0);
             m.put("badgeClass", badgeFor(a.statusSt()));
             m.put("dotClass", dotFor(a.statusSt()));
+            m.put("isActivityFailed", "FAILED".equals(a.statusSt()));  // #139 — activity retry 버튼용
             return m;
         }).toList();
         model.addAttribute("activities", actViews);
@@ -341,6 +343,52 @@ public class LineMonitoringController {
         try {
             workflowExecutor.terminateLine(instanceId);
             flash.addFlashAttribute("terminateMsg", "[OK] 인스턴스 종료 요청 완료 — 시작 안 한 액티비티는 TERMINATED, 진행 중은 자연 완료 후 후행 차단");
+            flash.addFlashAttribute("terminateOk", true);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            flash.addFlashAttribute("terminateMsg", "[FAIL] " + ex.getMessage());
+            flash.addFlashAttribute("terminateOk", false);
+        }
+        return "redirect:/line/instance/" + instanceId;
+    }
+
+    /** #139 — RUNNING 인스턴스 일시 정지. PENDING 활동은 워커 폴링이 차단, RUNNING은 자연 완료. */
+    @PostMapping("/instance/{id}/pause")
+    public String pause(@PathVariable("id") String instanceId,
+                        org.springframework.web.servlet.mvc.support.RedirectAttributes flash) {
+        try {
+            workflowExecutor.pauseLine(instanceId);
+            flash.addFlashAttribute("terminateMsg", "[OK] 일시 정지 — PAUSED. 활동 폴링 차단됨, RUNNING 활동은 자연 완료.");
+            flash.addFlashAttribute("terminateOk", true);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            flash.addFlashAttribute("terminateMsg", "[FAIL] " + ex.getMessage());
+            flash.addFlashAttribute("terminateOk", false);
+        }
+        return "redirect:/line/instance/" + instanceId;
+    }
+
+    /** #139 — PAUSED 인스턴스 재개. 일시정지 동안 완료된 활동의 fan-out 재평가. */
+    @PostMapping("/instance/{id}/unpause")
+    public String unpause(@PathVariable("id") String instanceId,
+                          org.springframework.web.servlet.mvc.support.RedirectAttributes flash) {
+        try {
+            workflowExecutor.unpauseLine(instanceId);
+            flash.addFlashAttribute("terminateMsg", "[OK] 재개 — RUNNING. fan-out 재평가 완료.");
+            flash.addFlashAttribute("terminateOk", true);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            flash.addFlashAttribute("terminateMsg", "[FAIL] " + ex.getMessage());
+            flash.addFlashAttribute("terminateOk", false);
+        }
+        return "redirect:/line/instance/" + instanceId;
+    }
+
+    /** #139 — 단일 FAILED 활동만 PENDING으로 reset (활동 단위 retry). */
+    @PostMapping("/instance/{id}/activity/{execId}/retry")
+    public String retryActivity(@PathVariable("id") String instanceId,
+                                @PathVariable("execId") String activityExecutionId,
+                                org.springframework.web.servlet.mvc.support.RedirectAttributes flash) {
+        try {
+            workflowExecutor.retryActivity(activityExecutionId);
+            flash.addFlashAttribute("terminateMsg", "[OK] 활동 retry — PENDING으로 reset됨.");
             flash.addFlashAttribute("terminateOk", true);
         } catch (IllegalArgumentException | IllegalStateException ex) {
             flash.addFlashAttribute("terminateMsg", "[FAIL] " + ex.getMessage());

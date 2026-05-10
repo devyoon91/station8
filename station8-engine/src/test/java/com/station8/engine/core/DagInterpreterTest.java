@@ -66,6 +66,9 @@ class DagInterpreterTest {
             @Override public String startLine(String workflowName, Object input) { throw new UnsupportedOperationException(); }
             @Override public void resumeLine(String instanceId) { throw new UnsupportedOperationException(); }
             @Override public void terminateLine(String instanceId) { throw new UnsupportedOperationException(); }
+            @Override public void pauseLine(String instanceId) { throw new UnsupportedOperationException(); }
+            @Override public void unpauseLine(String instanceId) { throw new UnsupportedOperationException(); }
+            @Override public void retryActivity(String activityExecutionId) { throw new UnsupportedOperationException(); }
             @Override public void terminateLineWithReason(String instanceId, String reason) { /* no-op */ }
             @Override public void failLine(String instanceId, String reason) { /* no-op */ }
         };
