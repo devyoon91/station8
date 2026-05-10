@@ -13,6 +13,7 @@ public record LineDefinition(
     String activeFl,
     Long slaSeconds,           // #138: NULL = SLA 비활성
     String slaAction,          // #138: ALERT_ONLY / AUTO_TERMINATE / null
+    String concurrencyPolicy,  // #141: CONCURRENT(default) / SKIP_IF_RUNNING / null
     String useFl,
     String viewFl,
     String delFl,

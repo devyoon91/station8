@@ -173,7 +173,7 @@ class SlaPollerTest {
         String defId = "def-" + UUID.randomUUID();
         defRepo.insertDefinition(new LineDefinition(
                 defId, name, null, 1, "Y",
-                slaSeconds, slaAction,
+                slaSeconds, slaAction, null,
                 "Y", "Y", "N",
                 null, "test", null, null));
         return defId;

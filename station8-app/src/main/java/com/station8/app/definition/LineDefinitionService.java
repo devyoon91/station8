@@ -1,5 +1,6 @@
 package com.station8.app.definition;
 
+import com.station8.engine.core.ConcurrencyPolicy;
 import com.station8.engine.core.DagInterpreter;
 import com.station8.engine.core.DagValidator;
 import com.station8.engine.core.LineRegistry;
@@ -92,11 +93,12 @@ public class LineDefinitionService {
         // 검증 — 위반 시 LineEngineException(DAG_INVALID) 으로 실패
         dagValidator.validate(nodes, edges, workflowRegistry.getActivityNames());
 
-        // 정의 + 역 + 엣지 저장 — #138 SLA는 req에서 받아 저장
+        // 정의 + 역 + 엣지 저장 — #138 SLA / #141 동시 실행 정책은 req에서 받아 저장
         LineDefinition def = new LineDefinition(
                 definitionId, req.definitionNm(), req.description(),
                 nextVersion, "Y",
                 req.slaSeconds(), req.slaAction(),
+                req.concurrencyPolicy(),
                 "Y", "Y", "N",
                 null, "api", null, null
         );
@@ -152,6 +154,7 @@ public class LineDefinitionService {
                 def.id(), def.definitionNm(), def.description(),
                 def.versionNo(), def.activeFl(),
                 def.slaSeconds(), def.slaAction(),
+                def.concurrencyPolicy(),
                 nodes.stream().map(n -> new DagDefinitionRequest.NodeDef(
                         n.id(), n.nodeNm(), n.activityNm(), n.inputParams(),
                         n.posXNo(), n.posYNo(),
@@ -185,13 +188,15 @@ public class LineDefinitionService {
 
         definitionRepository.updateDefinitionMeta(definitionId, req.description(), null);
         definitionRepository.updateDefinitionSla(definitionId, req.slaSeconds(), req.slaAction());
+        definitionRepository.updateDefinitionConcurrency(definitionId, req.concurrencyPolicy());
         definitionRepository.softDeleteEdgesByDefinition(definitionId);
         definitionRepository.softDeleteNodesByDefinition(definitionId);
         for (LineStation n : nodes) definitionRepository.insertNode(n);
         for (LineTrack e : edges) definitionRepository.insertEdge(e);
 
-        log.info("DAG 정의 교체: id={}, nodes={}, edges={}, sla={}s/{}",
-                definitionId, nodes.size(), edges.size(), req.slaSeconds(), req.slaAction());
+        log.info("DAG 정의 교체: id={}, nodes={}, edges={}, sla={}s/{}, concurrency={}",
+                definitionId, nodes.size(), edges.size(), req.slaSeconds(), req.slaAction(),
+                req.concurrencyPolicy());
     }
 
     @Transactional
@@ -221,12 +226,43 @@ public class LineDefinitionService {
      *
      * <p>{@code options}는 JSON으로 직렬화되어 {@code U_LINE_INSTANCE.RUN_OPTIONS}에 저장된다.
      * 후방 호환 — null이면 {@link RunOptions#defaults()}.</p>
+     *
+     * <p>#141 — 정의의 {@code SKIP_IF_RUNNING} 정책 활성 시 같은 정의의 RUNNING/PAUSED 인스턴스가 있으면
+     * skip 처리되어 {@link IllegalStateException}을 던진다. SKIP을 정상 흐름으로 처리하려면
+     * {@link #runDefinitionWithResult}를 사용.</p>
      */
     @Transactional
     public String runDefinition(String definitionId, String inputData, RunOptions options) {
+        RunResult result = runDefinitionWithResult(definitionId, inputData, options);
+        if (result.skipped()) {
+            // 후방 호환 — 기존 callers는 String 기대. SKIP은 IllegalStateException으로.
+            throw new IllegalStateException("동시 실행 SKIP: " + result.reason()
+                    + " (conflicting instance: " + result.conflictingInstanceId() + ")");
+        }
+        return result.instanceId();
+    }
+
+    /**
+     * #141 — 즉시 실행. SKIP_IF_RUNNING 정책 시 skip 결과를 반환 (예외 X).
+     */
+    @Transactional
+    public RunResult runDefinitionWithResult(String definitionId, String inputData, RunOptions options) {
         LineDefinition def = definitionRepository.findDefinitionById(definitionId);
         if (def == null || "Y".equals(def.delFl())) {
             throw new IllegalArgumentException("정의를 찾을 수 없습니다: " + definitionId);
+        }
+
+        // #141 — SKIP_IF_RUNNING 체크 (정의 정책)
+        ConcurrencyPolicy policy = ConcurrencyPolicy.parse(def.concurrencyPolicy());
+        if (policy == ConcurrencyPolicy.SKIP_IF_RUNNING) {
+            String conflicting = findActiveInstanceWithLock(def.definitionNm());
+            if (conflicting != null) {
+                String reason = "Definition '" + def.definitionNm() + "' has an active instance ("
+                        + conflicting + ") with policy SKIP_IF_RUNNING";
+                log.warn("[#141] 동시 실행 SKIP — definitionId={}, conflictingInstance={}",
+                        definitionId, conflicting);
+                return RunResult.skipped(reason, conflicting);
+            }
         }
 
         RunOptions opt = options != null ? options : RunOptions.defaults();
@@ -239,9 +275,25 @@ public class LineDefinitionService {
                 """, instanceId, def.definitionNm(), inputData, optionsJson);
 
         dagInterpreter.startInstance(definitionId, instanceId, inputData);
-        log.info("DAG 즉시 실행: definitionId={}, instanceId={}, onFailure={}",
-                definitionId, instanceId, opt.onFailure());
-        return instanceId;
+        log.info("DAG 즉시 실행: definitionId={}, instanceId={}, onFailure={}, concurrency={}",
+                definitionId, instanceId, opt.onFailure(), policy);
+        return RunResult.started(instanceId);
+    }
+
+    /**
+     * #141 — 같은 workflow_name의 RUNNING/PAUSED 인스턴스 1건 조회 (FOR UPDATE 락 — 동시 호출 race 방지).
+     * 트랜잭션 끝까지 락 유지 → 두 호출이 동시에 들어와도 한쪽만 INSERT 통과.
+     */
+    private String findActiveInstanceWithLock(String workflowName) {
+        // FOR UPDATE는 트랜잭션 격리 + 락을 보장. 비기존 행도 락 시도 — H2 / MariaDB / Oracle 모두 지원.
+        // 같은 workflow_name 인스턴스 row를 read-and-lock하여 새 INSERT를 직렬화.
+        java.util.List<String> ids = jdbcTemplate.queryForList(
+                "SELECT ID FROM U_LINE_INSTANCE "
+                        + "WHERE WORKFLOW_NAME = ? AND STATUS_ST IN ('RUNNING', 'PAUSED') "
+                        + "AND DEL_FL = 'N' "
+                        + "FOR UPDATE",
+                String.class, workflowName);
+        return ids.isEmpty() ? null : ids.get(0);
     }
 
     /** RunOptions → JSON. 모두 default면 null 반환 (DB 컬럼 비움). */
