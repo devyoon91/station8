@@ -49,7 +49,11 @@ public record RunOptions(
     /**
      * {@code U_LINE_INSTANCE.RUN_OPTIONS} CLOB JSON에서 파싱. null/빈 문자열이면 {@link #defaults()}.
      * 알 수 없는 필드는 무시 (후방 호환).
+     *
+     * @deprecated 신규 코드는 {@link RunOptionsCodec#parseFromClob(String)} 사용 — Spring bean 단일 진입점.
+     *             본 정적 메서드는 테스트 후방 호환을 위해 유지.
      */
+    @Deprecated
     @SuppressWarnings("unchecked")
     public static RunOptions parse(String json, JsonUtil jsonUtil) {
         if (json == null || json.isBlank()) return defaults();

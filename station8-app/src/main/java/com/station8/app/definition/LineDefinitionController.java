@@ -1,6 +1,7 @@
 package com.station8.app.definition;
 
 import com.station8.engine.core.RunOptions;
+import com.station8.engine.core.RunOptionsCodec;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,16 +22,20 @@ import java.util.Map;
  *   <li>POST   /api/line/definitions/{id}/run — 즉시 실행 (인스턴스 생성)</li>
  * </ul>
  *
- * 검증 실패는 {@code 400 Bad Request} + {@code LineEngineException} 메시지로 응답.
+ * <p>검증 실패는 {@code 400 Bad Request} + {@code GlobalRestExceptionHandler}가 표준
+ * {@code ErrorResponse} 포맷으로 응답.</p>
  */
 @RestController
 @RequestMapping("/api/line/definitions")
 public class LineDefinitionController {
 
     private final LineDefinitionService service;
+    private final RunOptionsCodec runOptionsCodec;
 
-    public LineDefinitionController(LineDefinitionService service) {
+    public LineDefinitionController(LineDefinitionService service,
+                                    RunOptionsCodec runOptionsCodec) {
         this.service = service;
+        this.runOptionsCodec = runOptionsCodec;
     }
 
     /**
@@ -101,7 +106,12 @@ public class LineDefinitionController {
     public ResponseEntity<Map<String, Object>> run(@PathVariable("id") String id,
                                                    @RequestBody(required = false) Map<String, Object> body) {
         String inputData = (body == null || body.get("input") == null) ? null : String.valueOf(body.get("input"));
-        RunOptions options = parseOptions(body);
+        // RunOptionsCodec — body의 options 서브맵을 RunOptions로 변환. body/options 없으면 default 반환.
+        @SuppressWarnings("unchecked")
+        Map<String, Object> optionsMap = body == null
+                ? null
+                : (body.get("options") instanceof Map<?, ?> m ? (Map<String, Object>) m : null);
+        RunOptions options = runOptionsCodec.parseFromOptionsMap(optionsMap);
         RunResult result = service.runDefinitionWithResult(id, inputData, options);
         if (result.skipped()) {
             // #141 — SKIP은 정상 흐름 — 200 OK + 메시지
@@ -115,44 +125,6 @@ public class LineDefinitionController {
                 .body(Map.of("instanceId", result.instanceId()));
     }
 
-    /**
-     * Body의 {@code options} 서브맵을 {@link RunOptions}로 변환. 없거나 비어있으면 default.
-     * 알 수 없는 필드는 무시 (후방 호환).
-     */
-    @SuppressWarnings("unchecked")
-    private RunOptions parseOptions(Map<String, Object> body) {
-        if (body == null) return RunOptions.defaults();
-        Object raw = body.get("options");
-        if (!(raw instanceof Map<?, ?> optMap) || optMap.isEmpty()) {
-            return RunOptions.defaults();
-        }
-        RunOptions.OnFailure onFailure = RunOptions.OnFailure.parse(
-                optMap.get("onFailure") == null ? null : String.valueOf(optMap.get("onFailure")));
-
-        Map<String, String> params = new LinkedHashMap<>();
-        Object pRaw = optMap.get("runtimeParams");
-        if (pRaw instanceof Map<?, ?> pm) {
-            pm.forEach((k, v) -> params.put(String.valueOf(k), v == null ? null : String.valueOf(v)));
-        }
-
-        String webhook = optMap.get("notificationWebhookUrl") == null
-                ? null : String.valueOf(optMap.get("notificationWebhookUrl"));
-
-        // #138 — SLA override (선택)
-        Long slaSeconds = null;
-        Object slaRaw = optMap.get("slaSeconds");
-        if (slaRaw instanceof Number sn) slaSeconds = sn.longValue();
-        else if (slaRaw instanceof String ss && !ss.isBlank()) {
-            try { slaSeconds = Long.parseLong(ss.trim()); } catch (NumberFormatException ignore) {}
-        }
-        com.station8.engine.core.SlaAction slaAction = null;
-        Object slaActRaw = optMap.get("slaAction");
-        if (slaActRaw instanceof String sas && !sas.isBlank()) {
-            slaAction = com.station8.engine.core.SlaAction.parse(sas);
-        }
-
-        return new RunOptions(onFailure, params, webhook, slaSeconds, slaAction);
-    }
-
-    // 예외 매핑은 #174 GlobalRestExceptionHandler로 통합 — controller-level 핸들러 제거.
+    // 예외 매핑은 GlobalRestExceptionHandler로 통합 — controller-level 핸들러 제거.
+    // RunOptions 파싱/직렬화는 RunOptionsCodec(engine.core)으로 통합 (#147).
 }

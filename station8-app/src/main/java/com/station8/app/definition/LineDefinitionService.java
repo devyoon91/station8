@@ -41,6 +41,7 @@ public class LineDefinitionService {
     private final JsonUtil jsonUtil;
     private final LineAclRepository aclRepository;
     private final LineUserRepository userRepository;
+    private final com.station8.engine.core.RunOptionsCodec runOptionsCodec;
 
     public LineDefinitionService(LineDefinitionRepository definitionRepository,
                                      DagValidator dagValidator,
@@ -49,7 +50,8 @@ public class LineDefinitionService {
                                      JdbcTemplate jdbcTemplate,
                                      JsonUtil jsonUtil,
                                      LineAclRepository aclRepository,
-                                     LineUserRepository userRepository) {
+                                     LineUserRepository userRepository,
+                                     com.station8.engine.core.RunOptionsCodec runOptionsCodec) {
         this.definitionRepository = definitionRepository;
         this.dagValidator = dagValidator;
         this.workflowRegistry = workflowRegistry;
@@ -58,6 +60,7 @@ public class LineDefinitionService {
         this.jsonUtil = jsonUtil;
         this.aclRepository = aclRepository;
         this.userRepository = userRepository;
+        this.runOptionsCodec = runOptionsCodec;
     }
 
     /**
@@ -300,7 +303,8 @@ public class LineDefinitionService {
         }
 
         RunOptions opt = options != null ? options : RunOptions.defaults();
-        String optionsJson = serializeRunOptions(opt);
+        // RunOptionsCodec — 모두 default면 null 반환 → DB 컬럼 비움 (저장 공간/노이즈 절감)
+        String optionsJson = runOptionsCodec.serializeToClob(opt);
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_INSTANCE
@@ -328,28 +332,6 @@ public class LineDefinitionService {
                         + "FOR UPDATE",
                 String.class, workflowName);
         return ids.isEmpty() ? null : ids.get(0);
-    }
-
-    /** RunOptions → JSON. 모두 default면 null 반환 (DB 컬럼 비움). */
-    private String serializeRunOptions(RunOptions opt) {
-        boolean isDefault = opt.onFailure() == RunOptions.OnFailure.CONTINUE
-                && (opt.runtimeParams() == null || opt.runtimeParams().isEmpty())
-                && (opt.notificationWebhookUrl() == null || opt.notificationWebhookUrl().isBlank())
-                && opt.slaSeconds() == null
-                && opt.slaAction() == null;
-        if (isDefault) return null;
-        Map<String, Object> map = new java.util.LinkedHashMap<>();
-        map.put("onFailure", opt.onFailure().name());
-        if (opt.runtimeParams() != null && !opt.runtimeParams().isEmpty()) {
-            map.put("runtimeParams", opt.runtimeParams());
-        }
-        if (opt.notificationWebhookUrl() != null && !opt.notificationWebhookUrl().isBlank()) {
-            map.put("notificationWebhookUrl", opt.notificationWebhookUrl());
-        }
-        // #138 — SLA override
-        if (opt.slaSeconds() != null) map.put("slaSeconds", opt.slaSeconds());
-        if (opt.slaAction() != null) map.put("slaAction", opt.slaAction().name());
-        return jsonUtil.toJson(map);
     }
 
     /**
