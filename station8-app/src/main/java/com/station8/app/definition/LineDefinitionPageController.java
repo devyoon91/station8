@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.station8.app.util.PaginationModel;
 import com.station8.engine.entity.LineDefinition;
+import com.station8.engine.entity.LineInstance;
+import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -11,6 +13,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,16 +34,24 @@ import java.util.Map;
 @Controller
 public class LineDefinitionPageController {
 
+    /** 정의 상세 페이지 '최근 실행' 섹션에 노출할 최근 N개 (#133 D1=10). */
+    private static final int RECENT_RUNS_LIMIT = 10;
+
+    private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private final LineDefinitionRepository definitionRepository;
     private final LineDefinitionService definitionService;
     private final ObjectMapper objectMapper;
+    private final ActivityRepository activityRepository;
 
     public LineDefinitionPageController(LineDefinitionRepository definitionRepository,
                                         LineDefinitionService definitionService,
-                                        ObjectMapper objectMapper) {
+                                        ObjectMapper objectMapper,
+                                        ActivityRepository activityRepository) {
         this.definitionRepository = definitionRepository;
         this.definitionService = definitionService;
         this.objectMapper = objectMapper;
+        this.activityRepository = activityRepository;
     }
 
     @GetMapping("/line/definitions")
@@ -79,7 +93,71 @@ public class LineDefinitionPageController {
         model.addAttribute("edgeCount", def.edges().size());
         model.addAttribute("graphJson", toJson(def));
         model.addAttribute("navLines", true);
+
+        // #133 — 정의 단위 최근 실행 + 상태별 통계
+        String wf = def.definitionNm();
+        long total = activityRepository.countInstances(wf, null, null);
+        long running = activityRepository.countInstances(wf, "RUNNING", null);
+        long completed = activityRepository.countInstances(wf, "COMPLETED", null);
+        long failed = activityRepository.countInstances(wf, "FAILED", null);
+        model.addAttribute("statTotal", total);
+        model.addAttribute("statRunning", running);
+        model.addAttribute("statCompleted", completed);
+        model.addAttribute("statFailed", failed);
+        model.addAttribute("hasAnyRun", total > 0);
+
+        List<LineInstance> recent = activityRepository.findInstancesPage(wf, null, null, 0, RECENT_RUNS_LIMIT);
+        List<Map<String, Object>> recentViews = new ArrayList<>(recent.size());
+        for (LineInstance i : recent) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", i.id());
+            m.put("idShort", shortId(i.id()));
+            m.put("statusSt", i.statusSt());
+            m.put("badgeClass", badgeFor(i.statusSt()));
+            m.put("startedAt", formatDt(i.startDt()));
+            m.put("endedAt", formatDt(i.endDt()));
+            m.put("duration", formatDuration(i.startDt(), i.endDt()));
+            recentViews.add(m);
+        }
+        model.addAttribute("recentRuns", recentViews);
+
+        // dashboard deeplink — 같은 라인 이름 prefilter (D10)
+        model.addAttribute("dashboardDeepLink",
+                "/line/dashboard?workflowName=" + java.net.URLEncoder.encode(
+                        wf, java.nio.charset.StandardCharsets.UTF_8));
+
         return "definition-preview";
+    }
+
+    // ---- helpers (#133) ----
+
+    private static String shortId(String id) {
+        if (id == null) return "";
+        return id.length() <= 8 ? id : id.substring(0, 8);
+    }
+
+    private static String badgeFor(String status) {
+        return switch (status == null ? "" : status) {
+            case "COMPLETED" -> "success";
+            case "RUNNING" -> "warning";
+            case "FAILED" -> "danger";
+            case "TERMINATED" -> "secondary";
+            default -> "mute";
+        };
+    }
+
+    private static String formatDt(LocalDateTime dt) {
+        return dt == null ? null : DT_FMT.format(dt);
+    }
+
+    /** RUNNING이면 진행중 표시, 둘 다 있으면 "1m 23s" 형태. */
+    private static String formatDuration(LocalDateTime start, LocalDateTime end) {
+        if (start == null) return "—";
+        LocalDateTime to = end != null ? end : LocalDateTime.now();
+        long seconds = Duration.between(start, to).toSeconds();
+        if (seconds < 60) return seconds + "s";
+        if (seconds < 3600) return (seconds / 60) + "m " + (seconds % 60) + "s";
+        return (seconds / 3600) + "h " + ((seconds % 3600) / 60) + "m";
     }
 
     /**

@@ -23,7 +23,7 @@
         <div class="swe-row">
             <a href="/line/definitions" class="swe-btn-tertiary">Back</a>
             <a href="/line/builder?id={{definitionId}}" class="swe-btn-tertiary">Edit</a>
-            <a href="/line/builder" class="swe-btn-primary">+ New Line</a>
+            <button type="button" class="swe-btn-primary" onclick="openRunModal()">▶ Run now</button>
         </div>
     </div>
 
@@ -56,6 +56,104 @@
         ※ 역을 클릭하면 메타데이터(M3). 인스턴스 진행 위치 오버레이는 인스턴스 상세 페이지에서.
     </p>
 
+    {{#runMsg}}
+    <div class="swe-card swe-mb-xl" style="margin-top: var(--space-lg); padding: var(--space-md) var(--space-lg); border-left: 4px solid {{#runOk}}var(--accent-green){{/runOk}}{{^runOk}}var(--accent-pink){{/runOk}};">
+        <code style="color: var(--ink); font-size: 0.95em;">{{runMsg}}</code>
+    </div>
+    {{/runMsg}}
+
+    <!-- #133 — 정의 단위 통계 + 최근 실행 -->
+    <h2 class="swe-heading-md" style="margin-top: var(--space-section); margin-bottom: var(--space-md);">실행 현황</h2>
+
+    <div class="swe-grid swe-grid-4 swe-mb-xl">
+        <div class="swe-stat-card">
+            <div class="swe-stat-label">Total runs</div>
+            <div class="swe-stat-value">{{statTotal}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-yellow);">Running</div>
+            <div class="swe-stat-value">{{statRunning}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-green);">Completed</div>
+            <div class="swe-stat-value">{{statCompleted}}</div>
+        </div>
+        <div class="swe-stat-card">
+            <div class="swe-stat-label" style="color: var(--accent-red);">Failed</div>
+            <div class="swe-stat-value">{{statFailed}}</div>
+        </div>
+    </div>
+
+    <div class="swe-flex-between swe-mb-md">
+        <h3 class="swe-heading-sm" style="margin: 0;">최근 실행 (최대 10건)</h3>
+        {{#hasAnyRun}}
+        <a href="{{{dashboardDeepLink}}}" class="swe-btn-tertiary swe-btn-sm">View all in Dashboard →</a>
+        {{/hasAnyRun}}
+    </div>
+
+    <div class="swe-card" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+            <tr>
+                <th>Instance ID</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th>Ended</th>
+                <th>Duration</th>
+                <th class="swe-text-right">Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#recentRuns}}
+            <tr>
+                <td title="{{id}}"><code style="font-size: 12px;">{{idShort}}…</code></td>
+                <td><span class="swe-badge swe-badge-{{badgeClass}}">{{statusSt}}</span></td>
+                <td class="swe-mute">{{#startedAt}}{{startedAt}}{{/startedAt}}{{^startedAt}}—{{/startedAt}}</td>
+                <td class="swe-mute">{{#endedAt}}{{endedAt}}{{/endedAt}}{{^endedAt}}—{{/endedAt}}</td>
+                <td class="swe-mute">{{duration}}</td>
+                <td class="swe-text-right">
+                    <a href="/line/instance/{{id}}" class="swe-btn-tertiary swe-btn-sm">Detail</a>
+                </td>
+            </tr>
+            {{/recentRuns}}
+            {{^recentRuns}}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    아직 실행 기록이 없습니다.
+                    <button type="button" class="swe-btn-primary swe-btn-sm" style="margin-left: var(--space-md);" onclick="openRunModal()">▶ Run now</button>
+                </td>
+            </tr>
+            {{/recentRuns}}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- #133 — Run now 모달 (D6=a) -->
+<div id="run-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000;"></div>
+<div id="run-modal" role="dialog" aria-modal="true" aria-labelledby="run-modal-title"
+     style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+            width:520px; max-width:90vw; background:var(--surface); border:1px solid var(--hairline);
+            border-radius:var(--radius-lg); padding:var(--space-lg); z-index:1001;">
+    <div class="swe-flex-between swe-mb-xl">
+        <h3 id="run-modal-title" class="swe-heading-md" style="margin:0;">Run "{{definitionNm}}"</h3>
+        <button type="button" class="swe-btn-tertiary swe-btn-sm" onclick="closeRunModal()">✕</button>
+    </div>
+    <div>
+        <label for="run-input-data" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">Input data (JSON, optional)</label>
+        <textarea id="run-input-data" rows="6" placeholder='{"date": "2026-05-10"}'
+                  style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                         color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"></textarea>
+        <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
+            빈 값 OK — 입력 없이 실행. 본문은 자유 텍스트(액티비티가 직접 파싱). JSON 강제 X.
+        </div>
+    </div>
+    <div id="run-modal-error" style="display:none; color:var(--accent-pink); font-size:13px; margin-top:var(--space-md);"></div>
+    <div style="display:flex; gap:var(--space-md); margin-top:var(--space-lg); justify-content:flex-end;">
+        <button type="button" class="swe-btn-tertiary" onclick="closeRunModal()">Cancel</button>
+        <button type="button" class="swe-btn-primary" id="run-modal-submit" onclick="submitRun()">▶ Run now</button>
+    </div>
 </div>
 
 <script id="graph-data" type="application/json">{{{graphJson}}}</script>
@@ -80,6 +178,58 @@
         panel.style.display = 'none';
     });
 })();
+
+// #133 — Run now 모달 + POST /api/line/definitions/{id}/run + redirect
+const DEFINITION_ID = '{{definitionId}}';
+
+window.openRunModal = function () {
+    document.getElementById('run-modal-backdrop').style.display = 'block';
+    document.getElementById('run-modal').style.display = 'block';
+    document.getElementById('run-modal-error').style.display = 'none';
+    setTimeout(() => document.getElementById('run-input-data').focus(), 50);
+};
+
+window.closeRunModal = function () {
+    document.getElementById('run-modal-backdrop').style.display = 'none';
+    document.getElementById('run-modal').style.display = 'none';
+};
+
+window.submitRun = async function () {
+    const errorEl = document.getElementById('run-modal-error');
+    const submitBtn = document.getElementById('run-modal-submit');
+    errorEl.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Starting…';
+    try {
+        const inputData = document.getElementById('run-input-data').value.trim();
+        const body = inputData ? { input: inputData } : {};
+        const res = await fetch('/api/line/definitions/' + DEFINITION_ID + '/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error('HTTP ' + res.status + (text ? ' — ' + text : ''));
+        }
+        const data = await res.json();
+        // 새 인스턴스 timeline으로 redirect — Azkaban 패턴 답습
+        window.location.href = '/line/instance/' + data.instanceId;
+    } catch (e) {
+        errorEl.textContent = '실행 실패: ' + e.message;
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = '▶ Run now';
+    }
+};
+
+// ESC 또는 backdrop 클릭으로 닫기
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('run-modal').style.display === 'block') {
+        closeRunModal();
+    }
+});
+document.getElementById('run-modal-backdrop').addEventListener('click', closeRunModal);
 </script>
 </body>
 </html>
