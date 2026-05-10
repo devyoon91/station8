@@ -36,6 +36,14 @@
  *
  * 모든 SVG 노드에 ``data-node-id`` / ``data-edge-id`` / ``data-from`` / ``data-to``를
  * 부착해 호출자 측 추가 처리(스크롤/플래시/inline 패널)를 가능하게 한다.
+ *
+ * 외부 트리거 API (#135 D5=a):
+ *  - ``render()``는 컨트롤러 객체를 반환한다 — ``{focusStation(id), clearFocus()}``.
+ *  - 외부 패널(좌측 stations list)에서 호출자가 명시적으로 노드 강조/스크롤/콜백 트리거를 일으킬 수 있다.
+ *
+ * 위상정렬 헬퍼:
+ *  - ``Station8SubwayMap.topologicalOrder(graph)`` — 노드를 위상정렬 레이어 → 인덱스 순서로 정렬한 배열 반환.
+ *    빌더/프리뷰의 stations list 정렬에 공통 사용.
  */
 (function (global) {
   'use strict';
@@ -62,7 +70,8 @@
       empty.className = 'swe-subway-empty';
       empty.textContent = '역(Station)이 없습니다 — 빌더에서 추가해주세요.';
       target.appendChild(empty);
-      return;
+      // 빈 그래프도 호출자가 안전하게 컨트롤러 호출하도록 no-op 반환 (#135 D5=a)
+      return { focusStation: function () {}, clearFocus: function () {} };
     }
 
     const layout = computeLayout(graph);
@@ -161,6 +170,37 @@
     target.appendChild(svg);
 
     if (interactive) attachInteractions(svg, target, nodeById, graph, options);
+
+    // 컨트롤러 객체 반환 — 외부 트리거 API (#135 D5=a)
+    return {
+      /**
+       * 특정 노드를 강조하고 viewport 중앙으로 스크롤한 뒤 onStationClick 콜백을 호출한다.
+       * 호출자는 이걸 통해 "좌측 list 클릭 → 노선도 강조 + detail 패널 동시 노출"을 한 줄로 처리.
+       */
+      focusStation: function (nodeId) {
+        if (!nodeId || !nodeById[nodeId]) return;
+        // 1) 기존 .focused 제거
+        svg.querySelectorAll('.focused').forEach(function (el) { el.classList.remove('focused'); });
+        // 2) 새 노드 강조 (모든 data-node-id 매칭 요소 — circle / hit / label)
+        const els = svg.querySelectorAll('[data-node-id="' + cssEscape(nodeId) + '"]');
+        els.forEach(function (el) { el.classList.add('focused'); });
+        // 3) viewport에 보이게 스크롤 (큰 DAG 대응)
+        const circle = svg.querySelector('circle[data-node-id="' + cssEscape(nodeId) + '"]');
+        if (circle && typeof circle.scrollIntoView === 'function') {
+          circle.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }
+        // 4) 사용자 클릭과 동일한 콜백 호출 — detail 패널 노출 등
+        if (typeof options.onStationClick === 'function') {
+          options.onStationClick(nodeById[nodeId]);
+        }
+        target.dispatchEvent(new CustomEvent('subway:station-click', {
+          detail: { node: nodeById[nodeId], source: 'focus' }, bubbles: true
+        }));
+      },
+      clearFocus: function () {
+        svg.querySelectorAll('.focused').forEach(function (el) { el.classList.remove('focused'); });
+      }
+    };
   }
 
   /**
@@ -345,5 +385,49 @@
     return { positions, width: Math.max(width, 320), height: Math.max(height, 240) };
   }
 
-  global.Station8SubwayMap = { render: renderSubwayMap };
+  /**
+   * 그래프를 위상정렬 레이어 → 같은 레이어 내 입력순으로 정렬한 노드 배열을 반환한다 (#135).
+   * stations list 정렬에 사용. 사이클이 있으면 그 노드는 레이어 0으로 fallback (layerByTopology와 동일).
+   *
+   * @param {object} graph - { nodes, edges }
+   * @returns {Array} 정렬된 노드 배열 (graph.nodes 원소 그대로). 위상 순서 + 같은 레이어 내 원본 순서 유지.
+   */
+  function topologicalOrder(graph) {
+    if (!graph || !Array.isArray(graph.nodes) || graph.nodes.length === 0) return [];
+    const inDeg = {};
+    const adj = {};
+    graph.nodes.forEach(function (n) { inDeg[n.id] = 0; adj[n.id] = []; });
+    (graph.edges || []).forEach(function (e) {
+      if (adj[e.from] && inDeg[e.to] !== undefined) {
+        adj[e.from].push(e.to);
+        inDeg[e.to] += 1;
+      }
+    });
+    const layer = {};
+    const queue = graph.nodes.filter(function (n) { return inDeg[n.id] === 0; }).map(function (n) { return n.id; });
+    queue.forEach(function (id) { layer[id] = 0; });
+    while (queue.length) {
+      const id = queue.shift();
+      (adj[id] || []).forEach(function (to) {
+        const next = (layer[id] || 0) + 1;
+        if (next > (layer[to] || 0)) layer[to] = next;
+        inDeg[to] -= 1;
+        if (inDeg[to] === 0) queue.push(to);
+      });
+    }
+    graph.nodes.forEach(function (n) { if (layer[n.id] === undefined) layer[n.id] = 0; });
+    // 같은 레이어 내에선 graph.nodes 원본 순서 유지
+    const indexById = {};
+    graph.nodes.forEach(function (n, i) { indexById[n.id] = i; });
+    return graph.nodes.slice().sort(function (a, b) {
+      const la = layer[a.id], lb = layer[b.id];
+      if (la !== lb) return la - lb;
+      return indexById[a.id] - indexById[b.id];
+    });
+  }
+
+  global.Station8SubwayMap = {
+    render: renderSubwayMap,
+    topologicalOrder: topologicalOrder
+  };
 })(window);

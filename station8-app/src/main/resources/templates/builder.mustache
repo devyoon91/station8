@@ -69,6 +69,11 @@
             font-size: 13px;
         }
         .drawflow .drawflow-node.selected { border-color: var(--primary); }
+        /* #135 — 좌측 stations list 클릭 시 캔버스 노드를 강조 */
+        .drawflow .drawflow-node.builder-focused {
+            border-color: var(--line-yellow, #FBCA04);
+            box-shadow: 0 0 0 2px var(--line-yellow, #FBCA04), 0 0 12px rgba(251, 202, 4, 0.5);
+        }
         .drawflow .drawflow-node .input,
         .drawflow .drawflow-node .output {
             background: var(--surface-card);
@@ -128,11 +133,26 @@
     {{/loadError}}
 
     <div class="swe-builder-layout">
-        <!-- Left: palette -->
+        <!-- Left: palette + stations list (tabbed — #135 D1=b) -->
         <aside class="swe-palette">
-            <div class="swe-panel-header">Activities</div>
-            <div class="swe-panel-body" id="palette">
+            <div class="swe-tab-bar" role="tablist">
+                <button type="button" class="swe-tab active" id="tab-activities"
+                        role="tab" aria-selected="true" aria-controls="palette"
+                        onclick="switchTab('activities')">Activities</button>
+                <button type="button" class="swe-tab" id="tab-stations"
+                        role="tab" aria-selected="false" aria-controls="stations-tab-body"
+                        onclick="switchTab('stations')">Stations <span id="stations-count" class="swe-mute" style="font-size:11px;"></span></button>
+            </div>
+            <div class="swe-panel-body" id="palette" role="tabpanel" aria-labelledby="tab-activities">
                 <div class="swe-mute" style="font-size: 12px;">Loading…</div>
+            </div>
+            <div class="swe-panel-body" id="stations-tab-body" role="tabpanel" aria-labelledby="tab-stations" style="display: none;">
+                <div class="swe-station-list-search">
+                    <input type="text" id="stations-search" placeholder="역 이름 / activity 검색…" aria-label="Stations 검색">
+                </div>
+                <div class="swe-station-list" id="stations-list">
+                    <div class="swe-station-list-empty">아직 역이 없습니다 — Activities 탭에서 드래그하세요.</div>
+                </div>
             </div>
         </aside>
 
@@ -159,6 +179,7 @@
 {{/existingDefinitionJson}}
 
 <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow@0.0.59/dist/drawflow.min.js"></script>
+<script src="/js/subway-map.js"></script>
 <script>
 const editor = new Drawflow(document.getElementById('drawflow'));
 editor.reroute = true;
@@ -212,8 +233,9 @@ canvas.addEventListener('drop', e => {
 });
 
 // ===== Node selection → properties panel =====
-editor.on('nodeSelected', id => {
+function populateProps(id) {
     const node = editor.getNodeFromId(id);
+    if (!node) return;
     const props = document.getElementById('props');
     props.innerHTML = '<div class="swe-stack">' +
         '<div><label>Node ID</label><input class="swe-input" value="' + id + '" disabled></div>' +
@@ -226,7 +248,8 @@ editor.on('nodeSelected', id => {
         '<button class="swe-btn-tertiary swe-w-full" onclick="startConnect(' + id + ')">Connect from this node</button>' +
         (connectMode ? '<button class="swe-btn-tertiary swe-w-full" onclick="cancelConnect()">Cancel connect</button>' : '') +
         '</div>';
-});
+}
+editor.on('nodeSelected', id => populateProps(id));
 
 function updateParams(id) {
     const node = editor.getNodeFromId(id);
@@ -273,6 +296,114 @@ function clearAll() {
     editor.clearModuleSelected();
     setStatus('Cleared');
 }
+
+// ===== #135 — 좌측 패널 탭 + Stations list =====
+
+window.switchTab = function (name) {
+    const isActivities = name === 'activities';
+    document.getElementById('tab-activities').classList.toggle('active', isActivities);
+    document.getElementById('tab-activities').setAttribute('aria-selected', isActivities);
+    document.getElementById('tab-stations').classList.toggle('active', !isActivities);
+    document.getElementById('tab-stations').setAttribute('aria-selected', !isActivities);
+    document.getElementById('palette').style.display = isActivities ? '' : 'none';
+    document.getElementById('stations-tab-body').style.display = isActivities ? 'none' : '';
+    if (!isActivities) refreshStationsList();
+};
+
+/** Drawflow 내부 데이터 → Station8SubwayMap.topologicalOrder 입력 형태로 변환. */
+function buildBuilderGraph() {
+    const data = editor.export().drawflow.Home.data;
+    const nodes = [];
+    const edges = [];
+    const idMap = {};  // 외부ID → 자기 자신 (1:1) — buildBuilderGraph는 Drawflow 숫자 ID를 그대로 nodeId로 씀
+    Object.keys(data).forEach(k => {
+        const n = data[k];
+        const nid = String(n.id);
+        idMap[n.id] = nid;
+        nodes.push({
+            id: nid,
+            name: n.data.activityNm || n.name || nid,
+            activity: n.data.activityNm || n.name || nid
+        });
+    });
+    let edgeCounter = 0;
+    Object.keys(data).forEach(k => {
+        const n = data[k];
+        Object.keys(n.outputs || {}).forEach(outKey => {
+            (n.outputs[outKey].connections || []).forEach(c => {
+                edges.push({
+                    id: 'e-' + (++edgeCounter),
+                    from: idMap[n.id],
+                    to: idMap[c.node]
+                });
+            });
+        });
+    });
+    return { nodes: nodes, edges: edges };
+}
+
+function refreshStationsList() {
+    const graph = buildBuilderGraph();
+    const sorted = Station8SubwayMap.topologicalOrder(graph);
+    const listEl = document.getElementById('stations-list');
+    const countEl = document.getElementById('stations-count');
+    if (countEl) countEl.textContent = sorted.length > 0 ? '(' + sorted.length + ')' : '';
+    const searchEl = document.getElementById('stations-search');
+    const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+    const filtered = sorted.filter(n => {
+        if (!q) return true;
+        const hay = (n.name || '').toLowerCase() + ' ' + (n.activity || '').toLowerCase();
+        return hay.indexOf(q) !== -1;
+    });
+    if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="swe-station-list-empty">' +
+            (q ? '"' + escapeHtmlBuilder(q) + '" 일치 없음' :
+                 '아직 역이 없습니다 — Activities 탭에서 드래그하세요.') +
+            '</div>';
+        return;
+    }
+    listEl.innerHTML = '';
+    filtered.forEach(n => {
+        const item = document.createElement('div');
+        item.className = 'swe-station-list-item';
+        item.dataset.nodeId = n.id;
+        item.innerHTML = '<div class="activity">' + escapeHtmlBuilder(n.activity) + '</div>' +
+                        '<div class="meta">#' + escapeHtmlBuilder(n.id) + '</div>';
+        item.addEventListener('click', () => focusBuilderNode(n.id));
+        listEl.appendChild(item);
+    });
+}
+
+/**
+ * 좌측 list 클릭 → Drawflow 캔버스의 해당 노드를 강조 + 스크롤 + properties 패널 노출.
+ * Drawflow가 programmatic select API를 노출하지 않아서 DOM 조작 + populateProps 직접 호출로 대체.
+ */
+function focusBuilderNode(idStr) {
+    document.querySelectorAll('.drawflow-node.builder-focused').forEach(el => el.classList.remove('builder-focused'));
+    document.querySelectorAll('.swe-station-list-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.nodeId === idStr);
+    });
+    const el = document.getElementById('node-' + idStr);
+    if (!el) { setStatus('Node not found: ' + idStr); return; }
+    el.classList.add('builder-focused');
+    if (typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    }
+    populateProps(parseInt(idStr, 10));
+    setStatus('Focused #' + idStr);
+}
+
+function escapeHtmlBuilder(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+}
+
+// 노드/엣지 변경 시 stations list 자동 갱신 (현재 active일 때만 의미 있지만 항상 갱신해 카운트 동기화)
+editor.on('nodeCreated', refreshStationsList);
+editor.on('nodeRemoved', refreshStationsList);
+editor.on('connectionCreated', refreshStationsList);
+editor.on('connectionRemoved', refreshStationsList);
 
 // ===== Save → POST /api/line/definitions =====
 async function saveDefinition() {
@@ -416,6 +547,9 @@ function restoreExistingDefinition() {
 
 loadActivities();
 restoreExistingDefinition();
+refreshStationsList();
+const _searchEl = document.getElementById('stations-search');
+if (_searchEl) _searchEl.addEventListener('input', refreshStationsList);
 </script>
 </body>
 </html>
