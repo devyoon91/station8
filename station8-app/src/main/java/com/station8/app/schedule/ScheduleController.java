@@ -34,9 +34,15 @@ import java.util.Map;
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
+    private final com.station8.app.security.LineAclService aclService;
+    private final com.station8.engine.repository.LineDefinitionRepository definitionRepository;
 
-    public ScheduleController(ScheduleService scheduleService) {
+    public ScheduleController(ScheduleService scheduleService,
+                              com.station8.app.security.LineAclService aclService,
+                              com.station8.engine.repository.LineDefinitionRepository definitionRepository) {
         this.scheduleService = scheduleService;
+        this.aclService = aclService;
+        this.definitionRepository = definitionRepository;
     }
 
     // ========== UI ==========
@@ -46,11 +52,27 @@ public class ScheduleController {
                        @RequestParam(value = "size", required = false) Integer size,
                        Model model) {
         int pageSize = PaginationModel.normalizeSize(size);
-        long totalCount = scheduleService.count();
+
+        // #159 — ACL READ 가시성: ADMIN이 아닐 경우 가시 정의 ID 집합으로 in-app 필터.
+        // 스케줄 행 수는 보통 작아서 listAll() 후 인메모리 슬라이싱으로 충분.
+        List<com.station8.engine.entity.LineDefinition> active =
+                definitionRepository.findActiveDefinitionsPage(0, 10000);
+        java.util.Set<String> visibleIds = aclService.visibleDefinitionIds(
+                active.stream().map(com.station8.engine.entity.LineDefinition::id).toList());
+
+        List<LineSchedule> all = (visibleIds == null)
+                ? scheduleService.listAll()
+                : scheduleService.listAll().stream()
+                        .filter(s -> visibleIds.contains(s.definitionId()))
+                        .toList();
+
+        long totalCount = all.size();
         int totalPages = (totalCount <= 0) ? 0 : (int) ((totalCount + pageSize - 1) / pageSize);
         int currPage = PaginationModel.normalizePage(page, totalPages);
+        int offset = currPage * pageSize;
+        int end = (int) Math.min((long) offset + pageSize, totalCount);
+        List<LineSchedule> rows = (offset >= totalCount) ? List.of() : all.subList(offset, end);
 
-        List<LineSchedule> rows = scheduleService.listPage(currPage * pageSize, pageSize);
         List<java.util.Map<String, Object>> view = rows.stream().map(s -> {
             java.util.Map<String, Object> m = new java.util.HashMap<>();
             m.put("id", s.id());
@@ -64,10 +86,11 @@ public class ScheduleController {
         }).toList();
         model.addAttribute("schedules", view);
 
-        // 헤더 통계 — 페이지 외 전체 기준. GROUP BY PAUSED_FL 한 방으로 처리.
-        Map<String, Long> byPaused = scheduleService.countByPaused();
-        model.addAttribute("activeCount", byPaused.getOrDefault("N", 0L));
-        model.addAttribute("pausedCount", byPaused.getOrDefault("Y", 0L));
+        // 헤더 통계 — 가시 스케줄 기준 카운트 (active/paused 필터링)
+        long activeCount = all.stream().filter(s -> !"Y".equals(s.pausedFl())).count();
+        long pausedCount = all.stream().filter(s -> "Y".equals(s.pausedFl())).count();
+        model.addAttribute("activeCount", activeCount);
+        model.addAttribute("pausedCount", pausedCount);
         model.addAttribute("totalCount", totalCount);
         model.addAttribute("pagination",
                 PaginationModel.build("/line/schedules", currPage, pageSize, totalCount, Map.of()));

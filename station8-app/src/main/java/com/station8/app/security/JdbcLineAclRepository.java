@@ -7,7 +7,9 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -78,6 +80,23 @@ public class JdbcLineAclRepository implements LineAclRepository {
             WHERE DEFINITION_ID = ? AND DEL_FL = 'N'
             """, Integer.class, definitionId);
         return n == null ? 0 : n;
+    }
+
+    @Override
+    public Set<String> findDefinitionIdsWithAcl() {
+        List<String> rows = jdbcTemplate.queryForList("""
+            SELECT DISTINCT DEFINITION_ID FROM U_LINE_DEFINITION_ACL WHERE DEL_FL = 'N'
+            """, String.class);
+        return new HashSet<>(rows);
+    }
+
+    @Override
+    public Set<String> findDefinitionIdsForUser(String userId) {
+        List<String> rows = jdbcTemplate.queryForList("""
+            SELECT DISTINCT DEFINITION_ID FROM U_LINE_DEFINITION_ACL
+            WHERE USER_ID = ? AND DEL_FL = 'N'
+            """, String.class, userId);
+        return new HashSet<>(rows);
     }
 
     private static class AclMapper implements RowMapper<LineAclEntry> {

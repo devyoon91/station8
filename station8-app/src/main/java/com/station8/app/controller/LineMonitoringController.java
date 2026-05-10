@@ -43,17 +43,30 @@ public class LineMonitoringController {
     private final DlqRepository dlqRepository;
     private final LineDefinitionRepository definitionRepository;
     private final ObjectMapper objectMapper;
+    private final com.station8.app.security.LineAclService aclService;
 
     public LineMonitoringController(ActivityRepository activityRepository,
                                         LineExecutor workflowExecutor,
                                         DlqRepository dlqRepository,
                                         LineDefinitionRepository definitionRepository,
-                                        ObjectMapper objectMapper) {
+                                        ObjectMapper objectMapper,
+                                        com.station8.app.security.LineAclService aclService) {
         this.activityRepository = activityRepository;
         this.workflowExecutor = workflowExecutor;
         this.dlqRepository = dlqRepository;
         this.definitionRepository = definitionRepository;
         this.objectMapper = objectMapper;
+        this.aclService = aclService;
+    }
+
+    /**
+     * #159 — ACL READ 가시성 필터에 사용할 활성 정의 → workflow_name 매핑 로드.
+     * Active 정의 ≤ 10000 가정. ADMIN은 null 반환(필터 미적용).
+     */
+    private Set<String> currentVisibleWorkflowNames() {
+        List<com.station8.engine.entity.LineDefinition> active =
+                definitionRepository.findActiveDefinitionsPage(0, 10000);
+        return aclService.visibleWorkflowNames(active);
     }
 
     /**
@@ -95,6 +108,10 @@ public class LineMonitoringController {
         InstanceQueryFilter filter = new InstanceQueryFilter(
                 workflowName, normalizedStatuses, instanceId,
                 startFromDt, startToDt, sortBy, sortDir);
+
+        // #159 — ACL READ 필터: ADMIN(null) 외엔 가시 workflow 이름만 노출
+        Set<String> visibleNames = currentVisibleWorkflowNames();
+        if (visibleNames != null) filter = filter.withWorkflowNameAllowList(visibleNames);
 
         long matchingCount = activityRepository.countInstances(filter);
         int totalPages = (matchingCount <= 0) ? 0 : (int) ((matchingCount + pageSize - 1) / pageSize);
@@ -433,6 +450,10 @@ public class LineMonitoringController {
                 workflowName, activityName, errorMessage,
                 normalizedStatuses, failedFromDt, failedToDt,
                 sortBy, sortDir);
+
+        // #159 — ACL READ 필터
+        Set<String> visibleNames = currentVisibleWorkflowNames();
+        if (visibleNames != null) filter = filter.withWorkflowNameAllowList(visibleNames);
 
         long totalCount = dlqRepository.count(filter);
         int totalPages = (totalCount <= 0) ? 0 : (int) ((totalCount + pageSize - 1) / pageSize);
