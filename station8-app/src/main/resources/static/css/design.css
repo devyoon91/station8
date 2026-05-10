@@ -784,3 +784,52 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
   .swe-preview-layout { grid-template-columns: 1fr; }
   .swe-preview-stations-panel { max-height: 320px; }
 }
+
+/* ============================================================================
+   #136 — Context menu (Builder 노드/엣지 우클릭)
+   ============================================================================ */
+.swe-ctx-menu {
+  position: fixed;
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  padding: var(--space-xs) 0;
+  margin: 0;
+  list-style: none;
+  min-width: 220px;
+  max-width: 320px;
+  z-index: 2000;
+  outline: none;
+}
+.swe-ctx-menu-item {
+  display: block;
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+  user-select: none;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.swe-ctx-menu-item:hover,
+.swe-ctx-menu-item:focus {
+  background: var(--surface);
+  outline: none;
+}
+.swe-ctx-menu-item.danger {
+  color: var(--accent-red);
+}
+.swe-ctx-menu-item.danger:hover,
+.swe-ctx-menu-item.danger:focus {
+  background: rgba(255, 90, 100, 0.1);
+}
+.swe-ctx-menu-divider {
+  height: 1px;
+  background: var(--hairline);
+  margin: var(--space-xs) 0;
+  list-style: none;
+}

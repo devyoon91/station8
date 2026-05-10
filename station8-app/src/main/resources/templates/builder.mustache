@@ -174,6 +174,9 @@
     <div id="validation" class="swe-card swe-validation-list" style="margin-top: var(--space-lg); display: none;"></div>
 </div>
 
+<!-- #136 — 떠다니는 컨텍스트 메뉴 (노드/엣지 우클릭) -->
+<ul id="ctx-menu" class="swe-ctx-menu" role="menu" tabindex="-1" aria-label="Context menu" style="display:none;"></ul>
+
 {{#existingDefinitionJson}}
 <script id="existing-definition-json" type="application/json">{{{existingDefinitionJson}}}</script>
 {{/existingDefinitionJson}}
@@ -404,6 +407,183 @@ editor.on('nodeCreated', refreshStationsList);
 editor.on('nodeRemoved', refreshStationsList);
 editor.on('connectionCreated', refreshStationsList);
 editor.on('connectionRemoved', refreshStationsList);
+
+// ===== #136 — 우클릭 컨텍스트 메뉴 =====
+
+const ctxMenu = document.getElementById('ctx-menu');
+let ctxFocusedIndex = -1;
+
+/**
+ * 메뉴 표시. items 형태: [{label, action, danger?}, {divider:true}, ...].
+ * 좌표는 클릭 위치 기준 — 우/하단 viewport overflow 시 자동 clamp.
+ */
+function showCtxMenu(x, y, items) {
+    ctxMenu.innerHTML = '';
+    items.forEach((it, idx) => {
+        if (it.divider) {
+            const li = document.createElement('li');
+            li.className = 'swe-ctx-menu-divider';
+            li.setAttribute('role', 'separator');
+            ctxMenu.appendChild(li);
+            return;
+        }
+        const li = document.createElement('li');
+        li.className = 'swe-ctx-menu-item' + (it.danger ? ' danger' : '');
+        li.setAttribute('role', 'menuitem');
+        li.tabIndex = -1;
+        li.dataset.idx = idx;
+        li.textContent = it.label;
+        li.addEventListener('click', e => {
+            e.stopPropagation();
+            try { it.action(); } finally { closeCtxMenu(); }
+        });
+        ctxMenu.appendChild(li);
+    });
+    ctxMenu.style.display = 'block';
+    // viewport clamp — 메뉴 사이즈 측정 후 위치 조정
+    const rect = ctxMenu.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const margin = 8;
+    if (x + rect.width > vw - margin) x = Math.max(margin, vw - rect.width - margin);
+    if (y + rect.height > vh - margin) y = Math.max(margin, vh - rect.height - margin);
+    ctxMenu.style.left = x + 'px';
+    ctxMenu.style.top = y + 'px';
+    ctxFocusedIndex = -1;
+    ctxMenu.focus();
+}
+
+function closeCtxMenu() {
+    ctxMenu.style.display = 'none';
+    ctxMenu.innerHTML = '';
+    ctxFocusedIndex = -1;
+}
+
+function ctxMoveFocus(delta) {
+    const items = ctxMenu.querySelectorAll('.swe-ctx-menu-item');
+    if (items.length === 0) return;
+    let next = ctxFocusedIndex + delta;
+    if (next < 0) next = items.length - 1;
+    if (next >= items.length) next = 0;
+    ctxFocusedIndex = next;
+    items[next].focus();
+}
+
+ctxMenu.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeCtxMenu(); e.preventDefault(); }
+    else if (e.key === 'ArrowDown') { ctxMoveFocus(1); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { ctxMoveFocus(-1); e.preventDefault(); }
+    else if (e.key === 'Home') {
+        const items = ctxMenu.querySelectorAll('.swe-ctx-menu-item');
+        if (items.length > 0) { ctxFocusedIndex = 0; items[0].focus(); e.preventDefault(); }
+    } else if (e.key === 'End') {
+        const items = ctxMenu.querySelectorAll('.swe-ctx-menu-item');
+        if (items.length > 0) { ctxFocusedIndex = items.length - 1; items[items.length - 1].focus(); e.preventDefault(); }
+    } else if (e.key === 'Enter' || e.key === ' ') {
+        const items = ctxMenu.querySelectorAll('.swe-ctx-menu-item');
+        if (ctxFocusedIndex >= 0 && items[ctxFocusedIndex]) {
+            items[ctxFocusedIndex].click();
+            e.preventDefault();
+        }
+    }
+});
+
+// 외부 클릭 / 휠 스크롤 / 윈도우 blur로 닫기
+document.addEventListener('click', e => {
+    if (ctxMenu.style.display === 'block' && !ctxMenu.contains(e.target)) closeCtxMenu();
+});
+document.addEventListener('wheel', () => {
+    if (ctxMenu.style.display === 'block') closeCtxMenu();
+}, { passive: true });
+window.addEventListener('blur', () => {
+    if (ctxMenu.style.display === 'block') closeCtxMenu();
+});
+
+/**
+ * Drawflow 연결(SVG)의 클래스명에서 from/to/output_class/input_class 추출.
+ * Drawflow 0.0.59는 ``<svg class="connection node_in_node-X node_out_node-Y input_M output_N">`` 형태.
+ */
+function parseConnectionFromElement(el) {
+    if (!el) return null;
+    const conn = el.closest('.connection');
+    if (!conn) return null;
+    let from = null, to = null, inputClass = null, outputClass = null;
+    conn.classList.forEach(c => {
+        let m;
+        if ((m = c.match(/^node_in_node-(\d+)$/))) to = m[1];
+        else if ((m = c.match(/^node_out_node-(\d+)$/))) from = m[1];
+        else if (/^input_\d+$/.test(c)) inputClass = c;
+        else if (/^output_\d+$/.test(c)) outputClass = c;
+    });
+    if (from && to && inputClass && outputClass) {
+        return { from: parseInt(from, 10), to: parseInt(to, 10), inputClass, outputClass };
+    }
+    return null;
+}
+
+/** 노드의 모든 in/out 엣지를 일괄 제거 (#136 D1=b). */
+function disconnectAllEdges(id) {
+    const data = editor.export().drawflow.Home.data;
+    const node = data[id];
+    if (!node) return;
+    let count = 0;
+    // outgoing — node.outputs[outputClass].connections = [{node:targetId, output:'input_N'}, ...]
+    Object.keys(node.outputs || {}).forEach(outClass => {
+        ((node.outputs[outClass].connections) || []).slice().forEach(c => {
+            try { editor.removeSingleConnection(id, c.node, outClass, c.output); count++; }
+            catch (e) { console.warn('removeSingleConnection (out) failed', e); }
+        });
+    });
+    // incoming — node.inputs[inputClass].connections = [{node:sourceId, input:'output_N'}, ...]
+    Object.keys(node.inputs || {}).forEach(inClass => {
+        ((node.inputs[inClass].connections) || []).slice().forEach(c => {
+            try { editor.removeSingleConnection(c.node, id, c.input, inClass); count++; }
+            catch (e) { console.warn('removeSingleConnection (in) failed', e); }
+        });
+    });
+    setStatus('Disconnected ' + count + ' edges from #' + id);
+}
+
+function disconnectEdge(info) {
+    try {
+        editor.removeSingleConnection(info.from, info.to, info.outputClass, info.inputClass);
+        setStatus('Disconnected #' + info.from + ' → #' + info.to);
+    } catch (e) {
+        setStatus('Disconnect failed: ' + e.message);
+    }
+}
+
+// canvas 우클릭 인터셉트 (capture로 Drawflow 자체 메뉴 선점)
+document.getElementById('drawflow').addEventListener('contextmenu', e => {
+    const conn = e.target.closest('.connection');
+    const node = e.target.closest('.drawflow-node');
+
+    // D3=a — 빈 캔버스에선 메뉴 안 띄우고 브라우저 기본도 차단 안 함 (개발자 inspect 가능)
+    if (!conn && !node) return;
+
+    e.preventDefault();
+    e.stopImmediatePropagation();  // Drawflow 기본 contextmenu 핸들러 차단
+
+    if (node) {
+        // 노드 메뉴 — D1=b: Edit / Connect / [divider] / Disconnect-all / Delete
+        const id = parseInt(node.id.replace('node-', ''), 10);
+        showCtxMenu(e.clientX, e.clientY, [
+            { label: 'Edit params + bindings', action: () => populateProps(id) },
+            { label: 'Connect from this node', action: () => startConnect(id) },
+            { divider: true },
+            { label: 'Disconnect all edges', action: () => disconnectAllEdges(id) },
+            { label: 'Delete node', danger: true, action: () => deleteNode(id) }
+        ]);
+    } else if (conn) {
+        // 엣지 메뉴 — D2=b: Disconnect (확장 여지 있는 메뉴 형태로 유지)
+        const info = parseConnectionFromElement(conn);
+        if (info) {
+            showCtxMenu(e.clientX, e.clientY, [
+                { label: 'Disconnect ' + info.from + ' → ' + info.to,
+                  danger: true, action: () => disconnectEdge(info) }
+            ]);
+        }
+    }
+}, { capture: true });
 
 // ===== Save → POST /api/line/definitions =====
 async function saveDefinition() {
