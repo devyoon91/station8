@@ -187,40 +187,18 @@ public class LineMonitoringController {
         model.addAttribute("pagination",
                 PaginationModel.build("/line/dashboard", currPage, pageSize, matchingCount, preserve));
 
-        // #137 — 컬럼 헤더용 sort href (클릭 시 정렬 토글)
+        // #137 — 컬럼 헤더용 sort href (클릭 시 정렬 토글) — #176 PaginationModel.toggleSortHref로 통합
         Map<String, String> sortPreserve = new LinkedHashMap<>(preserve);
         sortPreserve.remove("sortBy");
         sortPreserve.remove("sortDir");
-        model.addAttribute("startDtSortHref",
-                buildSortHref("/line/dashboard", "START_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
-        model.addAttribute("endDtSortHref",
-                buildSortHref("/line/dashboard", "END_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
-        model.addAttribute("regDtSortHref",
-                buildSortHref("/line/dashboard", "REG_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("startDtSortHref", PaginationModel.toggleSortHref(
+                "/line/dashboard", "START_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("endDtSortHref", PaginationModel.toggleSortHref(
+                "/line/dashboard", "END_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("regDtSortHref", PaginationModel.toggleSortHref(
+                "/line/dashboard", "REG_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
 
         return "dashboard";
-    }
-
-    /**
-     * #137 — 컬럼 헤더 클릭용 정렬 href 생성.
-     * 같은 컬럼 재클릭 시 방향 토글, 다른 컬럼 첫 클릭은 DESC (D8=b).
-     */
-    private static String buildSortHref(String base, String column,
-                                        String currentSortBy, String currentSortDir,
-                                        Map<String, String> preserveQuery) {
-        String newDir = column.equals(currentSortBy)
-                ? ("ASC".equals(currentSortDir) ? "DESC" : "ASC")
-                : "DESC";
-        StringBuilder sb = new StringBuilder(base)
-                .append("?sortBy=").append(column)
-                .append("&sortDir=").append(newDir);
-        for (Map.Entry<String, String> e : preserveQuery.entrySet()) {
-            String v = e.getValue();
-            if (v == null || v.isBlank()) continue;
-            sb.append('&').append(e.getKey()).append('=')
-                    .append(java.net.URLEncoder.encode(v, java.nio.charset.StandardCharsets.UTF_8));
-        }
-        return sb.toString();
     }
 
     /**
@@ -526,16 +504,16 @@ public class LineMonitoringController {
         model.addAttribute("pagination",
                 PaginationModel.build("/line/dlq", currPage, pageSize, totalCount, preserve));
 
-        // #137 — DLQ 컬럼 헤더 sort href
+        // #137 — DLQ 컬럼 헤더 sort href — #176 PaginationModel.toggleSortHref로 통합
         Map<String, String> sortPreserve = new LinkedHashMap<>(preserve);
         sortPreserve.remove("sortBy");
         sortPreserve.remove("sortDir");
-        model.addAttribute("failedAtSortHref",
-                buildSortHref("/line/dlq", "FAILED_AT_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
-        model.addAttribute("activitySortHref",
-                buildSortHref("/line/dlq", "ACTIVITY_NAME", effectiveSortBy, effectiveSortDir, sortPreserve));
-        model.addAttribute("regDtSortHref",
-                buildSortHref("/line/dlq", "REG_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("failedAtSortHref", PaginationModel.toggleSortHref(
+                "/line/dlq", "FAILED_AT_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("activitySortHref", PaginationModel.toggleSortHref(
+                "/line/dlq", "ACTIVITY_NAME", effectiveSortBy, effectiveSortDir, sortPreserve));
+        model.addAttribute("regDtSortHref", PaginationModel.toggleSortHref(
+                "/line/dlq", "REG_DT", effectiveSortBy, effectiveSortDir, sortPreserve));
 
         model.addAttribute("navDlq", true);
         return "dlq";
