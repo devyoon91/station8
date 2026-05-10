@@ -350,9 +350,28 @@ public String chargeOrder(String input, LineContext ctx) {
 **색상 정책**: 태그 문자열 hashCode → 6색 팔레트(인디고/핑크/그린/오렌지/시안/퍼플) — 같은 태그는 항상 같은 색상.
 
 **비범위 (별도 follow-up)**:
-- 워크스페이스 / 프로젝트 추상화 — per-line 권한(#140)과 묶어서 검토
-- 폴더 트리 구조
-- 태그 자체에 권한 부여 (예: `team:finance` 태그를 본인 팀만 볼 수 있도록 — #159 ACL READ enforcement에 의존)
+- 워크스페이스 / 프로젝트 추상화 — per-line 권한(#140)과 묶어서 검토 (#168)
+- 폴더 트리 구조 (#169)
+- 태그 자체에 권한 부여 (예: `team:finance` 태그를 본인 팀만 볼 수 있도록 — #159 ACL READ enforcement에 의존, #170)
+
+### 2.5.3. Builder 키보드 단축키 (#151)
+
+빌더 페이지에서 자주 쓰는 동작에 단축키 부여. input/textarea 포커스 시 비활성 (텍스트 입력 우선).
+
+| 키 | 동작 |
+|---|---|
+| `Del` / `Backspace` | 선택된 노드 삭제 (엣지 자동 정리) |
+| `Esc` | Connect 모드 취소 / 메뉴·모달 닫기 / 노드 deselect |
+| `F` | Stations 탭 열기 + 검색 input 포커스 (#135 연결) |
+| `?` (`Shift`+`/`) | Cheatsheet 모달 토글 |
+| `Ctrl`+`S` (또는 `Cmd`+`S`) | Save (브라우저 기본 차단) |
+
+빌더 툴바의 ⌨ 버튼으로도 cheatsheet 노출. 노드 우클릭 메뉴의 "Delete node" 항목 우측에 `Del` 힌트 동기 표기.
+
+**비범위 (follow-up 검토 대상)**:
+- `Ctrl`+`Click`으로 즉시 connect (현재 startConnect → click 2-step) — Drawflow 네이티브 드래그와 충돌 정리 필요
+- `Ctrl`+`D` 노드 복제 (export+import 조합)
+- `Ctrl`+`Z`/`Ctrl`+`Y` undo/redo (history 스택 직접 구현 — 큰 작업)
 
 ### 2.6. SLA — 시간 임계치 + auto-kill / 알림 (#138)
 

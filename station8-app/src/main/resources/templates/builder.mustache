@@ -189,6 +189,50 @@
             padding: var(--space-lg);
             z-index: 1600;
         }
+
+        /* #151 — 단축키 cheatsheet modal */
+        #shortcuts-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: 1500;
+        }
+        #shortcuts-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 480px;
+            max-width: 90vw;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            z-index: 1600;
+        }
+        #shortcuts-modal table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        #shortcuts-modal td { padding: var(--space-sm) var(--space-xs); border-bottom: 1px solid var(--hairline); }
+        #shortcuts-modal td:first-child { width: 140px; }
+        #shortcuts-modal kbd {
+            background: var(--surface-elevated);
+            border: 1px solid var(--hairline-strong);
+            border-bottom-width: 2px;
+            border-radius: var(--radius-sm);
+            padding: 2px 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--ink);
+        }
+        .swe-shortcut-hint {
+            display: inline-block;
+            margin-left: var(--space-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--mute);
+            opacity: 0.75;
+        }
     </style>
 </head>
 <body>
@@ -224,6 +268,7 @@
             <input id="defNm" class="swe-input" style="width: 200px;" placeholder="Definition name" value="{{#editMode}}{{definitionNm}}{{/editMode}}" {{#editMode}}readonly title="Definition name 변경은 새 정의 생성으로 — 편집에선 read-only"{{/editMode}}>
             {{#editMode}}<a href="/line/definitions/{{definitionId}}" class="swe-btn-tertiary">Cancel</a>{{/editMode}}
             {{^editMode}}<button class="swe-btn-tertiary" onclick="clearAll()">Clear</button>{{/editMode}}
+            <button type="button" class="swe-btn-tertiary" onclick="openShortcutsModal()" title="Keyboard shortcuts (?)">⌨ <span class="swe-shortcut-hint">?</span></button>
             <button class="swe-btn-primary" onclick="saveDefinition()">Save</button>
         </div>
     </div>
@@ -333,6 +378,27 @@
 <!-- #136 — 떠다니는 컨텍스트 메뉴 (노드/엣지 우클릭) -->
 <ul id="ctx-menu" class="swe-ctx-menu" role="menu" tabindex="-1" aria-label="Context menu" style="display:none;"></ul>
 
+<!-- #151 — 단축키 cheatsheet -->
+<div id="shortcuts-backdrop"></div>
+<div id="shortcuts-modal" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+    <div class="swe-flex-between swe-mb-md">
+        <h3 id="shortcuts-title" class="swe-heading-md" style="margin:0;">Keyboard shortcuts</h3>
+        <button type="button" class="swe-btn-tertiary swe-btn-sm" onclick="closeShortcutsModal()">✕</button>
+    </div>
+    <table>
+        <tbody>
+        <tr><td><kbd>Del</kbd> / <kbd>Backspace</kbd></td><td>선택된 노드 삭제 (엣지 자동 정리)</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Connect 모드 취소 / 메뉴·모달 닫기</td></tr>
+        <tr><td><kbd>F</kbd></td><td>Stations 탭 + 검색 input 포커스</td></tr>
+        <tr><td><kbd>?</kbd> / <kbd>Shift</kbd>+<kbd>/</kbd></td><td>이 cheatsheet 토글</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save (브라우저 기본 차단)</td></tr>
+        </tbody>
+    </table>
+    <div class="swe-mute" style="font-size: 11px; margin-top: var(--space-md); line-height: 1.5;">
+        input/textarea 포커스 시 단축키 비활성 (텍스트 입력 우선). 모달 열린 상태에선 <kbd>Esc</kbd>만 동작.
+    </div>
+</div>
+
 <!-- #152 — 엣지 조건식 편집 모달 -->
 <div id="edge-cond-backdrop"></div>
 <div id="edge-cond-modal" role="dialog" aria-modal="true" aria-labelledby="edge-cond-title">
@@ -381,6 +447,7 @@ const EDIT_DEFINITION_ID = {{#editMode}}'{{definitionId}}'{{/editMode}}{{^editMo
 
 let activities = [];
 let connectMode = null;  // {from: nodeId} when waiting for second click
+let selectedNodeId = null;  // #151 — Drawflow 선택 노드 추적 (Delete 단축키 대상)
 
 // ===== Palette load =====
 async function loadActivities() {
@@ -439,7 +506,9 @@ function populateProps(id) {
         (connectMode ? '<button class="swe-btn-tertiary swe-w-full" onclick="cancelConnect()">Cancel connect</button>' : '') +
         '</div>';
 }
-editor.on('nodeSelected', id => populateProps(id));
+editor.on('nodeSelected', id => { selectedNodeId = id; populateProps(id); });
+editor.on('nodeUnselected', () => { selectedNodeId = null; });
+editor.on('nodeRemoved', () => { selectedNodeId = null; });
 
 function updateParams(id) {
     const node = editor.getNodeFromId(id);
@@ -619,7 +688,18 @@ function showCtxMenu(x, y, items) {
         li.setAttribute('role', 'menuitem');
         li.tabIndex = -1;
         li.dataset.idx = idx;
-        li.textContent = it.label;
+        // #151 — shortcut hint (예: 'Del') 있으면 라벨 우측에 작게 표기
+        if (it.shortcut) {
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = it.label;
+            const kbd = document.createElement('span');
+            kbd.className = 'swe-shortcut-hint';
+            kbd.textContent = it.shortcut;
+            li.appendChild(labelSpan);
+            li.appendChild(kbd);
+        } else {
+            li.textContent = it.label;
+        }
         li.addEventListener('click', e => {
             e.stopPropagation();
             try { it.action(); } finally { closeCtxMenu(); }
@@ -800,6 +880,100 @@ document.addEventListener('keydown', e => {
     }
 });
 
+// ===== #151 — 키보드 단축키 (Delete / Esc / F / ?) =====
+
+window.openShortcutsModal = function () {
+    document.getElementById('shortcuts-backdrop').style.display = 'block';
+    document.getElementById('shortcuts-modal').style.display = 'block';
+};
+window.closeShortcutsModal = function () {
+    document.getElementById('shortcuts-backdrop').style.display = 'none';
+    document.getElementById('shortcuts-modal').style.display = 'none';
+};
+document.getElementById('shortcuts-backdrop').addEventListener('click', closeShortcutsModal);
+
+/**
+ * input/textarea/select/contenteditable 포커스 중이면 단축키 무시 (텍스트 입력 우선).
+ * 즉 #defNm, #tagsInput, #stations-search, #paramsInput, #bindingsInput 입력 시에는 Del/F 등이 정상 텍스트 편집으로 동작.
+ */
+function shouldIgnoreShortcut(e) {
+    const t = e.target;
+    if (!t) return false;
+    const tag = (t.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (t.isContentEditable) return true;
+    return false;
+}
+
+function isAnyModalOpen() {
+    const ec = document.getElementById('edge-cond-modal');
+    const sc = document.getElementById('shortcuts-modal');
+    return (ec && ec.style.display === 'block') || (sc && sc.style.display === 'block');
+}
+
+document.addEventListener('keydown', e => {
+    // 모달 열린 상태: Esc로만 닫기 (이미 위 핸들러가 처리하지만 shortcuts-modal도 닫기)
+    if (isAnyModalOpen()) {
+        if (e.key === 'Escape') {
+            closeShortcutsModal();
+            // edge-cond-modal Escape는 이미 위 핸들러가 닫음
+        }
+        return;
+    }
+
+    if (shouldIgnoreShortcut(e)) return;
+
+    // ctx-menu가 열린 상태: ctx-menu의 자체 keydown(arrow/enter/esc)이 우선 — 무시.
+    const ctx = document.getElementById('ctx-menu');
+    if (ctx && ctx.style.display === 'block') return;
+
+    // Delete / Backspace — 선택된 노드 삭제
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId != null) {
+        e.preventDefault();
+        deleteNode(selectedNodeId);
+        return;
+    }
+
+    // Escape — connect mode 취소 + 노드 deselect
+    if (e.key === 'Escape') {
+        if (connectMode) {
+            cancelConnect();
+            e.preventDefault();
+        } else if (selectedNodeId != null) {
+            try { editor.unselectNode && editor.unselectNode(); } catch (_) {}
+            selectedNodeId = null;
+            e.preventDefault();
+        }
+        return;
+    }
+
+    // F — Stations 탭 + 검색 input 포커스 (#135 연결)
+    if (e.key === 'f' || e.key === 'F') {
+        const search = document.getElementById('stations-search');
+        if (search) {
+            switchTab('stations');
+            search.focus();
+            search.select();
+            e.preventDefault();
+        }
+        return;
+    }
+
+    // ? (Shift+/) — cheatsheet 토글
+    if (e.key === '?') {
+        openShortcutsModal();
+        e.preventDefault();
+        return;
+    }
+
+    // Ctrl/Cmd+S — Save (브라우저 기본 차단)
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        saveDefinition();
+        return;
+    }
+});
+
 /**
  * 모든 엣지를 walk하면서 조건식이 있으면 .has-condition 클래스 + 라벨 추가.
  * Drawflow는 connection을 다시 그릴 때마다 클래스가 reset되므로 connection 이벤트마다 재적용.
@@ -863,7 +1037,7 @@ document.getElementById('drawflow').addEventListener('contextmenu', e => {
             { label: 'Connect from this node', action: () => startConnect(id) },
             { divider: true },
             { label: 'Disconnect all edges', action: () => disconnectAllEdges(id) },
-            { label: 'Delete node', danger: true, action: () => deleteNode(id) }
+            { label: 'Delete node', shortcut: 'Del', danger: true, action: () => deleteNode(id) }
         ]);
     } else if (conn) {
         // 엣지 메뉴 — D2=b 메뉴 형태 + #152 Edit condition 추가
