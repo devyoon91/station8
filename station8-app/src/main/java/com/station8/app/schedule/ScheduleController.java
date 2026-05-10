@@ -184,13 +184,7 @@ public class ScheduleController {
         }
     }
 
-    // ========== Exception 매핑 ==========
-
-    @ResponseBody
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleBadRequest(IllegalArgumentException e) {
-        return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-    }
+    // 예외 매핑은 #174 GlobalRestExceptionHandler로 통합 — controller-level 핸들러 제거.
 
     // ========== DTOs ==========
 

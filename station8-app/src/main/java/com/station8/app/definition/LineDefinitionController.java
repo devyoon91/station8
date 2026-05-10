@@ -1,7 +1,6 @@
 package com.station8.app.definition;
 
 import com.station8.engine.core.RunOptions;
-import com.station8.engine.exception.LineEngineException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -143,17 +142,5 @@ public class LineDefinitionController {
         return new RunOptions(onFailure, params, webhook, slaSeconds, slaAction);
     }
 
-    // === 예외 매핑 ===
-
-    @ExceptionHandler(LineEngineException.class)
-    public ResponseEntity<Map<String, String>> handleEngineException(LineEngineException e) {
-        return ResponseEntity.badRequest()
-                .body(Map.of("errorCode", e.getErrorCode(), "message", e.getMessage()));
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleBadRequest(IllegalArgumentException e) {
-        return ResponseEntity.badRequest()
-                .body(Map.of("message", e.getMessage()));
-    }
+    // 예외 매핑은 #174 GlobalRestExceptionHandler로 통합 — controller-level 핸들러 제거.
 }
