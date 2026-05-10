@@ -76,6 +76,11 @@ public interface LineDefinitionRepository {
      */
     void updateDefinitionSla(String definitionId, Long slaSeconds, String slaAction);
 
+    /**
+     * #141 — 동시 실행 정책(CONCURRENT / SKIP_IF_RUNNING) 업데이트.
+     */
+    void updateDefinitionConcurrency(String definitionId, String concurrencyPolicy);
+
     /** 정의 소프트 삭제 (DEL_FL='Y'). */
     void softDeleteDefinition(String definitionId);
 

@@ -81,16 +81,27 @@ public class LineDefinitionController {
      * </pre>
      * 후방 호환 — body 없거나 options 없으면 default 적용.
      */
-    /** #140 — EXECUTE 권한 필요. */
+    /**
+     * #140 — EXECUTE 권한 필요.
+     * #141 — SKIP_IF_RUNNING 정책에서 skip 시 200 OK + {@code skipped:true} 본문 (에러 아님).
+     */
     @PostMapping("/{id}/run")
     @PreAuthorize("@lineAcl.canExecute(#id)")
-    public ResponseEntity<Map<String, String>> run(@PathVariable("id") String id,
+    public ResponseEntity<Map<String, Object>> run(@PathVariable("id") String id,
                                                    @RequestBody(required = false) Map<String, Object> body) {
         String inputData = (body == null || body.get("input") == null) ? null : String.valueOf(body.get("input"));
         RunOptions options = parseOptions(body);
-        String instanceId = service.runDefinition(id, inputData, options);
+        RunResult result = service.runDefinitionWithResult(id, inputData, options);
+        if (result.skipped()) {
+            // #141 — SKIP은 정상 흐름 — 200 OK + 메시지
+            Map<String, Object> body2 = new LinkedHashMap<>();
+            body2.put("skipped", true);
+            body2.put("reason", result.reason());
+            body2.put("conflictingInstanceId", result.conflictingInstanceId());
+            return ResponseEntity.ok(body2);
+        }
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of("instanceId", instanceId));
+                .body(Map.of("instanceId", result.instanceId()));
     }
 
     /**

@@ -236,9 +236,9 @@
     </div>
     {{/editMode}}
 
-    <!-- #138 — Line settings: SLA -->
-    <details {{#hasSla}}open{{/hasSla}} class="swe-card swe-mb-lg" style="padding: var(--space-md) var(--space-lg);">
-        <summary style="cursor: pointer; font-weight: 600; user-select: none;">Line settings — SLA</summary>
+    <!-- #138 + #141 — Line settings: SLA + 동시 실행 정책 -->
+    <details {{#hasLineSettings}}open{{/hasLineSettings}} class="swe-card swe-mb-lg" style="padding: var(--space-md) var(--space-lg);">
+        <summary style="cursor: pointer; font-weight: 600; user-select: none;">Line settings — SLA / Concurrency</summary>
         <div style="margin-top: var(--space-md); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
             <div>
                 <label for="slaSeconds">Max duration (seconds)</label>
@@ -258,6 +258,17 @@
                 </select>
                 <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
                     위반 시 webhook으로 알림 (engine.sla.webhook-url). 인스턴스 RunOptions로 override 가능.
+                </div>
+            </div>
+            <!-- #141 — 동시 실행 정책 -->
+            <div style="grid-column: 1 / -1;">
+                <label for="concurrencyPolicy">Concurrency policy</label>
+                <select id="concurrencyPolicy" class="swe-input">
+                    <option value="" {{#concurrencyConcurrent}}selected{{/concurrencyConcurrent}}>CONCURRENT (default — 같은 정의 인스턴스 동시 실행 허용)</option>
+                    <option value="SKIP_IF_RUNNING" {{#concurrencySkip}}selected{{/concurrencySkip}}>SKIP_IF_RUNNING — RUNNING/PAUSED 인스턴스 있으면 새 시작 무시 (cron 적체 방지)</option>
+                </select>
+                <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
+                    SKIP 시: 즉시 실행 응답은 200 + <code>{skipped:true}</code> / cron 폴러는 nextRunDt만 갱신하고 다음 주기로.
                 </div>
             </div>
         </div>
@@ -925,10 +936,13 @@ async function saveDefinition() {
     const slaActionRaw = document.getElementById('slaAction').value;
     const slaSeconds = slaSecondsRaw ? parseInt(slaSecondsRaw, 10) : null;
     const slaAction = slaActionRaw || null;
+    // #141 — 동시 실행 정책 (선택)
+    const concurrencyPolicyRaw = document.getElementById('concurrencyPolicy').value;
+    const concurrencyPolicy = concurrencyPolicyRaw || null;
 
     const payload = EDIT_MODE
-        ? {definitionNm, description: 'Edited via Builder', slaSeconds, slaAction, nodes, edges}
-        : {definitionNm, description: 'Created via Builder', slaSeconds, slaAction, nodes, edges};
+        ? {definitionNm, description: 'Edited via Builder', slaSeconds, slaAction, concurrencyPolicy, nodes, edges}
+        : {definitionNm, description: 'Created via Builder', slaSeconds, slaAction, concurrencyPolicy, nodes, edges};
 
     setStatus(EDIT_MODE ? 'Updating…' : 'Saving…');
     const res = await fetch(url, {

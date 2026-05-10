@@ -12,6 +12,8 @@ public record DagDefinitionResponse(
         Long slaSeconds,
         /** #138 — SLA 위반 시 액션 (`ALERT_ONLY` / `AUTO_TERMINATE`). */
         String slaAction,
+        /** #141 — 동시 실행 정책 (`CONCURRENT` 기본 / `SKIP_IF_RUNNING`). */
+        String concurrencyPolicy,
         List<DagDefinitionRequest.NodeDef> nodes,
         List<DagDefinitionRequest.EdgeDef> edges
 ) {

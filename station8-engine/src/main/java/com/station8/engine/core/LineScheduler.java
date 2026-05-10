@@ -69,20 +69,44 @@ public class LineScheduler {
     private String triggerOne(LineSchedule s) {
         String instanceId = UUID.randomUUID().toString();
         try {
-            // 1) 인스턴스 INSERT
-            String workflowName = jdbcTemplate.queryForObject(
-                    "SELECT DEFINITION_NM FROM U_LINE_DEFINITION WHERE ID = ?",
-                    String.class, s.definitionId());
+            // 1) 정의 메타 조회 (workflowName + concurrency 정책)
+            java.util.List<java.util.Map<String, Object>> defMeta = jdbcTemplate.queryForList(
+                    "SELECT DEFINITION_NM, CONCURRENCY_POLICY FROM U_LINE_DEFINITION WHERE ID = ?",
+                    s.definitionId());
+            if (defMeta.isEmpty()) {
+                throw new IllegalStateException("정의를 찾을 수 없습니다: " + s.definitionId());
+            }
+            String workflowName = (String) defMeta.get(0).get("DEFINITION_NM");
+            String policy = (String) defMeta.get(0).get("CONCURRENCY_POLICY");
+
+            // 2) #141 — SKIP_IF_RUNNING 정책 체크 (cron 적체 방지)
+            if ("SKIP_IF_RUNNING".equalsIgnoreCase(policy)) {
+                java.util.List<String> active = jdbcTemplate.queryForList(
+                        "SELECT ID FROM U_LINE_INSTANCE "
+                                + "WHERE WORKFLOW_NAME = ? AND STATUS_ST IN ('RUNNING', 'PAUSED') "
+                                + "AND DEL_FL = 'N' FOR UPDATE",
+                        String.class, workflowName);
+                if (!active.isEmpty()) {
+                    LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime nextRun = nextFromCron(s.cronExpr(), now);
+                    scheduleRepository.markRun(s.id(), nextRun, now);
+                    log.warn("[#141][Scheduler] SKIP — scheduleId={}, definitionId={}, conflicting={}, nextRun={}",
+                            s.id(), s.definitionId(), active.get(0), nextRun);
+                    return null;  // skipped
+                }
+            }
+
+            // 3) 인스턴스 INSERT
             jdbcTemplate.update("""
                     INSERT INTO U_LINE_INSTANCE
                       (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
                     VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     """, instanceId, workflowName, s.inputData());
 
-            // 2) DAG 시작 (검증 + 시작 역 PENDING + 후행 WAITING_DEPENDENCIES)
+            // 4) DAG 시작 (검증 + 시작 역 PENDING + 후행 WAITING_DEPENDENCIES)
             dagInterpreter.startInstance(s.definitionId(), instanceId, s.inputData());
 
-            // 3) 다음 실행 시각 계산 + markRun
+            // 5) 다음 실행 시각 계산 + markRun
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime nextRun = nextFromCron(s.cronExpr(), now);
             scheduleRepository.markRun(s.id(), nextRun, now);

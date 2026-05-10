@@ -34,13 +34,22 @@ public record DagDefinitionRequest(
         Long slaSeconds,
         /** #138 — SLA 위반 시 액션 (`ALERT_ONLY` / `AUTO_TERMINATE`). null이면 ALERT_ONLY 기본. */
         String slaAction,
+        /** #141 — 동시 실행 정책 (`CONCURRENT` 기본 / `SKIP_IF_RUNNING`). null이면 CONCURRENT. */
+        String concurrencyPolicy,
         List<NodeDef> nodes,
         List<EdgeDef> edges
 ) {
-    /** 후방 호환 — SLA 없이 기존 4-arg 생성. */
+    /** 후방 호환 — SLA/concurrency 없이 기존 4-arg 생성. */
     public DagDefinitionRequest(String definitionNm, String description,
                                 List<NodeDef> nodes, List<EdgeDef> edges) {
-        this(definitionNm, description, null, null, nodes, edges);
+        this(definitionNm, description, null, null, null, nodes, edges);
+    }
+
+    /** 후방 호환 — SLA만 받고 concurrency 없이 (#138 시그니처). */
+    public DagDefinitionRequest(String definitionNm, String description,
+                                Long slaSeconds, String slaAction,
+                                List<NodeDef> nodes, List<EdgeDef> edges) {
+        this(definitionNm, description, slaSeconds, slaAction, null, nodes, edges);
     }
     public record NodeDef(
             String nodeId,

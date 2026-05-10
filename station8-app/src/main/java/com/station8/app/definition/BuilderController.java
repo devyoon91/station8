@@ -58,8 +58,14 @@ public class BuilderController {
             model.addAttribute("slaSeconds", existing.slaSeconds());
             model.addAttribute("slaActionAlert", "ALERT_ONLY".equals(existing.slaAction()));
             model.addAttribute("slaActionTerminate", "AUTO_TERMINATE".equals(existing.slaAction()));
-            model.addAttribute("hasSla", existing.slaSeconds() != null
-                    || (existing.slaAction() != null && !existing.slaAction().isBlank()));
+            // #141 — 동시 실행 정책 폼 미리채움
+            String concurrency = existing.concurrencyPolicy() == null ? "" : existing.concurrencyPolicy();
+            model.addAttribute("concurrencyConcurrent", concurrency.isEmpty() || "CONCURRENT".equals(concurrency));
+            model.addAttribute("concurrencySkip", "SKIP_IF_RUNNING".equals(concurrency));
+            // 둘 중 하나라도 설정됐으면 details open
+            model.addAttribute("hasLineSettings", existing.slaSeconds() != null
+                    || (existing.slaAction() != null && !existing.slaAction().isBlank())
+                    || "SKIP_IF_RUNNING".equals(concurrency));
         } catch (IllegalArgumentException ex) {
             log.warn("Builder edit — definition not found: {} ({})", definitionId, ex.getMessage());
             model.addAttribute("editMode", false);

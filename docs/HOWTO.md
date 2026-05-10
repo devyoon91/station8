@@ -308,6 +308,33 @@ public String chargeOrder(String input, LineContext ctx) {
 
 `LineContext` 파라미터는 다른 지원 타입(String, `DataSourceRegistry`, `@BoundDataSource JdbcTemplate`)과 자유롭게 조합 가능.
 
+### 2.5.1. 동시 실행 정책 (#141)
+
+라인 정의에 `CONCURRENCY_POLICY`를 설정하면 같은 정의의 인스턴스를 동시에 여러 개 시작하는 패턴을 제어할 수 있다.
+
+| 정책 | 의미 |
+|---|---|
+| `CONCURRENT` (default) | 같은 정의 인스턴스가 동시에 여러 개 실행 가능. 기존 동작. |
+| `SKIP_IF_RUNNING` | 같은 정의의 RUNNING 또는 PAUSED 인스턴스가 있으면 새 인스턴스 시작을 무시 (cron 적체 방지) |
+
+**시나리오** — 매분 cron으로 큰 ETL을 돌리는데 이전 분이 안 끝났을 때:
+- `CONCURRENT`: 적체 → DB lock 경합, 자원 고갈
+- `SKIP_IF_RUNNING`: 자동 skip → nextRunDt만 갱신 → 시스템 안정
+
+**SKIP 시 응답**:
+- 즉시 실행 REST (`POST /api/line/definitions/{id}/run`): **200 OK** + `{"skipped": true, "reason": "...", "conflictingInstanceId": "..."}`
+- Cron 폴러: `nextRunDt` 갱신만 + WARN 로그
+- (후방 호환) `LineDefinitionService.runDefinition(...)` String 반환 메서드: SKIP 시 `IllegalStateException` (기존 호출자용)
+
+**레이스 condition 방지**: `SELECT ... FOR UPDATE`로 동일 트랜잭션에서 락 → 두 호출이 동시에 들어와도 한쪽만 INSERT 통과.
+
+**UI**: Builder의 "Line settings — SLA / Concurrency" 영역에 dropdown.
+
+**비범위 (별도 follow-up)**:
+- Pipeline 1/2/3 모드 (선행 인스턴스가 N단계 앞서야 후행 진입 — Azkaban 패턴)
+- 인스턴스 RUN_OPTIONS override (`runtimeParams`/`onFailure`/`sla*` 옆에 `concurrencyPolicy` 추가)
+- Resource quota (CPU/메모리 단위 동시성)
+
 ### 2.6. SLA — 시간 임계치 + auto-kill / 알림 (#138)
 
 라인 정의(또는 인스턴스)에 **시간 임계치**를 걸면 `SlaPoller`가 분 단위로 RUNNING 인스턴스를 검사해 위반 시 알림 + 옵션에 따라 auto-terminate.

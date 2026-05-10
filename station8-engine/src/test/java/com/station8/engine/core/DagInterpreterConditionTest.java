@@ -198,7 +198,7 @@ class DagInterpreterConditionTest {
         String defId = "def-" + System.nanoTime();
         defRepo.insertDefinition(new LineDefinition(
                 defId, name, null, 1, "Y",
-                null, null,
+                null, null, null,
                 "Y", "Y", "N",
                 null, "test", null, null));
         defRepo.insertNode(new LineStation("n-a", defId, "A", "A", null, null, 0, 0,
@@ -215,7 +215,7 @@ class DagInterpreterConditionTest {
         String defId = "def-" + System.nanoTime();
         defRepo.insertDefinition(new LineDefinition(
                 defId, name, null, 1, "Y",
-                null, null,
+                null, null, null,
                 "Y", "Y", "N",
                 null, "test", null, null));
         defRepo.insertNode(new LineStation("n-a", defId, "A", "A", null, null, 0, 0,

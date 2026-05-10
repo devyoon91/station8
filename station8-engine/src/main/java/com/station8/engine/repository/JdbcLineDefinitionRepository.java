@@ -132,13 +132,13 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_DEFINITION
                   (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL,
-                   SLA_SECONDS, SLA_ACTION,
+                   SLA_SECONDS, SLA_ACTION, CONCURRENCY_POLICY,
                    USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
                 """,
                 definition.id(), definition.definitionNm(), definition.description(),
                 definition.versionNo(), definition.activeFl() != null ? definition.activeFl() : "Y",
-                definition.slaSeconds(), definition.slaAction(),
+                definition.slaSeconds(), definition.slaAction(), definition.concurrencyPolicy(),
                 definition.regId());
     }
 
@@ -161,6 +161,17 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 SET SLA_SECONDS = ?, SLA_ACTION = ?, EDIT_DT = CURRENT_TIMESTAMP
                 WHERE ID = ?
                 """, slaSeconds, slaAction, definitionId);
+    }
+
+    /** #141 — concurrency 정책 업데이트 (replace 시 사용). null 값도 그대로 SET. */
+    @Override
+    @Transactional
+    public void updateDefinitionConcurrency(String definitionId, String concurrencyPolicy) {
+        jdbcTemplate.update("""
+                UPDATE U_LINE_DEFINITION
+                SET CONCURRENCY_POLICY = ?, EDIT_DT = CURRENT_TIMESTAMP
+                WHERE ID = ?
+                """, concurrencyPolicy, definitionId);
     }
 
     @Override
@@ -252,6 +263,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 rs.getString("ACTIVE_FL"),
                 slaSeconds,
                 rs.getString("SLA_ACTION"),
+                rs.getString("CONCURRENCY_POLICY"),  // #141
                 rs.getString("USE_FL"),
                 rs.getString("VIEW_FL"),
                 rs.getString("DEL_FL"),
