@@ -34,7 +34,13 @@ public class WebhookDlqNotifier implements DlqNotifier {
 
     @Override
     public void notify(DlqEntry entry) {
-        if (webhookUrl == null || webhookUrl.isBlank()) {
+        notify(entry, null);
+    }
+
+    @Override
+    public void notify(DlqEntry entry, String overrideUrl) {
+        String effectiveUrl = (overrideUrl != null && !overrideUrl.isBlank()) ? overrideUrl : webhookUrl;
+        if (effectiveUrl == null || effectiveUrl.isBlank()) {
             log.warn("[DLQ] 웹훅 URL 미설정 — 콘솔 알림으로 대체. DLQ ID={}, Activity={}, Line={}",
                 entry.id(), entry.activityName(), entry.workflowName());
             return;
@@ -43,7 +49,7 @@ public class WebhookDlqNotifier implements DlqNotifier {
         try {
             String body = jsonUtil.toJson(entry);
             HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(webhookUrl))
+                .uri(URI.create(effectiveUrl))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(15))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
@@ -51,13 +57,16 @@ public class WebhookDlqNotifier implements DlqNotifier {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
+            boolean usingOverride = (overrideUrl != null && !overrideUrl.isBlank());
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                log.info("[DLQ] 웹훅 알림 발송 성공. DLQ ID={}, HTTP {}", entry.id(), response.statusCode());
+                log.info("[DLQ] 웹훅 알림 발송 성공. DLQ ID={}, HTTP {}, override={}",
+                        entry.id(), response.statusCode(), usingOverride);
             } else {
-                log.warn("[DLQ] 웹훅 알림 응답 비정상. DLQ ID={}, HTTP {}, Body={}", entry.id(), response.statusCode(), response.body());
+                log.warn("[DLQ] 웹훅 알림 응답 비정상. DLQ ID={}, HTTP {}, Body={}, override={}",
+                        entry.id(), response.statusCode(), response.body(), usingOverride);
             }
         } catch (Exception e) {
-            log.error("[DLQ] 웹훅 알림 발송 실패. DLQ ID={}, URL={}", entry.id(), webhookUrl, e);
+            log.error("[DLQ] 웹훅 알림 발송 실패. DLQ ID={}, URL={}", entry.id(), effectiveUrl, e);
         }
     }
 }

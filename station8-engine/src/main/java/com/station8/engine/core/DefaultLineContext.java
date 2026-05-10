@@ -19,6 +19,8 @@ public class DefaultLineContext implements LineContext {
     private final Object previousOutput;
     private final Map<String, Object> attributes = new HashMap<>();
     private final JsonUtil jsonUtil;
+    /** 인스턴스 단위 runtime params (#134). 변경 가능 — null safe. */
+    private Map<String, String> runtimeParams = Map.of();
 
     private String nextActivityName;
     private Object nextActivityInput;
@@ -73,6 +75,16 @@ public class DefaultLineContext implements LineContext {
     @Override
     public Map<String, Object> attributes() {
         return attributes;
+    }
+
+    @Override
+    public Map<String, String> runtimeParams() {
+        return runtimeParams;
+    }
+
+    /** #134 — 인스턴스 RUN_OPTIONS에서 파싱한 runtime params를 주입한다. */
+    public void setRuntimeParams(Map<String, String> params) {
+        this.runtimeParams = params == null ? Map.of() : Map.copyOf(params);
     }
 
     @Override

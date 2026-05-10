@@ -3,6 +3,7 @@ package com.station8.app.definition;
 import com.station8.engine.core.DagInterpreter;
 import com.station8.engine.core.DagValidator;
 import com.station8.engine.core.LineRegistry;
+import com.station8.engine.core.RunOptions;
 import com.station8.engine.entity.LineDefinition;
 import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
@@ -159,27 +160,58 @@ public class LineDefinitionService {
     }
 
     /**
-     * 즉시 실행: 인스턴스 생성 후 인터프리터에 위임.
+     * 즉시 실행 (후방 호환) — 옵션 없이 default(continue / 빈 params / 전역 webhook).
      *
      * @return 생성된 instanceId
      */
     @Transactional
     public String runDefinition(String definitionId, String inputData) {
+        return runDefinition(definitionId, inputData, RunOptions.defaults());
+    }
+
+    /**
+     * 즉시 실행 + 인스턴스 단위 옵션 (#134 D1=γ).
+     *
+     * <p>{@code options}는 JSON으로 직렬화되어 {@code U_LINE_INSTANCE.RUN_OPTIONS}에 저장된다.
+     * 후방 호환 — null이면 {@link RunOptions#defaults()}.</p>
+     */
+    @Transactional
+    public String runDefinition(String definitionId, String inputData, RunOptions options) {
         LineDefinition def = definitionRepository.findDefinitionById(definitionId);
         if (def == null || "Y".equals(def.delFl())) {
             throw new IllegalArgumentException("정의를 찾을 수 없습니다: " + definitionId);
         }
 
+        RunOptions opt = options != null ? options : RunOptions.defaults();
+        String optionsJson = serializeRunOptions(opt);
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_INSTANCE
-                  (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-                VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """, instanceId, def.definitionNm(), inputData);
+                  (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, RUN_OPTIONS, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
+                VALUES (?, ?, 'RUNNING', ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, instanceId, def.definitionNm(), inputData, optionsJson);
 
         dagInterpreter.startInstance(definitionId, instanceId, inputData);
-        log.info("DAG 즉시 실행: definitionId={}, instanceId={}", definitionId, instanceId);
+        log.info("DAG 즉시 실행: definitionId={}, instanceId={}, onFailure={}",
+                definitionId, instanceId, opt.onFailure());
         return instanceId;
+    }
+
+    /** RunOptions → JSON. 모두 default면 null 반환 (DB 컬럼 비움). */
+    private String serializeRunOptions(RunOptions opt) {
+        boolean isDefault = opt.onFailure() == RunOptions.OnFailure.CONTINUE
+                && (opt.runtimeParams() == null || opt.runtimeParams().isEmpty())
+                && (opt.notificationWebhookUrl() == null || opt.notificationWebhookUrl().isBlank());
+        if (isDefault) return null;
+        Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("onFailure", opt.onFailure().name());
+        if (opt.runtimeParams() != null && !opt.runtimeParams().isEmpty()) {
+            map.put("runtimeParams", opt.runtimeParams());
+        }
+        if (opt.notificationWebhookUrl() != null && !opt.notificationWebhookUrl().isBlank()) {
+            map.put("notificationWebhookUrl", opt.notificationWebhookUrl());
+        }
+        return jsonUtil.toJson(map);
     }
 
     /**

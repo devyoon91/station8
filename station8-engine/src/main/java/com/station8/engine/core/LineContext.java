@@ -47,6 +47,22 @@ public interface LineContext {
      */
     Map<String, Object> attributes();
 
+    /**
+     * 인스턴스 단위 runtime parameters (#134). 즉시 실행 시점에 사용자가 모달에서 입력한
+     * named override 맵. 활동 코드는 이 맵으로 옵션 값을 받아온다.
+     *
+     * <pre>{@code
+     * @Activity("REPORT")
+     * public String report(String input, LineContext ctx) {
+     *     String date = ctx.runtimeParams().getOrDefault("date", "today");
+     *     ...
+     * }
+     * }</pre>
+     *
+     * <p>옵션 미설정 또는 빈 맵이면 {@link Map#of()} 반환.</p>
+     */
+    default Map<String, String> runtimeParams() { return Map.of(); }
+
     /** 현재 시간(UTC 기준)을 반환. 엔진 테스트 용이성을 위해 Clock 추상화 대체 가능. */
     default Instant now() { return Instant.now(); }
 

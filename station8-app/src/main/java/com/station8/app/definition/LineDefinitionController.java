@@ -1,10 +1,12 @@
 package com.station8.app.definition;
 
+import com.station8.engine.core.RunOptions;
 import com.station8.engine.exception.LineEngineException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -55,13 +57,54 @@ public class LineDefinitionController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * 즉시 실행 (#134) — body shape:
+     * <pre>
+     * {
+     *   "input": "...",                    // optional
+     *   "options": {                       // optional — 미지정 시 default(continue/빈맵/전역 webhook)
+     *     "onFailure": "CONTINUE|ABORT",   // default CONTINUE
+     *     "runtimeParams": { "k": "v" },   // default 빈맵
+     *     "notificationWebhookUrl": "..."  // default null (전역 사용)
+     *   }
+     * }
+     * </pre>
+     * 후방 호환 — body 없거나 options 없으면 default 적용.
+     */
     @PostMapping("/{id}/run")
     public ResponseEntity<Map<String, String>> run(@PathVariable("id") String id,
                                                    @RequestBody(required = false) Map<String, Object> body) {
         String inputData = (body == null || body.get("input") == null) ? null : String.valueOf(body.get("input"));
-        String instanceId = service.runDefinition(id, inputData);
+        RunOptions options = parseOptions(body);
+        String instanceId = service.runDefinition(id, inputData, options);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("instanceId", instanceId));
+    }
+
+    /**
+     * Body의 {@code options} 서브맵을 {@link RunOptions}로 변환. 없거나 비어있으면 default.
+     * 알 수 없는 필드는 무시 (후방 호환).
+     */
+    @SuppressWarnings("unchecked")
+    private RunOptions parseOptions(Map<String, Object> body) {
+        if (body == null) return RunOptions.defaults();
+        Object raw = body.get("options");
+        if (!(raw instanceof Map<?, ?> optMap) || optMap.isEmpty()) {
+            return RunOptions.defaults();
+        }
+        RunOptions.OnFailure onFailure = RunOptions.OnFailure.parse(
+                optMap.get("onFailure") == null ? null : String.valueOf(optMap.get("onFailure")));
+
+        Map<String, String> params = new LinkedHashMap<>();
+        Object pRaw = optMap.get("runtimeParams");
+        if (pRaw instanceof Map<?, ?> pm) {
+            pm.forEach((k, v) -> params.put(String.valueOf(k), v == null ? null : String.valueOf(v)));
+        }
+
+        String webhook = optMap.get("notificationWebhookUrl") == null
+                ? null : String.valueOf(optMap.get("notificationWebhookUrl"));
+
+        return new RunOptions(onFailure, params, webhook);
     }
 
     // === 예외 매핑 ===

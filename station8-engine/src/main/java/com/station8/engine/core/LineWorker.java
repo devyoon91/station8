@@ -2,11 +2,13 @@ package com.station8.engine.core;
 
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.entity.DlqEntry;
+import com.station8.engine.entity.LineInstance;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.DlqRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
 import com.station8.engine.util.JsonUtil;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -39,6 +41,7 @@ public class LineWorker {
     private final DagInterpreter dagInterpreter;
     private final ActivityArgumentResolver argumentResolver;
     private final LineDefinitionRepository definitionRepository;
+    private final LineExecutor lineExecutor;
 
     public LineWorker(ActivityRepository activityRepository,
                           TaskExecutor taskExecutor,
@@ -50,7 +53,8 @@ public class LineWorker {
                           JsonUtil jsonUtil,
                           DagInterpreter dagInterpreter,
                           ActivityArgumentResolver argumentResolver,
-                          LineDefinitionRepository definitionRepository) {
+                          LineDefinitionRepository definitionRepository,
+                          LineExecutor lineExecutor) {
         this.activityRepository = activityRepository;
         this.taskExecutor = taskExecutor;
         this.workflowTaskExecutor = workflowTaskExecutor;
@@ -62,6 +66,7 @@ public class LineWorker {
         this.dagInterpreter = dagInterpreter;
         this.argumentResolver = argumentResolver;
         this.definitionRepository = definitionRepository;
+        this.lineExecutor = lineExecutor;
     }
 
     /**
@@ -96,12 +101,17 @@ public class LineWorker {
             return;
         }
 
-        // 2. 컨텍스트 생성
-        // TODO: ActivityExecution 데이터를 기반으로 정교한 LineContext를 생성하는 ContextFactory 연동 필요
-        // 현재는 수동으로 생성 (향후 리팩토링 대상)
+        // 2. 인스턴스 메타 + RunOptions 로드 (#134) — 실패해도 default로 fallback
+        LineInstance instance = loadInstanceSafely(activity.instanceId());
+        RunOptions options = parseRunOptionsSafely(instance);
+
+        // 3. 컨텍스트 생성 — workflowName은 instance에서, runtime params는 options에서 (#134 D7)
+        String workflowName = (instance != null && instance.workflowName() != null)
+                ? instance.workflowName()
+                : "UNKNOWN";
         DefaultLineContext context = new DefaultLineContext(
             activity.instanceId(),
-            "UNKNOWN", // LineName은 Instance 테이블 조회가 필요할 수 있음
+            workflowName,
             activity.activityName(),
             activity.retryCnt() + 1,
             activity.inputData(),
@@ -109,42 +119,49 @@ public class LineWorker {
             jsonUtil
         );
         context.attributes().put("executionId", activity.id());
+        context.setRuntimeParams(options.runtimeParams());
 
         try {
             log.info("Executing activity: {} (Execution ID: {})", activity.activityName(), activity.id());
-            
-            // 3. 리플렉션을 통한 메서드 호출
+
+            // 4. 리플렉션을 통한 메서드 호출
             // 파라미터 바인딩은 ActivityArgumentResolver에 위임:
             //  - #108: String + DataSourceRegistry
             //  - #113: @BoundDataSource JdbcTemplate (station 바인딩 기반)
-            ActivityArgumentResolver.Context resolveCtx = buildResolveContext(activity);
+            //  - #134: LineContext (runtime params 접근용)
+            ActivityArgumentResolver.Context resolveCtx = buildResolveContext(activity, context);
             Object[] args = argumentResolver.resolve(metadata.method(), resolveCtx);
 
             Object result = metadata.method().invoke(metadata.bean(), args);
-            
-            // 4. 성공 시 결과 업데이트 및 다음 단계 처리
+
+            // 5. 성공 시 결과 업데이트 및 다음 단계 처리
             taskExecutor.complete(context, result);
             log.info("Activity completed: {} (Execution ID: {})", activity.activityName(), activity.id());
 
-            // 4-1. DAG 모드(NODE_ID 보유)면 인터프리터에 후행 역 활성화 위임
+            // 5-1. DAG 모드(NODE_ID 보유)면 인터프리터에 후행 역 활성화 위임
             if (activity.nodeId() != null) {
                 dagInterpreter.onNodeCompleted(activity.instanceId(), activity.nodeId());
             }
-            
+
         } catch (Exception e) {
             Throwable cause = (e instanceof java.lang.reflect.InvocationTargetException) ? e.getCause() : e;
             log.error("Failed to execute activity: " + activity.id(), cause);
-            
-            // 5. 실패 시 재시도 정책 적용
+
+            // 6. 실패 시 재시도 정책 적용
             int attempt = context.attempt();
             int maxRetry = metadata.annotation().retryCount();
             long baseBackoff = metadata.annotation().backoffSeconds();
-            
+
             if (retryPolicy.isExceeded(attempt, maxRetry)) {
                 log.error("Max retry count exceeded for activity: {}. Mark as FAILED_FINAL.", activity.id());
                 taskExecutor.fail(context, cause, null); // 더 이상 재시도 없음
-                // FAILED_FINAL 상태로 인스턴스 업데이트 및 DLQ 적재
-                moveToDlq(activity, context, cause, maxRetry);
+                // FAILED_FINAL 상태로 인스턴스 업데이트 및 DLQ 적재 — instance webhook override 적용 (#134 D8)
+                moveToDlq(activity, context, cause, maxRetry, options.notificationWebhookUrl());
+
+                // #134 D1=γ — onFailure=ABORT면 인스턴스 즉시 종료 (#101 위임)
+                if (options.onFailure() == RunOptions.OnFailure.ABORT) {
+                    abortInstance(activity.instanceId());
+                }
             } else {
                 Duration nextBackoff = retryPolicy.calculateNextBackoff(attempt, baseBackoff);
                 log.info("Scheduling retry #{} for activity: {} with delay: {}s", attempt, activity.id(), nextBackoff.getSeconds());
@@ -154,11 +171,60 @@ public class LineWorker {
     }
 
     /**
+     * 인스턴스 메타 안전 조회 — 누락/조회 실패는 null로 fallback.
+     */
+    private LineInstance loadInstanceSafely(String instanceId) {
+        try {
+            return activityRepository.findInstanceById(instanceId);
+        } catch (EmptyResultDataAccessException ex) {
+            log.warn("Instance not found — id={}, fallback to defaults", instanceId);
+            return null;
+        } catch (Exception ex) {
+            log.warn("Instance 조회 실패 — id={}, fallback to defaults ({}: {})",
+                    instanceId, ex.getClass().getSimpleName(), ex.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * {@link LineInstance#runOptions()} CLOB JSON을 안전하게 파싱한다 — 파싱 실패 시 default로 fallback.
+     */
+    private RunOptions parseRunOptionsSafely(LineInstance instance) {
+        if (instance == null) return RunOptions.defaults();
+        try {
+            return RunOptions.parse(instance.runOptions(), jsonUtil);
+        } catch (Exception ex) {
+            log.warn("RunOptions 파싱 실패 — instanceId={}, fallback to defaults ({}: {})",
+                    instance.id(), ex.getClass().getSimpleName(), ex.getMessage());
+            return RunOptions.defaults();
+        }
+    }
+
+    /**
+     * #134 D1=γ — onFailure=ABORT 처리. 다른 액티비티가 먼저 트리거해 이미 종료된 경우는 idempotent하게 무시.
+     */
+    private void abortInstance(String instanceId) {
+        log.warn("[#134] onFailure=ABORT — terminating instance: {}", instanceId);
+        try {
+            lineExecutor.terminateLine(instanceId);
+        } catch (IllegalStateException terminateEx) {
+            // 다른 활동이 이미 abort 트리거 → instance가 RUNNING이 아닐 수 있음 (idempotent)
+            log.info("[#134] terminateLine 무시 — 이미 종료된 인스턴스: {} ({})",
+                    instanceId, terminateEx.getMessage());
+        } catch (Exception terminateEx) {
+            log.error("[#134] terminateLine 실패 — instance: {}", instanceId, terminateEx);
+        }
+    }
+
+    /**
      * 액티비티 호출 시 ArgumentResolver에 넘길 컨텍스트를 구성한다.
      * DAG 모드(NODE_ID 보유)이면 station을 조회해 datasourceBindings를 파싱.
      * 레거시(선형) 모드 또는 station 미발견이면 빈 bindings — 모든 @BoundDataSource는 primary fallback.
+     *
+     * @param lineContext 액티비티에 주입할 LineContext (runtime params 접근용 — #134 D7)
      */
-    private ActivityArgumentResolver.Context buildResolveContext(ActivityExecution activity) {
+    private ActivityArgumentResolver.Context buildResolveContext(ActivityExecution activity,
+                                                                 LineContext lineContext) {
         Map<String, String> bindings = Collections.emptyMap();
         if (activity.nodeId() != null) {
             try {
@@ -172,7 +238,7 @@ public class LineWorker {
                         activity.nodeId(), ex.getClass().getSimpleName(), ex.getMessage());
             }
         }
-        return new ActivityArgumentResolver.Context(activity.inputData(), bindings);
+        return new ActivityArgumentResolver.Context(activity.inputData(), bindings, lineContext);
     }
 
     private void updateActivityAsCompleted(ActivityExecution activity, Object output) {
@@ -205,8 +271,11 @@ public class LineWorker {
 
     /**
      * 최대 재시도 초과 시 DLQ에 적재하고 웹훅 알림을 발송합니다.
+     *
+     * @param webhookOverride 인스턴스 RunOptions의 notificationWebhookUrl (null이면 전역 webhook 사용 — #134 D8)
      */
-    private void moveToDlq(ActivityExecution activity, DefaultLineContext context, Throwable cause, int maxRetry) {
+    private void moveToDlq(ActivityExecution activity, DefaultLineContext context, Throwable cause,
+                           int maxRetry, String webhookOverride) {
         try {
             String stackTrace = buildStackTraceString(cause);
             DlqEntry entry = new DlqEntry(
@@ -226,8 +295,9 @@ public class LineWorker {
             dlqRepository.insert(entry);
             log.info("[DLQ] 적재 완료. Activity={}, Instance={}", activity.activityName(), activity.instanceId());
 
-            // 웹훅 알림 발송 (비동기 아님 — 실패해도 DLQ 적재는 보장됨)
-            dlqNotifier.notify(entry);
+            // 웹훅 알림 발송 — 인스턴스 override 우선, 없으면 전역 (#134 D8)
+            // (비동기 아님 — 실패해도 DLQ 적재는 보장됨)
+            dlqNotifier.notify(entry, webhookOverride);
         } catch (Exception dlqEx) {
             log.error("[DLQ] 적재 중 오류 발생. Activity={}", activity.id(), dlqEx);
         }
