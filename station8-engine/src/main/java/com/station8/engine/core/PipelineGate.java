@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * #164 — Pipeline 1/2/3 모드 게이트.
@@ -50,7 +49,9 @@ public class PipelineGate {
     }
 
     /**
-     * 활동 dispatch 가능 여부를 판단.
+     * 활동 dispatch 가능 여부를 판단. #177 — {@link ConcurrencyStrategy}에 위임.
+     * 본 클래스는 dispatch context 빌더 + 위상/선행 lookup만 담당.
+     *
      * @return true = dispatch OK. false = 게이트로 차단.
      */
     public boolean canDispatch(String instanceId, String nodeId, String workflowName) {
@@ -60,8 +61,9 @@ public class PipelineGate {
         LineDefinition def = definitionRepo.findActiveDefinitionByName(workflowName);
         if (def == null) return true;
 
-        ConcurrencyPolicy policy = ConcurrencyPolicy.parse(def.concurrencyPolicy());
-        if (!policy.isPipeline()) return true;
+        ConcurrencyStrategy strategy = ConcurrencyStrategy.parse(def.concurrencyPolicy());
+        // Pipeline 외 정책은 default no-op으로 통과 — DispatchContext 빌드 비용 절감을 위해 짧은 경로 유지
+        if (!(strategy instanceof ConcurrencyStrategy.Pipeline)) return true;
 
         // 위상 단계 계산
         List<LineStation> nodes = definitionRepo.findNodesByDefinition(def.id());
@@ -75,49 +77,27 @@ public class PipelineGate {
 
         // 선행 후보: 같은 workflow_name + RUNNING + 자기 자신 제외
         // (PAUSED는 제외 — 운영자 결정 대기, 데드락 회피)
-        // (FAILED/COMPLETED/TERMINATED 제외 — 더 이상 진행 안 됨)
         InstanceQueryFilter filter = new InstanceQueryFilter(
                 workflowName, java.util.List.of("RUNNING"), null, null, null, null, null, null);
         List<LineInstance> candidates = activityRepo.findInstancesPage(filter, 0, 200);
-        // 자기 인스턴스 제거
-        candidates = candidates.stream()
-                .filter(i -> !instanceId.equals(i.id()))
+        List<String> priorIds = candidates.stream()
+                .map(LineInstance::id)
+                .filter(id -> !instanceId.equals(id))
                 .toList();
-        if (candidates.isEmpty()) return true;
 
-        // 각 선행에 대해 게이트 검사
-        for (LineInstance prior : candidates) {
-            if (!isPriorPastGate(prior, policy, nodeId, myStep, stepMap)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[#164] PipelineGate 차단 — instance={}, nodeId={}, step={}, policy={}, blockingPrior={}",
-                            instanceId, nodeId, myStep, policy, prior.id());
-                }
-                return false;  // 한 선행이라도 충족 못 하면 차단
-            }
-        }
-        return true;
-    }
+        ConcurrencyStrategy.DispatchContext ctx = new ConcurrencyStrategy.DispatchContext(
+                instanceId, nodeId, workflowName, myStep,
+                step -> LineDagTopo.nodesAtStep(stepMap, step),
+                priorIds,
+                activityRepo::isNodeCompleted,
+                activityRepo::isAnyNodeStarted
+        );
 
-    /**
-     * 단일 선행 인스턴스가 게이트 조건을 충족하는지.
-     *
-     * <ul>
-     *   <li>PIPELINE_1: 선행에서 같은 nodeId가 COMPLETED.</li>
-     *   <li>PIPELINE_2: 선행에서 단계 S+1의 노드 중 하나라도 STARTED.</li>
-     *   <li>PIPELINE_3: 단계 S+2의 노드 중 하나라도 STARTED.</li>
-     * </ul>
-     *
-     * <p>대상 단계에 노드가 존재하지 않으면(파이프라인 끝) 자동 통과 — 데드락 회피.</p>
-     */
-    private boolean isPriorPastGate(LineInstance prior, ConcurrencyPolicy policy,
-                                    String nodeId, int myStep,
-                                    Map<String, Integer> stepMap) {
-        if (policy == ConcurrencyPolicy.PIPELINE_1) {
-            return activityRepo.isNodeCompleted(prior.id(), nodeId);
+        ConcurrencyStrategy.DispatchResult result = strategy.evaluateOnDispatch(ctx);
+        if (!result.allowed() && log.isDebugEnabled()) {
+            log.debug("[#164/#177] Dispatch 차단 — instance={}, nodeId={}, step={}, policy={}, reason={}",
+                    instanceId, nodeId, myStep, strategy.policyName(), result.reason());
         }
-        int targetStep = myStep + policy.pipelineGap();  // PIPELINE_2: +1, PIPELINE_3: +2
-        Set<String> targets = LineDagTopo.nodesAtStep(stepMap, targetStep);
-        if (targets.isEmpty()) return true;  // 파이프라인 끝 — 차단 안 함
-        return activityRepo.isAnyNodeStarted(prior.id(), targets);
+        return result.allowed();
     }
 }

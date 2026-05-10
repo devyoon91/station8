@@ -79,21 +79,21 @@ public class LineScheduler {
             String workflowName = (String) defMeta.get(0).get("DEFINITION_NM");
             String policy = (String) defMeta.get(0).get("CONCURRENCY_POLICY");
 
-            // 2) #141 — SKIP_IF_RUNNING 정책 체크 (cron 적체 방지)
-            if ("SKIP_IF_RUNNING".equalsIgnoreCase(policy)) {
-                java.util.List<String> active = jdbcTemplate.queryForList(
-                        "SELECT ID FROM U_LINE_INSTANCE "
-                                + "WHERE WORKFLOW_NAME = ? AND STATUS_ST IN ('RUNNING', 'PAUSED') "
-                                + "AND DEL_FL = 'N' FOR UPDATE",
-                        String.class, workflowName);
-                if (!active.isEmpty()) {
-                    LocalDateTime now = LocalDateTime.now();
-                    LocalDateTime nextRun = nextFromCron(s.cronExpr(), now);
-                    scheduleRepository.markRun(s.id(), nextRun, now);
-                    log.warn("[#141][Scheduler] SKIP — scheduleId={}, definitionId={}, conflicting={}, nextRun={}",
-                            s.id(), s.definitionId(), active.get(0), nextRun);
-                    return null;  // skipped
-                }
+            // 2) #141, #177 — Concurrency strategy 평가 (cron 적체 방지)
+            ConcurrencyStrategy strategy = ConcurrencyStrategy.parse(policy);
+            ConcurrencyStrategy.StartContext startCtx = new ConcurrencyStrategy.StartContext(
+                    workflowName,
+                    () -> firstActiveInstanceIdForLock(workflowName)
+            );
+            ConcurrencyStrategy.StartResult startResult = strategy.evaluateOnStart(startCtx);
+            if (!startResult.allowed()) {
+                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime nextRun = nextFromCron(s.cronExpr(), now);
+                scheduleRepository.markRun(s.id(), nextRun, now);
+                log.warn("[#141/#177][Scheduler] SKIP — scheduleId={}, definitionId={}, policy={}, conflicting={}, nextRun={}",
+                        s.id(), s.definitionId(), strategy.policyName(),
+                        startResult.conflictingInstanceId(), nextRun);
+                return null;  // skipped
             }
 
             // 3) 인스턴스 INSERT
@@ -125,6 +125,19 @@ public class LineScheduler {
             }
             return null;
         }
+    }
+
+    /**
+     * #141/#177 — 같은 workflow의 RUNNING/PAUSED 활성 인스턴스 1건 ID (락 보유). 없으면 null.
+     * triggerOne 트랜잭션 안에서 호출 — FOR UPDATE 락이 트랜잭션 끝까지 유지되어 동시 호출 race 방지.
+     */
+    private String firstActiveInstanceIdForLock(String workflowName) {
+        java.util.List<String> active = jdbcTemplate.queryForList(
+                "SELECT ID FROM U_LINE_INSTANCE "
+                        + "WHERE WORKFLOW_NAME = ? AND STATUS_ST IN ('RUNNING', 'PAUSED') "
+                        + "AND DEL_FL = 'N' FOR UPDATE",
+                String.class, workflowName);
+        return active.isEmpty() ? null : active.get(0);
     }
 
     /**
