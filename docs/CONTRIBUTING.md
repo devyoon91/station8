@@ -150,28 +150,52 @@ if (cond) {
 
 ### 4.3 Javadoc 준수
 
-**모든 public 타입(class/interface/enum/record)과 모든 public 메서드/생성자/필드는 Javadoc을 작성한다.** package-private이라도 비자명한 동작이면 작성 권장.
+**모든 public 타입(class/interface/enum/record)은 클래스 Javadoc을 반드시 작성하고, 모든 public 메서드/생성자/필드도 Javadoc을 작성한다.** package-private이라도 비자명한 동작이면 작성 권장.
 
 #### 4.3.1 필수 항목
 
 | 대상 | 필수 |
 |---|---|
-| `public class` / `interface` / `enum` / `record` | 클래스 Javadoc — 책임, 핵심 협력 객체, 디자인 패턴 |
+| `public class` / `interface` / `enum` / `record` | **클래스 Javadoc 필수** — 책임, 핵심 협력 객체, 디자인 패턴 |
 | `public` 메서드 / 생성자 | 동작 설명 + `@param` (모든 인자) + `@return` (void 아닌 경우) + `@throws` (선언/주요 unchecked 예외) |
 | `public` 상수 / 필드 | 의미 + 단위 / 허용 범위 |
 | record component | record 본문 Javadoc 안에서 `@param name 설명` 형식으로 — record는 component별 Javadoc을 component 위에 따로 못 붙임 |
 | enum 상수 | 각 상수 위에 한 줄 Javadoc — 의미 + 사용 시점 |
 
-#### 4.3.2 작성 규칙
+#### 4.3.2 클래스 Javadoc 위치 — 어노테이션 위
+
+**클래스/타입 Javadoc은 반드시 클래스 어노테이션 위에 위치한다.** 어노테이션과 타입 선언 사이에 끼우면 Javadoc 도구가 인식 못 하거나 IDE 인덱싱이 깨진다.
+
+```java
+// ✗ 금지 — Javadoc이 어노테이션 아래에 위치
+@Service
+@Transactional
+/**
+ * 라인 정의 등록/수정/삭제 서비스.
+ */
+public class LineDefinitionService { ... }
+
+// ✓ 권장 — Javadoc → 어노테이션 → 타입 선언
+/**
+ * 라인 정의 등록/수정/삭제 서비스.
+ */
+@Service
+@Transactional
+public class LineDefinitionService { ... }
+```
+
+같은 규칙이 메서드/필드의 Javadoc에도 적용 — Javadoc은 항상 어노테이션 위.
+
+#### 4.3.3 작성 규칙
 
 - **언어**: 한국어 — 단, 식별자(`@param x`, 클래스명)는 그대로
 - **첫 문장 = 한 줄 요약** — Javadoc 인덱스에 그대로 노출되므로 마침표로 종결되는 한 문장
 - **이슈 번호 포함 OK** — 로그와 달리 Javadoc은 추적 정보가 권장됨. 예: `<p>#164 — Pipeline 모드 게이트.</p>`
 - **디자인 패턴 명시** — Strategy/Repository/Facade 등 적용 패턴이 있으면 첫 단락에서 언급
 - **상호 참조** — 협력 객체는 `{@link OtherClass}` / `{@link #method}` / `{@code 표현식}` 사용
-- **TODO/FIXME 금지** — Javadoc에 TODO 쓰지 말고 GitHub 이슈로 분리
+- **TODO/FIXME 금지** — Javadoc/주석에 TODO 쓰지 말고 GitHub 이슈로 분리 (§4.5와 일관)
 
-#### 4.3.3 예시
+#### 4.3.4 예시
 
 ```java
 /**
@@ -217,14 +241,63 @@ record component 예시:
 record DispatchContext(...) {}
 ```
 
-#### 4.3.4 미준수 처리
+#### 4.3.5 미준수 처리
 
 - 신규 코드: PR 리뷰에서 차단 사유 (CI 자동 검사는 별도 follow-up)
 - 기존 코드: 만지는 메서드/클래스에 누락이 있으면 함께 추가. 일괄 정리는 별도 REFACTOR PR
 
-### 4.4 적용 대상
+### 4.4 임포트 정리
 
-신규 코드 + 수정하는 라인은 본 §4 규칙(로깅 / 중괄호 / Javadoc)을 모두 따른다. 기존 코드의 일괄 정리는 별도 REFACTOR PR로 분리.
+**안 쓰는 import 문은 반드시 제거한다.** PR 머지 전 IDE 자동 정리(IntelliJ: `Ctrl+Alt+O` / Eclipse: `Ctrl+Shift+O`) 또는 수동으로 제거.
+
+- 미사용 import는 컴파일 시 deprecation 경고 또는 일부 IDE 경고로 표시되며, 클래스 의존을 흐리게 만들어 리팩터 시 잘못된 영향 분석을 유발한다.
+- `import static`도 동일하게 미사용은 제거.
+- 와일드카드 import(`import x.*`) 지양 — 명시적 단일 import 유지 (단, 같은 패키지에서 5개 이상 사용 시 IDE 자동 변환 허용).
+
+### 4.5 인라인 주석
+
+#### 4.5.1 중요 로직 주석 — 필수
+
+**비자명한 동작 / 부수효과 / 트레이드오프가 있는 구간에는 인라인 주석을 작성한다.** 코드만 봐서는 "왜 이렇게 했는지" 알 수 없는 결정을 명문화.
+
+작성 대상:
+- **검증 / 락 / 트랜잭션 경계** — `// FOR UPDATE 락 보유 — 트랜잭션 끝까지 race 방지`
+- **데드락/edge case 회피** — `// 단계 S+gap에 노드 없으면 파이프라인 끝 — 데드락 회피로 통과`
+- **순서가 중요한 분기** — `// 1) ACL 검사가 SQL 보다 먼저 — 미인증 사용자가 DB 부담 주지 않도록`
+- **외부 시스템 가정** — `// Drawflow 0.0.59는 connection 클래스명에 input/output 인덱스 포함`
+- **임시/방어 코드** — `// 다른 활동이 이미 트리거 → idempotent 처리`
+
+스타일:
+- 한국어 본문 (식별자는 그대로)
+- "무엇을" 보다 "왜"에 초점 (코드는 무엇은 보여줌)
+- 한 줄로 충분하면 `//`, 여러 줄이면 `/* ... */`
+- 주석은 항상 해당 코드 **바로 위** — 같은 줄 trailing 주석은 짧은 단위 변환에만 (`// seconds`)
+
+#### 4.5.2 TODO / FIXME 등 마커 주석 — 금지
+
+**TODO / FIXME / XXX / HACK 마커는 코드에 남기지 않는다.** 모두 GitHub 이슈로 분리해 추적.
+
+이유:
+- 코드 검색으로만 추적되어 실수로 머지된 후 잊힘
+- 우선순위 / 담당자 / 의존성 관리가 git blame에 묻혀 가시성 ↓
+- 이슈로 빼면 라벨 / 마일스톤 / 코멘트 / 닫힘 검증이 자연스러움
+
+```java
+// ✗ 금지
+// TODO: 캐싱 추가 필요
+// FIXME: 동시성 race 가능
+// HACK: 임시로 sleep 추가
+
+// ✓ 권장
+// (이슈로 추적 — 해당 부분 코드는 정상 동작하면 그대로 두고, 개선은 이슈 PR에서)
+// 별도 GitHub 이슈로 분리 — 본 코드는 현재 정확하게 동작
+```
+
+PR 리뷰 시 마커가 발견되면 머지 차단 + 이슈 분리 요청.
+
+### 4.6 적용 대상
+
+신규 코드 + 수정하는 라인은 본 §4 규칙(로깅 / 중괄호 / Javadoc / 임포트 / 인라인 주석)을 모두 따른다. 기존 코드의 일괄 정리는 별도 REFACTOR PR로 분리.
 
 ---
 
