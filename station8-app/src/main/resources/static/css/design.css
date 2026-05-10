@@ -608,6 +608,18 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
 }
 .swe-subway-frame svg .swe-subway-station-label.hover { fill: var(--line-pink); font-weight: 600; }
 
+/* #135 — focusStation()으로 외부에서 강조 (좌측 stations list 클릭 등). hover와 다르게 지속. */
+.swe-subway-frame svg .swe-subway-station-circle.focused {
+  stroke-width: 6px;
+  stroke: var(--line-yellow, #FBCA04);
+  filter: drop-shadow(0 0 8px var(--line-yellow, #FBCA04));
+}
+.swe-subway-frame svg .swe-subway-station-circle.untouched.focused { opacity: 1; }
+.swe-subway-frame svg .swe-subway-station-label.focused {
+  fill: var(--line-yellow, #FBCA04);
+  font-weight: 700;
+}
+
 .swe-subway-station-label {
   fill: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;
@@ -658,4 +670,117 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
 .swe-pagination-disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 @media (max-width: 768px) {
   .swe-pagination { justify-content: center; }
+}
+
+/* ============================================================================
+   #135 — Stations list panel (Builder/Preview 좌측)
+   ============================================================================ */
+
+/* 탭 바 — Builder 좌측 패널의 Activities | Stations 토글 */
+.swe-tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-elevated);
+}
+.swe-tab {
+  flex: 1;
+  padding: var(--space-md) var(--space-lg);
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--mute);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+.swe-tab:hover { color: var(--ink); background: var(--surface); }
+.swe-tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--primary);
+  background: var(--surface);
+}
+
+/* Stations list — Builder + Preview 공통 */
+.swe-station-list-search {
+  margin-bottom: var(--space-md);
+}
+.swe-station-list-search input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.swe-station-list-search input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.swe-station-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.swe-station-list-item {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+  font-size: 13px;
+  user-select: none;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.swe-station-list-item:hover {
+  border-color: var(--hairline-strong);
+  background: var(--surface-elevated);
+}
+.swe-station-list-item.active {
+  border-color: var(--primary);
+  background: var(--surface-elevated);
+}
+.swe-station-list-item .activity {
+  font-weight: 600;
+  color: var(--ink);
+}
+.swe-station-list-item .meta {
+  font-size: 11px;
+  color: var(--mute);
+  margin-top: 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.swe-station-list-empty {
+  font-size: 12px;
+  color: var(--mute);
+  padding: var(--space-md);
+  text-align: center;
+}
+
+/* Preview 좌측 패널 + 노선도 2-col 레이아웃 */
+.swe-preview-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-lg);
+  align-items: start;
+}
+.swe-preview-stations-panel {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 200px);
+  overflow: hidden;
+}
+.swe-preview-stations-panel .swe-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-md);
+}
+@media (max-width: 900px) {
+  .swe-preview-layout { grid-template-columns: 1fr; }
+  .swe-preview-stations-panel { max-height: 320px; }
 }
