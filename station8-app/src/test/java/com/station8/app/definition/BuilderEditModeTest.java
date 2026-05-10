@@ -55,6 +55,27 @@ class BuilderEditModeTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("EDIT_MODE = false")));
     }
 
+    /**
+     * Builder UX 수정 검증:
+     * - reroute 비활성 (엣지 더블클릭 split UX 차단)
+     * - SVG 화살표 marker (방향성 시각화)
+     * - 토폴로지 순서 badge CSS + JS 함수
+     * - 포트 hover 강조 CSS
+     */
+    @Test
+    void builder_includesUxFixesForOrderAndConnections() throws Exception {
+        mockMvc.perform(get("/line/builder"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("editor.reroute = false")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"dag-edge-arrow\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(".exec-order-badge")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function refreshExecutionOrder")))
+                // 포트 hover 강조
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(".drawflow-node .output:hover")))
+                // 새 사용자 안내 문구
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("포트에서 다른 노드의 좌측")));
+    }
+
     @Test
     void editMode_embedsDefinitionPayloadAsJson() throws Exception {
         // 정의 등록
