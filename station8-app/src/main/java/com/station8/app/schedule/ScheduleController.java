@@ -100,11 +100,17 @@ public class ScheduleController {
 
     // ========== REST API ==========
 
-    /** #140 — SCHEDULE 권한 필요 (대상 정의 ID는 body에서). */
+    /**
+     * 신규 스케줄 등록. SCHEDULE 권한 필요.
+     *
+     * @param req 등록 요청 본문 — Bean Validation으로 1차 검증 (#175). 검증 실패는
+     *            {@code GlobalRestExceptionHandler}가 400 + {@code VALIDATION_FAILED}로 변환.
+     * @return 201 + {@code {scheduleId}}
+     */
     @ResponseBody
     @PostMapping("/api/line/schedules")
     @PreAuthorize("@lineAcl.canSchedule(#req.definitionId())")
-    public ResponseEntity<Map<String, String>> create(@RequestBody CreateRequest req) {
+    public ResponseEntity<Map<String, String>> create(@jakarta.validation.Valid @RequestBody CreateRequest req) {
         String id = scheduleService.create(req.definitionId(), req.cronExpr(), req.inputData());
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("scheduleId", id));
     }
@@ -121,11 +127,18 @@ public class ScheduleController {
         return scheduleService.findById(id);
     }
 
+    /**
+     * cron 표현식 변경. SCHEDULE 권한 필요.
+     *
+     * @param id  대상 스케줄 ID
+     * @param req cron 변경 요청 — Bean Validation으로 cronExpr 필수 검증
+     * @return 204 No Content
+     */
     @ResponseBody
     @PutMapping("/api/line/schedules/{id}")
     @PreAuthorize("@lineAcl.canScheduleByScheduleId(#id)")
     public ResponseEntity<Void> updateCron(@PathVariable("id") String id,
-                                            @RequestBody UpdateCronRequest req) {
+                                            @jakarta.validation.Valid @RequestBody UpdateCronRequest req) {
         scheduleService.updateCron(id, req.cronExpr());
         return ResponseEntity.noContent().build();
     }
@@ -188,6 +201,28 @@ public class ScheduleController {
 
     // ========== DTOs ==========
 
-    public record CreateRequest(String definitionId, String cronExpr, String inputData) {}
-    public record UpdateCronRequest(String cronExpr) {}
+    /**
+     * 스케줄 등록 요청.
+     *
+     * @param definitionId 대상 라인 정의 ID. 필수.
+     * @param cronExpr     cron 표현식 (Spring CronExpression 형식). 필수.
+     * @param inputData    인스턴스 시작 시 전달할 입력 (선택, JSON/String).
+     */
+    public record CreateRequest(
+            @jakarta.validation.constraints.NotBlank(message = "definitionId는 필수입니다.")
+            String definitionId,
+            @jakarta.validation.constraints.NotBlank(message = "cronExpr은 필수입니다.")
+            String cronExpr,
+            String inputData
+    ) {}
+
+    /**
+     * cron 변경 요청.
+     *
+     * @param cronExpr 새 cron 표현식. 필수.
+     */
+    public record UpdateCronRequest(
+            @jakarta.validation.constraints.NotBlank(message = "cronExpr은 필수입니다.")
+            String cronExpr
+    ) {}
 }

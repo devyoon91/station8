@@ -1,6 +1,7 @@
 package com.station8.app.definition;
 
 import com.station8.engine.core.RunOptions;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,12 +34,17 @@ public class LineDefinitionController {
     }
 
     /**
-     * #140 — 신규 정의 생성. 인증된 USER만 가능.
-     * 생성 후 LineDefinitionService가 생성자에게 ADMIN 권한 자동 부여.
+     * 신규 정의 생성. 인증된 USER만 가능.
+     *
+     * <p>#140 — 생성 후 {@link LineDefinitionService}가 생성자에게 ADMIN 권한 자동 부여.</p>
+     * <p>#175 — Bean Validation으로 1차 입력 검증, 그래프 위상 검증은 {@code DagValidator}가 별도 수행.</p>
+     *
+     * @param req 정의 등록 요청 — {@code @Valid}로 필드 검증
+     * @return 201 + {@code {definitionId}}
      */
     @PostMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, String>> create(@RequestBody DagDefinitionRequest req) {
+    public ResponseEntity<Map<String, String>> create(@Valid @RequestBody DagDefinitionRequest req) {
         String id = service.createDefinition(req);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("definitionId", id));
@@ -49,11 +55,17 @@ public class LineDefinitionController {
         return service.getDefinition(id);
     }
 
-    /** #140 — WRITE 권한 필요. */
+    /**
+     * 정의의 노드/엣지 + 메타를 통째로 교체. WRITE 권한 필요 (#140).
+     *
+     * @param id  교체 대상 정의 ID
+     * @param req 교체 요청 — {@code @Valid}로 필드 검증 (#175)
+     * @return 204 No Content
+     */
     @PutMapping("/{id}")
     @PreAuthorize("@lineAcl.canWrite(#id)")
     public ResponseEntity<Void> replace(@PathVariable("id") String id,
-                                        @RequestBody DagDefinitionRequest req) {
+                                        @Valid @RequestBody DagDefinitionRequest req) {
         service.replaceDefinition(id, req);
         return ResponseEntity.noContent().build();
     }
