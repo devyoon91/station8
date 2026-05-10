@@ -294,7 +294,7 @@ public class LineDefinitionService {
                 );
         com.station8.engine.core.ConcurrencyStrategy.StartResult startResult = strategy.evaluateOnStart(startCtx);
         if (!startResult.allowed()) {
-            log.warn("[#141/#177] 동시 실행 SKIP — definitionId={}, policy={}, conflicting={}",
+            log.warn("동시 실행 SKIP — definitionId={}, policy={}, conflicting={}",
                     definitionId, strategy.policyName(), startResult.conflictingInstanceId());
             return RunResult.skipped(startResult.reason(), startResult.conflictingInstanceId());
         }

@@ -90,10 +90,10 @@ public class LineScheduler {
                 LocalDateTime now = LocalDateTime.now();
                 LocalDateTime nextRun = nextFromCron(s.cronExpr(), now);
                 scheduleRepository.markRun(s.id(), nextRun, now);
-                log.warn("[#141/#177][Scheduler] SKIP — scheduleId={}, definitionId={}, policy={}, conflicting={}, nextRun={}",
+                log.warn("[Scheduler] SKIP — scheduleId={}, definitionId={}, policy={}, conflicting={}, nextRun={}",
                         s.id(), s.definitionId(), strategy.policyName(),
                         startResult.conflictingInstanceId(), nextRun);
-                return null;  // skipped
+                return null;
             }
 
             // 3) 인스턴스 INSERT

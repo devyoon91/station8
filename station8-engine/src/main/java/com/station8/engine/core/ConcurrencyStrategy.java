@@ -47,7 +47,9 @@ public sealed interface ConcurrencyStrategy {
      * DB 컬럼 값 → 전략 객체. null/blank/모르는 값은 {@link Concurrent}.
      */
     static ConcurrencyStrategy parse(String s) {
-        if (s == null || s.isBlank()) return new Concurrent();
+        if (s == null || s.isBlank()) {
+            return new Concurrent();
+        }
         return switch (s.trim().toUpperCase()) {
             case "CONCURRENT" -> new Concurrent();
             case "SKIP_IF_RUNNING" -> new SkipIfRunning();

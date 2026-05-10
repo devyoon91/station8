@@ -23,7 +23,9 @@ public enum ConcurrencyPolicy {
 
     /** null/blank/잘못된 값은 {@link #CONCURRENT} (기본 후방 호환). */
     public static ConcurrencyPolicy parse(String s) {
-        if (s == null || s.isBlank()) return CONCURRENT;
+        if (s == null || s.isBlank()) {
+            return CONCURRENT;
+        }
         try {
             return ConcurrencyPolicy.valueOf(s.trim().toUpperCase());
         } catch (IllegalArgumentException ex) {

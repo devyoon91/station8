@@ -55,15 +55,21 @@ public class PipelineGate {
      * @return true = dispatch OK. false = 게이트로 차단.
      */
     public boolean canDispatch(String instanceId, String nodeId, String workflowName) {
-        if (workflowName == null || nodeId == null) return true;
+        if (workflowName == null || nodeId == null) {
+            return true;
+        }
 
         // 정책 lookup — workflowName으로 active 정의 조회
         LineDefinition def = definitionRepo.findActiveDefinitionByName(workflowName);
-        if (def == null) return true;
+        if (def == null) {
+            return true;
+        }
 
         ConcurrencyStrategy strategy = ConcurrencyStrategy.parse(def.concurrencyPolicy());
         // Pipeline 외 정책은 default no-op으로 통과 — DispatchContext 빌드 비용 절감을 위해 짧은 경로 유지
-        if (!(strategy instanceof ConcurrencyStrategy.Pipeline)) return true;
+        if (!(strategy instanceof ConcurrencyStrategy.Pipeline)) {
+            return true;
+        }
 
         // 위상 단계 계산
         List<LineStation> nodes = definitionRepo.findNodesByDefinition(def.id());
@@ -95,7 +101,7 @@ public class PipelineGate {
 
         ConcurrencyStrategy.DispatchResult result = strategy.evaluateOnDispatch(ctx);
         if (!result.allowed() && log.isDebugEnabled()) {
-            log.debug("[#164/#177] Dispatch 차단 — instance={}, nodeId={}, step={}, policy={}, reason={}",
+            log.debug("Dispatch 차단 — instance={}, nodeId={}, step={}, policy={}, reason={}",
                     instanceId, nodeId, myStep, strategy.policyName(), result.reason());
         }
         return result.allowed();

@@ -98,11 +98,67 @@ GitHub Squash 화면에서 PR 본문이 squash 커밋의 본문이 되므로, **
 
 ---
 
-## 4. AGENTS.md와의 책임 분리
+## 4. 코딩 스타일
+
+### 4.1 로깅
+
+- **로그 메시지 본문에 이슈 번호를 노출하지 않는다.**
+  - 운영 환경 콘솔 로그는 사용자/운영자가 보는 출력이므로, 내부 트래킹용 식별자(`[#141]`, `[#164]` 등)가 노이즈가 된다.
+  - 이슈 추적은 코드 주석 / Javadoc / 커밋 메시지로 충분하다.
+
+```java
+// ✗ 금지 — 콘솔에 [#141] 노출
+log.warn("[#141] 동시 실행 SKIP — definitionId={}", definitionId);
+
+// ✓ 권장 — 메시지만
+log.warn("동시 실행 SKIP — definitionId={}", definitionId);
+// 필요하면 Javadoc/주석에 이슈 표기
+```
+
+- 로그 레벨 가이드:
+  - `DEBUG` — 진입/평가 결과 (운영 시 끔)
+  - `INFO` — 의도적 상태 변화 ("정의 생성: id=...")
+  - `WARN` — 부분 실패 / fallback 사용
+  - `ERROR` — 운영 이슈 / 데이터 손실 가능성
+
+### 4.2 제어문 — 중괄호 필수
+
+**단일 if/else/for/while 문도 반드시 중괄호 사용. 한 줄 if-return 금지.**
+
+```java
+// ✗ 금지
+if (workflowName == null) return true;
+if (def == null) return;
+if (cond) doSomething();
+
+// ✓ 권장
+if (workflowName == null) {
+    return true;
+}
+if (def == null) {
+    return;
+}
+if (cond) {
+    doSomething();
+}
+```
+
+이유:
+- 단일 라인 추가 시 누락 방지 (Apple goto fail 류 사고 방지)
+- diff에서 영향 범위 명확
+- IDE 자동 정렬에 일관
+
+### 4.3 적용 대상
+
+신규 코드 + 수정하는 라인은 본 규칙을 따른다. 기존 코드의 일괄 정리는 별도 REFACTOR PR로 분리.
+
+---
+
+## 5. AGENTS.md와의 책임 분리
 
 | 문서 | 책임 |
 |---|---|
 | [AGENTS.md](../AGENTS.md) | 작업 원칙(Durable/DB-중심/한국어), 작업 흐름(이슈 → 브랜치 → PR), 라벨/마일스톤 정책, 문서 인덱스 |
-| **이 문서 (CONTRIBUTING.md)** | 브랜치 명명 규칙, 커밋 메시지 형식, PR 본문 형식, 템플릿 사용법 |
+| **이 문서 (CONTRIBUTING.md)** | 브랜치 명명 규칙, 커밋 메시지 형식, PR 본문 형식, 코딩 스타일, 템플릿 사용법 |
 | [.gitmessage](../.gitmessage) | 커밋 메시지 템플릿 — ``git commit`` 시 에디터에 자동 로드 |
 | [.github/pull_request_template.md](../.github/pull_request_template.md) | PR 본문 템플릿 — ``gh pr create`` 시 자동 적용 |
