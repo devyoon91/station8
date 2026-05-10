@@ -6,6 +6,7 @@ import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,13 +25,24 @@ public class JdbcLineExecutor implements LineExecutor {
     private final JdbcTemplate jdbcTemplate;
     private final ActivityRepository activityRepository;
     private final JsonUtil jsonUtil;
+    private final DagInterpreter dagInterpreter;
 
-    public JdbcLineExecutor(JdbcTemplate jdbcTemplate, 
-                                ActivityRepository activityRepository, 
-                                JsonUtil jsonUtil) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public JdbcLineExecutor(JdbcTemplate jdbcTemplate,
+                            ActivityRepository activityRepository,
+                            JsonUtil jsonUtil,
+                            @Lazy DagInterpreter dagInterpreter) {
         this.jdbcTemplate = jdbcTemplate;
         this.activityRepository = activityRepository;
         this.jsonUtil = jsonUtil;
+        this.dagInterpreter = dagInterpreter;
+    }
+
+    /** 후방 호환 — 3-arg 생성자 (DagInterpreter 없이 — Pause/Unpause/Retry 비활성). 테스트용. */
+    public JdbcLineExecutor(JdbcTemplate jdbcTemplate,
+                            ActivityRepository activityRepository,
+                            JsonUtil jsonUtil) {
+        this(jdbcTemplate, activityRepository, jsonUtil, null);
     }
 
     @Override
@@ -177,6 +189,93 @@ public class JdbcLineExecutor implements LineExecutor {
         int affected = activityRepository.bulkUpdateNotStartedStatuses(instanceId, "TERMINATED");
         log.warn("[#152] Instance failed from condition: {} ({} pending/waiting marked TERMINATED) — reason: {}",
                 instanceId, affected, reason);
+    }
+
+    @Override
+    @Transactional
+    public void pauseLine(String instanceId) {
+        // #139 — RUNNING → PAUSED. 활동 상태는 그대로 유지 (Resume 시 자연 복구).
+        LineInstance instance = loadInstance(instanceId);
+        if (!"RUNNING".equals(instance.statusSt())) {
+            throw new IllegalStateException(
+                    "인스턴스가 RUNNING 상태가 아니라 일시 정지할 수 없습니다 — 현재: " + instance.statusSt());
+        }
+        jdbcTemplate.update("""
+            UPDATE U_LINE_INSTANCE
+            SET STATUS_ST = 'PAUSED', EDIT_DT = CURRENT_TIMESTAMP, EDIT_ID = 'pause'
+            WHERE ID = ? AND STATUS_ST = 'RUNNING'
+            """, instanceId);
+        log.info("[#139] Paused instance: {} (PENDING/WAITING 활동은 그대로 — 워커 폴링이 인스턴스 상태로 차단)",
+                instanceId);
+    }
+
+    @Override
+    @Transactional
+    public void unpauseLine(String instanceId) {
+        // #139 — PAUSED → RUNNING. 일시정지 동안 RUNNING이 끝났을 가능성 → 모든 COMPLETED 활동에 대해
+        // fan-out 재평가해 원래 promote됐어야 할 후행을 활성화한다.
+        LineInstance instance = loadInstance(instanceId);
+        if (!"PAUSED".equals(instance.statusSt())) {
+            throw new IllegalStateException(
+                    "인스턴스가 PAUSED 상태가 아니라 재개할 수 없습니다 — 현재: " + instance.statusSt());
+        }
+        jdbcTemplate.update("""
+            UPDATE U_LINE_INSTANCE
+            SET STATUS_ST = 'RUNNING', EDIT_DT = CURRENT_TIMESTAMP, EDIT_ID = 'unpause'
+            WHERE ID = ? AND STATUS_ST = 'PAUSED'
+            """, instanceId);
+
+        // Pause 동안 RUNNING이 완료된 노드의 fan-out이 차단됐을 수 있음 → 재평가
+        if (dagInterpreter != null) {
+            List<ActivityExecution> activities = activityRepository.findActivitiesByInstanceId(instanceId);
+            int reEvaluated = 0;
+            for (ActivityExecution a : activities) {
+                if ("COMPLETED".equals(a.statusSt()) && a.nodeId() != null) {
+                    dagInterpreter.onNodeCompleted(instanceId, a.nodeId());
+                    reEvaluated++;
+                }
+            }
+            log.info("[#139] Unpaused instance: {} (fan-out 재평가 {}건 of COMPLETED nodes)",
+                    instanceId, reEvaluated);
+        } else {
+            log.info("[#139] Unpaused instance: {} (DagInterpreter 미주입 — fan-out 재평가 skip)",
+                    instanceId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void retryActivity(String activityExecutionId) {
+        // #139 — 단일 FAILED 활동만 PENDING으로 reset. 인스턴스가 RUNNING이고 활동이 FAILED일 때만 허용.
+        ActivityExecution exec = activityRepository.findById(activityExecutionId);
+        if (exec == null) {
+            throw new IllegalArgumentException("활동 실행 기록을 찾을 수 없습니다: " + activityExecutionId);
+        }
+        if (!"FAILED".equals(exec.statusSt())) {
+            throw new IllegalStateException(
+                    "FAILED 상태가 아닌 활동은 retry할 수 없습니다 — 현재: " + exec.statusSt());
+        }
+        LineInstance instance = loadInstance(exec.instanceId());
+        if (!"RUNNING".equals(instance.statusSt())) {
+            throw new IllegalStateException(
+                    "인스턴스가 RUNNING 상태가 아니어서 활동 retry할 수 없습니다 — 현재: " + instance.statusSt()
+                    + " (Pause된 상태면 먼저 Unpause)");
+        }
+        activityRepository.resetToPending(activityExecutionId);
+        log.info("[#139] Reset single activity to PENDING: id={}, name={}, instance={}",
+                exec.id(), exec.activityName(), exec.instanceId());
+    }
+
+    private LineInstance loadInstance(String instanceId) {
+        try {
+            LineInstance instance = activityRepository.findInstanceById(instanceId);
+            if (instance == null) {
+                throw new IllegalArgumentException("인스턴스를 찾을 수 없습니다: " + instanceId);
+            }
+            return instance;
+        } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
+            throw new IllegalArgumentException("인스턴스를 찾을 수 없습니다: " + instanceId);
+        }
     }
 }
 

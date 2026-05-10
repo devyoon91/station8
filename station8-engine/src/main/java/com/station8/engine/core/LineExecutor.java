@@ -37,6 +37,36 @@ public interface LineExecutor {
     void terminateLine(String instanceId);
 
     /**
+     * #139 — RUNNING 인스턴스를 일시 정지 (PAUSED).
+     *
+     * <p>워커 폴링은 PAUSED 인스턴스의 PENDING 활동을 잡지 않으며, 진행 중 RUNNING 활동은
+     * 자연 완료에 맡긴다 (그 활동 완료 시 fan-out은 차단됨 — DagInterpreter가 인스턴스 RUNNING 검사).</p>
+     *
+     * <p>인스턴스 상태가 {@code RUNNING}이 아니면 {@link IllegalStateException}.</p>
+     */
+    void pauseLine(String instanceId);
+
+    /**
+     * #139 — PAUSED 인스턴스를 다시 RUNNING으로 복원.
+     *
+     * <p>Pause 동안 RUNNING 활동이 완료됐다면 fan-out이 차단되어 후행은 WAITING_DEPENDENCIES로 남아있을 수 있다.
+     * unpause 후 모든 COMPLETED 활동에 대해 fan-out 재평가 → 활성화돼야 할 후행을 PENDING으로 promote.</p>
+     *
+     * <p>인스턴스 상태가 {@code PAUSED}가 아니면 {@link IllegalStateException}.</p>
+     */
+    void unpauseLine(String instanceId);
+
+    /**
+     * #139 — 단일 FAILED 활동만 PENDING으로 reset (활동 단위 retry).
+     *
+     * <p>인스턴스가 RUNNING이고 활동이 FAILED일 때만 허용. 다른 활동은 건드리지 않음.</p>
+     *
+     * @param activityExecutionId {@code H_LINE_ACTIVITY_EXECUTION.ID}
+     * @throws IllegalStateException 인스턴스가 RUNNING이 아니거나 활동이 FAILED가 아닌 경우
+     */
+    void retryActivity(String activityExecutionId);
+
+    /**
      * #138 — {@link #terminateLine(String)}과 동일하지만 사유를 {@code OUTPUT_DATA}에 기록한다.
      *
      * <p>SLA 위반(auto-terminate)처럼 시스템이 자체 판단으로 종료할 때 사용. 사유는

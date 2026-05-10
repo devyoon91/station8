@@ -72,10 +72,28 @@
             {{#instance.isFailed}}
             <form action="/line/instance/{{instance.id}}/resume" method="post" style="margin: 0;">
                 {{> _csrf}}
-                <button type="submit" class="swe-btn-primary">Resume</button>
+                <button type="submit" class="swe-btn-primary" title="모든 FAILED 활동을 PENDING으로 reset + 인스턴스 RUNNING 복원">Resume from failure</button>
             </form>
             {{/instance.isFailed}}
+            {{#instance.isPaused}}
+            <!-- #139 — PAUSED: Unpause(재개) + Terminate -->
+            <form action="/line/instance/{{instance.id}}/unpause" method="post" style="margin: 0;">
+                {{> _csrf}}
+                <button type="submit" class="swe-btn-primary" title="일시정지 해제 — RUNNING 복원 + fan-out 재평가">▶ Resume (unpause)</button>
+            </form>
+            <form action="/line/instance/{{instance.id}}/terminate" method="post" style="margin: 0;"
+                  onsubmit="return confirm('인스턴스를 강제 종료합니까? 진행 중 액티비티는 워커가 자연 완료한 뒤 후행이 차단됩니다.');">
+                {{> _csrf}}
+                <button type="submit" class="swe-btn-tertiary swe-btn-danger">Terminate</button>
+            </form>
+            {{/instance.isPaused}}
             {{#instance.isRunning}}
+            <!-- #139 — RUNNING: Pause + Terminate -->
+            <form action="/line/instance/{{instance.id}}/pause" method="post" style="margin: 0;"
+                  onsubmit="return confirm('인스턴스를 일시 정지합니까? PENDING 활동은 워커 폴링이 차단되며, 진행 중 RUNNING 활동은 자연 완료됩니다.');">
+                {{> _csrf}}
+                <button type="submit" class="swe-btn-tertiary" title="일시 정지 — PAUSED 상태로 전환">⏸ Pause</button>
+            </form>
             <form action="/line/instance/{{instance.id}}/terminate" method="post" style="margin: 0;"
                   onsubmit="return confirm('인스턴스를 강제 종료합니까? 진행 중 액티비티는 워커가 자연 완료한 뒤 후행이 차단됩니다.');">
                 {{> _csrf}}
@@ -156,6 +174,17 @@
                 {{#hasRetry}}
                 <div class="swe-caption swe-mute" style="margin-top: var(--space-sm);">Retry attempt: {{retryCnt}}</div>
                 {{/hasRetry}}
+                {{#isActivityFailed}}{{#instance.isRunning}}
+                <!-- #139 — 활동 단위 retry. 인스턴스가 RUNNING일 때만 노출. -->
+                <div style="margin-top: var(--space-md); display: flex; justify-content: flex-end;">
+                    <form action="/line/instance/{{instance.id}}/activity/{{id}}/retry" method="post"
+                          onsubmit="return confirm('이 활동만 PENDING으로 reset해 다시 시도합니까?');"
+                          style="margin: 0;">
+                        {{> _csrf}}
+                        <button type="submit" class="swe-btn-tertiary swe-btn-sm" title="이 활동만 PENDING으로 reset (단건 retry)">↻ Retry this activity</button>
+                    </form>
+                </div>
+                {{/instance.isRunning}}{{/isActivityFailed}}
             </div>
         </li>
         {{/activities}}

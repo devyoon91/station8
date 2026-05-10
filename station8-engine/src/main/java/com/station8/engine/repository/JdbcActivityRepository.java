@@ -43,12 +43,19 @@ public class JdbcActivityRepository implements ActivityRepository {
         // LIMIT/FETCH 절은 FOR UPDATE 앞에 위치해야 모든 DB(Oracle 12c+, MariaDB 10.6+, H2 MySQL 모드)에서 동작.
         // Oracle: ORDER BY ... FETCH FIRST N ROWS ONLY FOR UPDATE SKIP LOCKED
         // MariaDB/H2: ORDER BY ... LIMIT N FOR UPDATE SKIP LOCKED
+        // #139 — 인스턴스가 RUNNING 상태일 때만 활동 픽업 (PAUSED/TERMINATED/FAILED/COMPLETED는 제외)
+        // EXISTS 서브쿼리로 처리 → FOR UPDATE SKIP LOCKED는 활동 행에만 걸림 (인스턴스 행 lock 회피)
         String selectSql = String.format("""
             SELECT * FROM H_LINE_ACTIVITY_EXECUTION
             WHERE STATUS_ST = 'PENDING'
               AND (NEXT_RETRY_DT IS NULL OR NEXT_RETRY_DT <= %s)
               AND USE_FL = 'Y'
               AND DEL_FL = 'N'
+              AND EXISTS (
+                  SELECT 1 FROM U_LINE_INSTANCE i
+                  WHERE i.ID = H_LINE_ACTIVITY_EXECUTION.INSTANCE_ID
+                    AND i.STATUS_ST = 'RUNNING'
+              )
             ORDER BY REG_DT ASC
             %s
             FOR UPDATE SKIP LOCKED
