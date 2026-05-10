@@ -95,4 +95,35 @@ public final class PaginationModel {
     private static String urlEncode(String s) {
         return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8);
     }
+
+    /**
+     * #176 — 컬럼 헤더 클릭용 정렬 토글 href.
+     *
+     * <p>같은 컬럼 재클릭 시 ASC↔DESC 토글, 다른 컬럼 첫 클릭은 DESC (관례).
+     * preserveQuery에는 호출자 측 검색 폼 값을 전달 — null/blank 자동 제외, URL 인코딩 적용.</p>
+     *
+     * @param baseUrl         페이지 라우트 (예: {@code /line/dashboard})
+     * @param column          토글 대상 컬럼 (예: {@code START_DT})
+     * @param currentSortBy   현재 정렬 컬럼 (없으면 null/blank)
+     * @param currentSortDir  현재 정렬 방향 ({@code ASC} 또는 {@code DESC})
+     * @param preserveQuery   유지할 검색 폼 키-값 (null/blank는 자동 제외)
+     */
+    public static String toggleSortHref(String baseUrl, String column,
+                                        String currentSortBy, String currentSortDir,
+                                        Map<String, String> preserveQuery) {
+        String newDir = column.equals(currentSortBy)
+                ? ("ASC".equals(currentSortDir) ? "DESC" : "ASC")
+                : "DESC";
+        StringBuilder sb = new StringBuilder(baseUrl)
+                .append("?sortBy=").append(column)
+                .append("&sortDir=").append(newDir);
+        if (preserveQuery != null) {
+            for (Map.Entry<String, String> e : preserveQuery.entrySet()) {
+                String v = e.getValue();
+                if (v == null || v.isBlank()) continue;
+                sb.append('&').append(e.getKey()).append('=').append(urlEncode(v));
+            }
+        }
+        return sb.toString();
+    }
 }
