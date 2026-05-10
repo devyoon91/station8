@@ -98,11 +98,141 @@ GitHub Squash 화면에서 PR 본문이 squash 커밋의 본문이 되므로, **
 
 ---
 
-## 4. AGENTS.md와의 책임 분리
+## 4. 코딩 스타일
+
+### 4.1 로깅
+
+- **로그 메시지 본문에 이슈 번호를 노출하지 않는다.**
+  - 운영 환경 콘솔 로그는 사용자/운영자가 보는 출력이므로, 내부 트래킹용 식별자(`[#141]`, `[#164]` 등)가 노이즈가 된다.
+  - 이슈 추적은 코드 주석 / Javadoc / 커밋 메시지로 충분하다.
+
+```java
+// ✗ 금지 — 콘솔에 [#141] 노출
+log.warn("[#141] 동시 실행 SKIP — definitionId={}", definitionId);
+
+// ✓ 권장 — 메시지만
+log.warn("동시 실행 SKIP — definitionId={}", definitionId);
+// 필요하면 Javadoc/주석에 이슈 표기
+```
+
+- 로그 레벨 가이드:
+  - `DEBUG` — 진입/평가 결과 (운영 시 끔)
+  - `INFO` — 의도적 상태 변화 ("정의 생성: id=...")
+  - `WARN` — 부분 실패 / fallback 사용
+  - `ERROR` — 운영 이슈 / 데이터 손실 가능성
+
+### 4.2 제어문 — 중괄호 필수
+
+**단일 if/else/for/while 문도 반드시 중괄호 사용. 한 줄 if-return 금지.**
+
+```java
+// ✗ 금지
+if (workflowName == null) return true;
+if (def == null) return;
+if (cond) doSomething();
+
+// ✓ 권장
+if (workflowName == null) {
+    return true;
+}
+if (def == null) {
+    return;
+}
+if (cond) {
+    doSomething();
+}
+```
+
+이유:
+- 단일 라인 추가 시 누락 방지 (Apple goto fail 류 사고 방지)
+- diff에서 영향 범위 명확
+- IDE 자동 정렬에 일관
+
+### 4.3 Javadoc 준수
+
+**모든 public 타입(class/interface/enum/record)과 모든 public 메서드/생성자/필드는 Javadoc을 작성한다.** package-private이라도 비자명한 동작이면 작성 권장.
+
+#### 4.3.1 필수 항목
+
+| 대상 | 필수 |
+|---|---|
+| `public class` / `interface` / `enum` / `record` | 클래스 Javadoc — 책임, 핵심 협력 객체, 디자인 패턴 |
+| `public` 메서드 / 생성자 | 동작 설명 + `@param` (모든 인자) + `@return` (void 아닌 경우) + `@throws` (선언/주요 unchecked 예외) |
+| `public` 상수 / 필드 | 의미 + 단위 / 허용 범위 |
+| record component | record 본문 Javadoc 안에서 `@param name 설명` 형식으로 — record는 component별 Javadoc을 component 위에 따로 못 붙임 |
+| enum 상수 | 각 상수 위에 한 줄 Javadoc — 의미 + 사용 시점 |
+
+#### 4.3.2 작성 규칙
+
+- **언어**: 한국어 — 단, 식별자(`@param x`, 클래스명)는 그대로
+- **첫 문장 = 한 줄 요약** — Javadoc 인덱스에 그대로 노출되므로 마침표로 종결되는 한 문장
+- **이슈 번호 포함 OK** — 로그와 달리 Javadoc은 추적 정보가 권장됨. 예: `<p>#164 — Pipeline 모드 게이트.</p>`
+- **디자인 패턴 명시** — Strategy/Repository/Facade 등 적용 패턴이 있으면 첫 단락에서 언급
+- **상호 참조** — 협력 객체는 `{@link OtherClass}` / `{@link #method}` / `{@code 표현식}` 사용
+- **TODO/FIXME 금지** — Javadoc에 TODO 쓰지 말고 GitHub 이슈로 분리
+
+#### 4.3.3 예시
+
+```java
+/**
+ * #177 — Concurrency 정책의 Strategy 추상화.
+ *
+ * <p>{@link ConcurrencyPolicy} enum이 DB/직렬화 키 역할이라면, 본 sealed interface는
+ * 정책별 실제 동작을 다형성으로 분리한다 — `if (policy == X)` 분기를 제거 (OCP).</p>
+ *
+ * <h3>두 게이트 시점</h3>
+ * <ul>
+ *   <li>{@link #evaluateOnStart} — 인스턴스 시작 시점.</li>
+ *   <li>{@link #evaluateOnDispatch} — 활동 dispatch 시점.</li>
+ * </ul>
+ */
+public sealed interface ConcurrencyStrategy { ... }
+
+/**
+ * 활동 dispatch 가능 여부를 판단.
+ *
+ * @param instanceId   현재 인스턴스 ID
+ * @param nodeId       dispatch 대상 노드 ID
+ * @param workflowName 정의 이름 (활성 정의 lookup용)
+ * @return true = dispatch 진행, false = 게이트로 차단 (호출자가 PENDING 복구)
+ */
+public boolean canDispatch(String instanceId, String nodeId, String workflowName) { ... }
+```
+
+record component 예시:
+
+```java
+/**
+ * Dispatch 시점 context.
+ *
+ * @param instanceId               본인 인스턴스
+ * @param nodeId                   dispatch 대상 노드
+ * @param workflowName             워크플로 이름
+ * @param myStep                   본 노드의 위상 단계
+ * @param nodesAtStep              step → 그 단계 노드 ID 집합 lookup
+ * @param priorInstanceIds         선행 RUNNING 인스턴스 ID 목록 (자기 제외)
+ * @param isNodeCompletedInPrior   (priorId, nodeId) → 해당 노드 COMPLETED?
+ * @param isAnyNodeStartedInPrior  (priorId, targets) → 노드 집합 중 하나라도 STARTED?
+ */
+record DispatchContext(...) {}
+```
+
+#### 4.3.4 미준수 처리
+
+- 신규 코드: PR 리뷰에서 차단 사유 (CI 자동 검사는 별도 follow-up)
+- 기존 코드: 만지는 메서드/클래스에 누락이 있으면 함께 추가. 일괄 정리는 별도 REFACTOR PR
+
+### 4.4 적용 대상
+
+신규 코드 + 수정하는 라인은 본 §4 규칙(로깅 / 중괄호 / Javadoc)을 모두 따른다. 기존 코드의 일괄 정리는 별도 REFACTOR PR로 분리.
+
+---
+
+## 5. AGENTS.md와의 책임 분리
 
 | 문서 | 책임 |
 |---|---|
 | [AGENTS.md](../AGENTS.md) | 작업 원칙(Durable/DB-중심/한국어), 작업 흐름(이슈 → 브랜치 → PR), 라벨/마일스톤 정책, 문서 인덱스 |
-| **이 문서 (CONTRIBUTING.md)** | 브랜치 명명 규칙, 커밋 메시지 형식, PR 본문 형식, 템플릿 사용법 |
+| **이 문서 (CONTRIBUTING.md)** | 브랜치 명명 규칙, 커밋 메시지 형식, PR 본문 형식, 코딩 스타일, 템플릿 사용법 |
 | [.gitmessage](../.gitmessage) | 커밋 메시지 템플릿 — ``git commit`` 시 에디터에 자동 로드 |
 | [.github/pull_request_template.md](../.github/pull_request_template.md) | PR 본문 템플릿 — ``gh pr create`` 시 자동 적용 |
