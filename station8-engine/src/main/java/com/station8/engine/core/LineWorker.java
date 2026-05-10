@@ -158,9 +158,11 @@ public class LineWorker {
                 // FAILED_FINAL 상태로 인스턴스 업데이트 및 DLQ 적재 — instance webhook override 적용 (#134 D8)
                 moveToDlq(activity, context, cause, maxRetry, options.notificationWebhookUrl());
 
-                // #134 D1=γ — onFailure=ABORT면 인스턴스 즉시 종료 (#101 위임)
-                if (options.onFailure() == RunOptions.OnFailure.ABORT) {
-                    abortInstance(activity.instanceId());
+                // #134/#148 — onFailure 정책별 분기
+                switch (options.onFailure()) {
+                    case ABORT -> abortInstance(activity.instanceId());
+                    case PAUSE_ON_FAILURE -> pauseInstanceOnFailure(activity.instanceId());
+                    case CONTINUE -> { /* 다른 활동은 계속 진행 — 기본 동작 */ }
                 }
             } else {
                 Duration nextBackoff = retryPolicy.calculateNextBackoff(attempt, baseBackoff);
@@ -213,6 +215,24 @@ public class LineWorker {
                     instanceId, terminateEx.getMessage());
         } catch (Exception terminateEx) {
             log.error("[#134] terminateLine 실패 — instance: {}", instanceId, terminateEx);
+        }
+    }
+
+    /**
+     * #148 — onFailure=PAUSE_ON_FAILURE 처리. 활동 최종 실패 시 인스턴스를 PAUSED로 마킹.
+     * 운영자가 timeline에서 Unpause + 활동 retry(#139) 또는 Terminate 결정.
+     * 다른 활동이 이미 트리거하거나 인스턴스가 이미 종료된 경우 idempotent.
+     */
+    private void pauseInstanceOnFailure(String instanceId) {
+        log.warn("[#148] onFailure=PAUSE_ON_FAILURE — pausing instance: {}", instanceId);
+        try {
+            lineExecutor.pauseLine(instanceId);
+        } catch (IllegalStateException pauseEx) {
+            // 인스턴스가 RUNNING이 아니어서 pause 불가 — 다른 활동이 먼저 trigger했거나 이미 PAUSED/TERMINATED
+            log.info("[#148] pauseLine 무시 — RUNNING 아님: {} ({})",
+                    instanceId, pauseEx.getMessage());
+        } catch (Exception pauseEx) {
+            log.error("[#148] pauseLine 실패 — instance: {}", instanceId, pauseEx);
         }
     }
 
