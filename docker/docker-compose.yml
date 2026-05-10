@@ -11,6 +11,10 @@ services:
       - "3307:3306"
     # 스키마는 station8-app이 부팅 시 schema-mariadb.sql로 적용 (single source of truth)
     # docker init scripts는 drift 위험이 있어 제거
+    # 데이터 영속화 — 'docker compose down' 후에도 DB 보존(사용자/스케줄/인스턴스).
+    # 완전 초기화 원하면 'docker compose down -v'.
+    volumes:
+      - mariadb_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpw"]
       interval: 5s
@@ -26,6 +30,13 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
+    # docker/.env가 자동 로드되지만, root '.env'도 원격 fallback으로 읽음 (둘 다 OK).
+    # required: false라 둘 다 없어도 부팅 가능 (default 값 사용).
+    env_file:
+      - path: ../.env
+        required: false
+      - path: .env
+        required: false
     environment:
       # docker: 컨테이너 네트워크용 datasource 설정 (mariadb 호스트)
       # demo: 부팅 직후 샘플 DAG + 스케줄 자동 시드 (DemoSeedRunner)
@@ -33,15 +44,16 @@ services:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mariadb://mariadb:3306/workflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-wfuser}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-wfpw}
-      # 초기 ADMIN 시드 (#121) — .env 또는 docker/.env에서 주입. 비우면 랜덤 자동 생성.
-      STATION8_INITIAL_ADMIN_USERNAME: ${STATION8_INITIAL_ADMIN_USERNAME:-admin}
-      STATION8_INITIAL_ADMIN_PASSWORD: ${STATION8_INITIAL_ADMIN_PASSWORD:-}
-      # DLQ 웹훅 (선택) — Slack 등
-      ENGINE_DLQ_WEBHOOK_URL: ${ENGINE_DLQ_WEBHOOK_URL:-}
       JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m}
+      # 초기 ADMIN 시드 (#121) / DLQ 웹훅은 위 env_file로만 주입 — environment에 두면
+      # default 빈 값이 env_file 값을 override해서 .env가 무시됨.
+      # 위치: root '.env' 또는 'docker/.env' 둘 다 OK (env_file에 양쪽 등록).
     ports:
       - "8080:8080"
     restart: unless-stopped
+
+volumes:
+  mariadb_data:
 
 # Optional: Oracle Free (commented by default due to image size and license constraints)
 #  oracle:
