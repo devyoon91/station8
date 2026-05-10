@@ -7,6 +7,7 @@ import com.station8.engine.repository.ActivityRepository;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class LineInstanceController {
     }
 
     @PostMapping("/{id}/terminate")
+    @PreAuthorize("@lineAcl.canExecuteInstance(#instanceId)")
     public ResponseEntity<Map<String, String>> terminate(@PathVariable("id") String instanceId) {
         try {
             lineExecutor.terminateLine(instanceId);

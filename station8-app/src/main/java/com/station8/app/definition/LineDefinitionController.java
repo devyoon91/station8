@@ -4,6 +4,7 @@ import com.station8.engine.core.RunOptions;
 import com.station8.engine.exception.LineEngineException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
@@ -32,7 +33,12 @@ public class LineDefinitionController {
         this.service = service;
     }
 
+    /**
+     * #140 — 신규 정의 생성. 인증된 USER만 가능.
+     * 생성 후 LineDefinitionService가 생성자에게 ADMIN 권한 자동 부여.
+     */
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> create(@RequestBody DagDefinitionRequest req) {
         String id = service.createDefinition(req);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -44,14 +50,18 @@ public class LineDefinitionController {
         return service.getDefinition(id);
     }
 
+    /** #140 — WRITE 권한 필요. */
     @PutMapping("/{id}")
+    @PreAuthorize("@lineAcl.canWrite(#id)")
     public ResponseEntity<Void> replace(@PathVariable("id") String id,
                                         @RequestBody DagDefinitionRequest req) {
         service.replaceDefinition(id, req);
         return ResponseEntity.noContent().build();
     }
 
+    /** #140 — WRITE 권한 필요 (소프트 삭제). */
     @DeleteMapping("/{id}")
+    @PreAuthorize("@lineAcl.canWrite(#id)")
     public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         service.deleteDefinition(id);
         return ResponseEntity.noContent().build();
@@ -71,7 +81,9 @@ public class LineDefinitionController {
      * </pre>
      * 후방 호환 — body 없거나 options 없으면 default 적용.
      */
+    /** #140 — EXECUTE 권한 필요. */
     @PostMapping("/{id}/run")
+    @PreAuthorize("@lineAcl.canExecute(#id)")
     public ResponseEntity<Map<String, String>> run(@PathVariable("id") String id,
                                                    @RequestBody(required = false) Map<String, Object> body) {
         String inputData = (body == null || body.get("input") == null) ? null : String.valueOf(body.get("input"));

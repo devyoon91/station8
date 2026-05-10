@@ -81,8 +81,10 @@ class SecurityIntegrationTest {
     @Test
     void apiPath_isCsrfExempt() throws Exception {
         // /api/**는 SecurityConfig에서 CSRF 면제 — 토큰 없이 POST 가능
-        mockMvc.perform(post("/api/line/instances/ghost/terminate"))
-                .andExpect(status().isNotFound());  // 인스턴스 없어 404 — 그러나 403(CSRF)은 아님
+        // #140 — 글로벌 ADMIN으로 ACL 우회해 controller 도달 → 인스턴스 없어 404 (403/CSRF 거부 아님)
+        mockMvc.perform(post("/api/line/instances/ghost/terminate")
+                        .with(user("admin").roles("ADMIN")))
+                .andExpect(status().isNotFound());
     }
 
     @Test
