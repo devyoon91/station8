@@ -4,6 +4,7 @@ import com.station8.engine.dialect.DbDialect;
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.repository.JdbcActivityRepository;
 import com.station8.engine.repository.JdbcLineDefinitionRepository;
+import com.station8.engine.util.JsonUtil;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,12 +55,21 @@ class DagInterpreterTest {
         activityRepo = new JdbcActivityRepository(jdbcTemplate, H2_DIALECT);
         defRepo = new JdbcLineDefinitionRepository(jdbcTemplate, H2_DIALECT);
 
-        DagValidator validator = new DagValidator();
+        EdgeConditionEvaluator conditionEvaluator = new EdgeConditionEvaluator(new JsonUtil());
+        DagValidator validator = new DagValidator(conditionEvaluator);
         // 본 인터프리터 테스트는 검증을 우회 (모든 activity 이름이 등록된 것으로 가정)
         LineRegistry stubRegistry = new LineRegistry() {
             @Override public Set<String> getActivityNames() { return Set.of("A", "B", "C", "D"); }
         };
-        interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry);
+        // 조건 0건 케이스에서 호출됨 — 본 테스트는 conditionExpr 없는 그래프만 다루므로 no-op 스텁 충분
+        LineExecutor noOpExecutor = new LineExecutor() {
+            @Override public String startLine(String workflowName, Object input) { throw new UnsupportedOperationException(); }
+            @Override public void resumeLine(String instanceId) { throw new UnsupportedOperationException(); }
+            @Override public void terminateLine(String instanceId) { throw new UnsupportedOperationException(); }
+            @Override public void failLine(String instanceId, String reason) { /* no-op */ }
+        };
+        interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry,
+                conditionEvaluator, noOpExecutor);
     }
 
     @BeforeEach

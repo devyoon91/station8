@@ -116,5 +116,37 @@ public class JdbcLineExecutor implements LineExecutor {
         log.info("Terminated workflow instance: {} ({} pending/waiting activities marked TERMINATED)",
                 instanceId, affected);
     }
+
+    @Override
+    @Transactional
+    public void failLine(String instanceId, String reason) {
+        // 1. 인스턴스 상태 — RUNNING이 아니면 idempotent하게 무시 (이미 다른 경로로 종료됐을 수 있음)
+        LineInstance instance;
+        try {
+            instance = activityRepository.findInstanceById(instanceId);
+        } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
+            log.warn("[#152] failLine — 인스턴스 없음 (idempotent skip): {}", instanceId);
+            return;
+        }
+        if (instance == null || !"RUNNING".equals(instance.statusSt())) {
+            log.info("[#152] failLine 무시 — 이미 종료됨: {} (status={})",
+                    instanceId, instance == null ? "null" : instance.statusSt());
+            return;
+        }
+
+        // 2. 인스턴스 → FAILED + 사유 기록
+        String reasonJson = jsonUtil.toJson(java.util.Map.of("failureReason", reason == null ? "" : reason));
+        jdbcTemplate.update("""
+            UPDATE U_LINE_INSTANCE
+            SET STATUS_ST = 'FAILED', OUTPUT_DATA = ?, END_DT = CURRENT_TIMESTAMP,
+                EDIT_DT = CURRENT_TIMESTAMP, EDIT_ID = 'engine'
+            WHERE ID = ?
+            """, reasonJson, instanceId);
+
+        // 3. 시작 안 한 액티비티 정리 — terminateLine과 동일 패턴
+        int affected = activityRepository.bulkUpdateNotStartedStatuses(instanceId, "TERMINATED");
+        log.warn("[#152] Instance failed from condition: {} ({} pending/waiting marked TERMINATED) — reason: {}",
+                instanceId, affected, reason);
+    }
 }
 

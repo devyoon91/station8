@@ -6,6 +6,7 @@ import com.station8.engine.entity.LineSchedule;
 import com.station8.engine.repository.JdbcActivityRepository;
 import com.station8.engine.repository.JdbcLineDefinitionRepository;
 import com.station8.engine.repository.JdbcLineScheduleRepository;
+import com.station8.engine.util.JsonUtil;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,11 +69,19 @@ class LineSchedulerTest {
         defRepo = new JdbcLineDefinitionRepository(jdbcTemplate, H2_DIALECT);
         scheduleRepo = new JdbcLineScheduleRepository(jdbcTemplate, H2_DIALECT);
 
-        DagValidator validator = new DagValidator();
+        EdgeConditionEvaluator conditionEvaluator = new EdgeConditionEvaluator(new JsonUtil());
+        DagValidator validator = new DagValidator(conditionEvaluator);
         LineRegistry stubRegistry = new LineRegistry() {
             @Override public Set<String> getActivityNames() { return Set.of("A"); }
         };
-        interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry);
+        LineExecutor noOpExecutor = new LineExecutor() {
+            @Override public String startLine(String workflowName, Object input) { throw new UnsupportedOperationException(); }
+            @Override public void resumeLine(String instanceId) { throw new UnsupportedOperationException(); }
+            @Override public void terminateLine(String instanceId) { throw new UnsupportedOperationException(); }
+            @Override public void failLine(String instanceId, String reason) { /* no-op */ }
+        };
+        interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry,
+                conditionEvaluator, noOpExecutor);
         scheduler = new LineScheduler(scheduleRepo, interpreter, jdbcTemplate);
 
         // SKIP LOCKED + @Transactional이 동작하도록 트랜잭션 관리자 준비
