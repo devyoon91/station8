@@ -275,5 +275,20 @@ class JdbcTaskExecutorTest {
         public int bulkUpdateNotStartedStatuses(String instanceId, String toStatus) {
             return 0;
         }
+
+        // #164 — Pipeline 게이트용 — 본 stub은 모두 false/no-op
+        @Override
+        public boolean isNodeCompleted(String instanceId, String nodeId) {
+            return false;
+        }
+
+        @Override
+        public boolean isAnyNodeStarted(String instanceId, java.util.Collection<String> nodeIds) {
+            return false;
+        }
+
+        @Override
+        public void revertGateBlocked(String executionId, LocalDateTime nextRetryDt) {
+        }
     }
 }

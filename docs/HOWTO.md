@@ -316,10 +316,14 @@ public String chargeOrder(String input, LineContext ctx) {
 |---|---|
 | `CONCURRENT` (default) | 같은 정의 인스턴스가 동시에 여러 개 실행 가능. 기존 동작. |
 | `SKIP_IF_RUNNING` | 같은 정의의 RUNNING 또는 PAUSED 인스턴스가 있으면 새 인스턴스 시작을 무시 (cron 적체 방지) |
+| `PIPELINE_1` (#164) | 동시 실행 허용하되 활동 단위 동기화 — 새 인스턴스 노드 X는 선행 인스턴스의 같은 X가 COMPLETED 되어야 진입 |
+| `PIPELINE_2` (#164) | 새 노드 X는 선행이 단계 X+1의 어떤 노드든 STARTED 되어야 진입 (1단계 차이) |
+| `PIPELINE_3` (#164) | 새 노드 X는 선행이 단계 X+2의 어떤 노드든 STARTED 되어야 진입 (2단계 차이) |
 
 **시나리오** — 매분 cron으로 큰 ETL을 돌리는데 이전 분이 안 끝났을 때:
 - `CONCURRENT`: 적체 → DB lock 경합, 자원 고갈
 - `SKIP_IF_RUNNING`: 자동 skip → nextRunDt만 갱신 → 시스템 안정
+- `PIPELINE_2`: 동시 시작은 허용하되 같은 단계 충돌 방지 — 데이터 race ↓, throughput ↑
 
 **SKIP 시 응답**:
 - 즉시 실행 REST (`POST /api/line/definitions/{id}/run`): **200 OK** + `{"skipped": true, "reason": "...", "conflictingInstanceId": "..."}`
@@ -330,10 +334,30 @@ public String chargeOrder(String input, LineContext ctx) {
 
 **UI**: Builder의 "Line settings — SLA / Concurrency" 영역에 dropdown.
 
+#### Pipeline 모드 동작 상세 (#164)
+
+**알고리즘** (`PipelineGate.canDispatch`):
+1. 활동의 위상 단계 S 계산 (Kahn BFS — `LineDagTopo`).
+2. 같은 workflow_name의 RUNNING 인스턴스 중 자기 제외 후보 조회 (PAUSED/FAILED는 제외 — 데드락 회피).
+3. 후보 0건이면 통과.
+4. 정책별:
+   - `PIPELINE_1`: 모든 후보에서 같은 nodeId가 COMPLETED여야 통과.
+   - `PIPELINE_2/3`: 모든 후보에서 단계 `S+(K-1)`의 어떤 노드든 STARTED(RUNNING/COMPLETED/FAILED)여야 통과.
+5. 단계 `S+(K-1)`에 노드가 없으면(파이프라인 끝) 자동 통과 — 데드락 회피.
+
+**구현 위치**: `LineWorker.pollActivities`가 PENDING → RUNNING 클레임 직후 게이트 호출.
+차단 시 활동을 PENDING으로 복구하고 `NEXT_RETRY_DT = now + 2s`로 지연 (핫 루프 방지).
+
+**시나리오 — `Extract → Transform → Load → Notify` 일배치, `PIPELINE_2`**:
+- 02:00 인스턴스 시작 → Extract RUNNING.
+- 03:00 인스턴스 시작 시도 → 새 Extract는 차단 (선행이 단계 1=Transform 시작 안 됨).
+- 02:00이 Extract 완료 + Transform RUNNING → 03:00 Extract 통과.
+- 데이터 race 방지: 같은 시점에 두 인스턴스가 같은 단계를 동시에 처리하지 않음.
+
 **비범위 (별도 follow-up)**:
-- Pipeline 1/2/3 모드 (선행 인스턴스가 N단계 앞서야 후행 진입 — Azkaban 패턴)
-- 인스턴스 RUN_OPTIONS override (`runtimeParams`/`onFailure`/`sla*` 옆에 `concurrencyPolicy` 추가)
-- Resource quota (CPU/메모리 단위 동시성)
+- 인스턴스 RUN_OPTIONS override (`runtimeParams`/`onFailure`/`sla*` 옆에 `concurrencyPolicy` 추가) — #165
+- Resource quota (CPU/메모리 단위 동시성) — #166
+- 다른 정의 버전 간 게이트 (현재는 같은 workflow_name + 노드 ID 기반 — 정의 버전 변경 시 게이트 정확성 ↓)
 
 ### 2.5.2. 태그 / 분류 (#142)
 

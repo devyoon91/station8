@@ -128,6 +128,26 @@ public interface ActivityRepository {
      */
     void resetToPending(String executionId);
 
+    // ========== #164 — Pipeline 모드 게이트 지원 ==========
+
+    /**
+     * #164 — 인스턴스의 특정 노드 실행이 COMPLETED 됐는지.
+     * Pipeline 1 게이트 (선행 인스턴스의 같은 노드 완료 검사)에 사용.
+     */
+    boolean isNodeCompleted(String instanceId, String nodeId);
+
+    /**
+     * #164 — 인스턴스가 노드 집합 중 어느 하나라도 STARTED(=RUNNING/COMPLETED/FAILED) 했는지.
+     * Pipeline 2/3 게이트에 사용 — gap 단계의 노드가 시작됐는지 검사.
+     */
+    boolean isAnyNodeStarted(String instanceId, java.util.Collection<String> nodeIds);
+
+    /**
+     * #164 — 게이트에 막힌 활동을 다시 PENDING으로 되돌리고, 다음 폴링 시각을 지연.
+     * findPendingActivitiesWithLock가 RUNNING으로 마킹한 직후 게이트 차단을 발견했을 때 사용.
+     */
+    void revertGateBlocked(String executionId, LocalDateTime nextRetryDt);
+
     /**
      * 인스턴스 종료(#101) 시 — {@code PENDING} / {@code WAITING_DEPENDENCIES} 액티비티들을 한 번에
      * 새 상태(예: {@code TERMINATED})로 전이한다. {@code RUNNING}/{@code COMPLETED}/{@code FAILED}는

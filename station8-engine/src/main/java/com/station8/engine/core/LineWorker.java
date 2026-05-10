@@ -42,6 +42,7 @@ public class LineWorker {
     private final ActivityArgumentResolver argumentResolver;
     private final LineDefinitionRepository definitionRepository;
     private final LineExecutor lineExecutor;
+    private final PipelineGate pipelineGate;
 
     public LineWorker(ActivityRepository activityRepository,
                           TaskExecutor taskExecutor,
@@ -54,7 +55,8 @@ public class LineWorker {
                           DagInterpreter dagInterpreter,
                           ActivityArgumentResolver argumentResolver,
                           LineDefinitionRepository definitionRepository,
-                          LineExecutor lineExecutor) {
+                          LineExecutor lineExecutor,
+                          PipelineGate pipelineGate) {
         this.activityRepository = activityRepository;
         this.taskExecutor = taskExecutor;
         this.workflowTaskExecutor = workflowTaskExecutor;
@@ -67,6 +69,7 @@ public class LineWorker {
         this.argumentResolver = argumentResolver;
         this.definitionRepository = definitionRepository;
         this.lineExecutor = lineExecutor;
+        this.pipelineGate = pipelineGate;
     }
 
     /**
@@ -76,16 +79,41 @@ public class LineWorker {
     @Scheduled(fixedDelayString = "${workflow.polling.interval-ms:1000}")
     public void pollActivities() {
         log.trace("Polling pending activities...");
-        
+
         // 한 번의 폴링에서 가져올 최대 작업 수
-        int limit = 10; 
+        int limit = 10;
         List<ActivityExecution> pendingActivities = activityRepository.findPendingActivitiesWithLock(limit);
 
         for (ActivityExecution activity : pendingActivities) {
+            // #164 — Pipeline 게이트 검사. 차단되면 PENDING 복구 + NEXT_RETRY_DT 지연.
+            if (activity.nodeId() != null && !canDispatchUnderPipeline(activity)) {
+                LocalDateTime retryAt = LocalDateTime.now().plus(PipelineGate.GATE_BACKOFF);
+                activityRepository.revertGateBlocked(activity.id(), retryAt);
+                log.debug("[#164] Pipeline gate 차단 — activity={}, instance={}, retry@{}",
+                        activity.id(), activity.instanceId(), retryAt);
+                continue;
+            }
+
             log.info("Dispatching activity: {} (Instance ID: {})", activity.activityName(), activity.instanceId());
-            
+
             // 별도의 스레드 풀에서 비동기 실행
             workflowTaskExecutor.execute(() -> processActivity(activity));
+        }
+    }
+
+    /**
+     * #164 — Pipeline 게이트 검사. workflowName 해석 후 게이트에 위임.
+     * 예외 발생 시 안전 통과(true) — 게이트 오류로 활동이 멈추지 않도록.
+     */
+    private boolean canDispatchUnderPipeline(ActivityExecution activity) {
+        try {
+            LineInstance instance = activityRepository.findInstanceById(activity.instanceId());
+            if (instance == null || instance.workflowName() == null) return true;
+            return pipelineGate.canDispatch(activity.instanceId(), activity.nodeId(), instance.workflowName());
+        } catch (Exception ex) {
+            log.warn("[#164] Pipeline gate 평가 실패 — activity={}, fallback=allow ({}: {})",
+                    activity.id(), ex.getClass().getSimpleName(), ex.getMessage());
+            return true;
         }
     }
 

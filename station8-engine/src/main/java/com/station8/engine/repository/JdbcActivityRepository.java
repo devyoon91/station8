@@ -296,6 +296,53 @@ public class JdbcActivityRepository implements ActivityRepository {
         jdbcTemplate.update(sql, executionId);
     }
 
+    // ========== #164 — Pipeline 게이트 지원 ==========
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isNodeCompleted(String instanceId, String nodeId) {
+        String sql = """
+            SELECT COUNT(*) FROM H_LINE_ACTIVITY_EXECUTION
+            WHERE INSTANCE_ID = ? AND NODE_ID = ? AND STATUS_ST = 'COMPLETED' AND DEL_FL = 'N'
+            """;
+        Integer n = jdbcTemplate.queryForObject(sql, Integer.class, instanceId, nodeId);
+        return n != null && n > 0;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isAnyNodeStarted(String instanceId, java.util.Collection<String> nodeIds) {
+        if (nodeIds == null || nodeIds.isEmpty()) return false;
+        String placeholders = nodeIds.stream().map(s -> "?")
+                .collect(java.util.stream.Collectors.joining(", "));
+        String sql = "SELECT COUNT(*) FROM H_LINE_ACTIVITY_EXECUTION "
+                + "WHERE INSTANCE_ID = ? AND NODE_ID IN (" + placeholders + ") "
+                + "AND STATUS_ST IN ('RUNNING', 'COMPLETED', 'FAILED', 'FAILED_FINAL') "
+                + "AND DEL_FL = 'N'";
+        java.util.List<Object> args = new java.util.ArrayList<>();
+        args.add(instanceId);
+        args.addAll(nodeIds);
+        Integer n = jdbcTemplate.queryForObject(sql, Integer.class, args.toArray());
+        return n != null && n > 0;
+    }
+
+    @Override
+    @Transactional
+    public void revertGateBlocked(String executionId, LocalDateTime nextRetryDt) {
+        String sql = String.format("""
+            UPDATE H_LINE_ACTIVITY_EXECUTION
+            SET STATUS_ST = 'PENDING',
+                START_DT = NULL,
+                NEXT_RETRY_DT = ?,
+                EDIT_DT = %s,
+                EDIT_ID = 'pipeline-gate'
+            WHERE ID = ?
+            """, dbDialect.currentTimestamp());
+        jdbcTemplate.update(sql,
+                nextRetryDt == null ? null : java.sql.Timestamp.valueOf(nextRetryDt),
+                executionId);
+    }
+
     @Override
     @Transactional
     public int bulkUpdateNotStartedStatuses(String instanceId, String toStatus) {

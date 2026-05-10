@@ -58,17 +58,21 @@ public class BuilderController {
             model.addAttribute("slaSeconds", existing.slaSeconds());
             model.addAttribute("slaActionAlert", "ALERT_ONLY".equals(existing.slaAction()));
             model.addAttribute("slaActionTerminate", "AUTO_TERMINATE".equals(existing.slaAction()));
-            // #141 — 동시 실행 정책 폼 미리채움
+            // #141, #164 — 동시 실행 정책 폼 미리채움
             String concurrency = existing.concurrencyPolicy() == null ? "" : existing.concurrencyPolicy();
             model.addAttribute("concurrencyConcurrent", concurrency.isEmpty() || "CONCURRENT".equals(concurrency));
             model.addAttribute("concurrencySkip", "SKIP_IF_RUNNING".equals(concurrency));
+            model.addAttribute("concurrencyPipeline1", "PIPELINE_1".equals(concurrency));
+            model.addAttribute("concurrencyPipeline2", "PIPELINE_2".equals(concurrency));
+            model.addAttribute("concurrencyPipeline3", "PIPELINE_3".equals(concurrency));
+            boolean nonDefaultConcurrency = !concurrency.isEmpty() && !"CONCURRENT".equals(concurrency);
             // #142 — 태그 폼 미리채움 (쉼표 join)
             java.util.List<String> tags = existing.tags() == null ? java.util.List.of() : existing.tags();
             model.addAttribute("tagsCsv", String.join(", ", tags));
             // 셋 중 하나라도 설정됐으면 details open
             model.addAttribute("hasLineSettings", existing.slaSeconds() != null
                     || (existing.slaAction() != null && !existing.slaAction().isBlank())
-                    || "SKIP_IF_RUNNING".equals(concurrency)
+                    || nonDefaultConcurrency
                     || !tags.isEmpty());
         } catch (IllegalArgumentException ex) {
             log.warn("Builder edit — definition not found: {} ({})", definitionId, ex.getMessage());
