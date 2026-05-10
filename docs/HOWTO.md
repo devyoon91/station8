@@ -443,9 +443,21 @@ engine.dlq.webhook-url=https://hooks.slack.com/services/T00/B00/XXXX
 
 상세 코드 카탈로그: [docs/ERROR_CODES.md](ERROR_CODES.md)
 
-### ADMIN 비밀번호 잊음/안 맞음
+### `.env` 위치 — 어디 두어야 docker compose가 읽나?
 
-`InitialAdminSeeder`는 **같은 username이 DB에 이미 있으면 skip** (멱등 정책) — `.env`에 비밀번호 적어도 기존 admin이 있으면 적용 안 됨. 해결 3가지:
+`docker-compose.yml`이 `env_file`로 두 위치 모두 optional 등록:
+- root `.env` (저장소 루트)
+- `docker/.env` (compose 파일 옆)
+
+둘 중 어디 두어도 OK. 둘 다 있으면 `docker/.env`가 나중에 적용되어 동일 키는 override.
+
+> 셸 export(`export STATION8_INITIAL_ADMIN_PASSWORD=...; docker compose up`)는 \*\*`STATION8_*` 값이 컨테이너에 안 들어감\*\* — environment에서 default 빈 값이 override함. \*\*반드시 `.env` 파일로\*\* 주입할 것.
+
+### ADMIN 비밀번호 잊음/안 맞음 / `.env` 적었는데 매번 초기화됨
+
+`InitialAdminSeeder`는 **같은 username이 DB에 이미 있으면 skip** (멱등 정책) — `.env`에 비밀번호 적어도 기존 admin이 있으면 적용 안 됨. 또 mariadb 데이터는 `mariadb_data` named volume에 영속 — `docker compose down -v`로 volume 삭제해야 admin 새로 시드.
+
+해결 3가지:
 
 1. **콘솔 로그에서 자동 생성된 비밀번호 찾기** (첫 부팅 직후, 로그 스크롤백 살아있을 때):
    ```bash
@@ -454,8 +466,8 @@ engine.dlq.webhook-url=https://hooks.slack.com/services/T00/B00/XXXX
 
 2. **DB 완전 초기화 + 새 비밀번호로 시드** (★ 권장):
    ```bash
-   docker compose -f docker/docker-compose.yml down -v   # -v: volume 삭제
-   # docker/.env에서 STATION8_INITIAL_ADMIN_PASSWORD 채우기
+   docker compose -f docker/docker-compose.yml down -v   # -v: mariadb_data volume 삭제
+   # docker/.env 또는 .env에서 STATION8_INITIAL_ADMIN_PASSWORD 채우기
    docker compose -f docker/docker-compose.yml up --build -d
    ```
 
@@ -466,7 +478,7 @@ engine.dlq.webhook-url=https://hooks.slack.com/services/T00/B00/XXXX
    docker compose -f docker/docker-compose.yml restart app
    ```
 
-> 부팅 시 env에 비밀번호가 명시되어 있는데 admin이 이미 DB에 있으면 콘솔에 WARN 로그가 출력되어 운영자에게 알린다 (#127 후속).
+> 부팅 시 env에 비밀번호가 명시되어 있는데 admin이 이미 DB에 있으면 콘솔에 WARN 로그가 출력되어 운영자에게 알린다 (#128).
 
 ---
 
