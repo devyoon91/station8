@@ -53,6 +53,10 @@ class ConcurrencyUiRenderTest {
                 .andExpect(content().string(containsString("id=\"concurrencyPolicy\"")))
                 .andExpect(content().string(containsString("CONCURRENT")))
                 .andExpect(content().string(containsString("SKIP_IF_RUNNING")))
+                // #164 — Pipeline 1/2/3 옵션
+                .andExpect(content().string(containsString("value=\"PIPELINE_1\"")))
+                .andExpect(content().string(containsString("value=\"PIPELINE_2\"")))
+                .andExpect(content().string(containsString("value=\"PIPELINE_3\"")))
                 .andExpect(content().string(containsString("Line settings — SLA / Concurrency")))
                 .andExpect(content().string(containsString("concurrencyPolicy")));
     }
@@ -69,5 +73,19 @@ class ConcurrencyUiRenderTest {
         mockMvc.perform(get("/line/builder?id=" + defId))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("value=\"SKIP_IF_RUNNING\" selected")));
+    }
+
+    @Test
+    void builder_editMode_preselectsPipeline2() throws Exception {
+        DagDefinitionRequest req = new DagDefinitionRequest(
+                "PipelineFlow", "test", null, null, "PIPELINE_2",
+                List.of(new DagDefinitionRequest.NodeDef("p-1", "A", "MIGRATION_WRITE", null, 0, 0, null)),
+                List.of()
+        );
+        String defId = service.createDefinition(req);
+
+        mockMvc.perform(get("/line/builder?id=" + defId))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("value=\"PIPELINE_2\" selected")));
     }
 }

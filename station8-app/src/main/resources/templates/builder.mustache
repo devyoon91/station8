@@ -311,9 +311,13 @@
                 <select id="concurrencyPolicy" class="swe-input">
                     <option value="" {{#concurrencyConcurrent}}selected{{/concurrencyConcurrent}}>CONCURRENT (default — 같은 정의 인스턴스 동시 실행 허용)</option>
                     <option value="SKIP_IF_RUNNING" {{#concurrencySkip}}selected{{/concurrencySkip}}>SKIP_IF_RUNNING — RUNNING/PAUSED 인스턴스 있으면 새 시작 무시 (cron 적체 방지)</option>
+                    <option value="PIPELINE_1" {{#concurrencyPipeline1}}selected{{/concurrencyPipeline1}}>PIPELINE_1 — 새 인스턴스의 노드 X는 선행의 같은 X가 COMPLETED 되어야 시작</option>
+                    <option value="PIPELINE_2" {{#concurrencyPipeline2}}selected{{/concurrencyPipeline2}}>PIPELINE_2 — 선행이 X+1단계의 노드를 시작했어야 새 X 시작</option>
+                    <option value="PIPELINE_3" {{#concurrencyPipeline3}}selected{{/concurrencyPipeline3}}>PIPELINE_3 — 선행이 X+2단계의 노드를 시작했어야 새 X 시작</option>
                 </select>
                 <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
-                    SKIP 시: 즉시 실행 응답은 200 + <code>{skipped:true}</code> / cron 폴러는 nextRunDt만 갱신하고 다음 주기로.
+                    SKIP 시: 즉시 실행 응답은 200 + <code>{skipped:true}</code> / cron 폴러는 nextRunDt만 갱신하고 다음 주기로.<br>
+                    PIPELINE_*: 동시 실행 허용하되 활동 단위로 단계 동기화. 데이터 race 방지에 유용 (#164).
                 </div>
             </div>
             <!-- #142 — 태그 -->
