@@ -53,6 +53,13 @@ public class BuilderController {
             model.addAttribute("description", existing.description() != null ? existing.description() : "");
             model.addAttribute("versionNo", existing.versionNo());
             model.addAttribute("existingDefinitionJson", jsonUtil.toJson(existing));
+
+            // #138 — SLA 폼 미리채움
+            model.addAttribute("slaSeconds", existing.slaSeconds());
+            model.addAttribute("slaActionAlert", "ALERT_ONLY".equals(existing.slaAction()));
+            model.addAttribute("slaActionTerminate", "AUTO_TERMINATE".equals(existing.slaAction()));
+            model.addAttribute("hasSla", existing.slaSeconds() != null
+                    || (existing.slaAction() != null && !existing.slaAction().isBlank()));
         } catch (IllegalArgumentException ex) {
             log.warn("Builder edit — definition not found: {} ({})", definitionId, ex.getMessage());
             model.addAttribute("editMode", false);

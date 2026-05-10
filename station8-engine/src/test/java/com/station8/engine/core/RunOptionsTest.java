@@ -108,4 +108,64 @@ class RunOptionsTest {
         RunOptions opts = new RunOptions(RunOptions.OnFailure.CONTINUE, ordered, null);
         assertThat(opts.runtimeParams().keySet()).containsExactly("a", "b", "c");
     }
+
+    // ---- #138 — SLA 필드 ----
+
+    @Test
+    void defaults_slaSecondsAndActionAreNull() {
+        RunOptions opts = RunOptions.defaults();
+        assertThat(opts.slaSeconds()).isNull();
+        assertThat(opts.slaAction()).isNull();
+    }
+
+    @Test
+    void parse_slaSecondsAndAction_roundTrip() {
+        String json = "{\"slaSeconds\":3600,\"slaAction\":\"AUTO_TERMINATE\"}";
+        RunOptions opts = RunOptions.parse(json, jsonUtil);
+        assertThat(opts.slaSeconds()).isEqualTo(3600L);
+        assertThat(opts.slaAction()).isEqualTo(SlaAction.AUTO_TERMINATE);
+    }
+
+    @Test
+    void parse_slaSecondsAsString_isCoercedToLong() {
+        // 일부 클라이언트는 number를 string으로 보낼 수 있음
+        String json = "{\"slaSeconds\":\"7200\",\"slaAction\":\"alert_only\"}";
+        RunOptions opts = RunOptions.parse(json, jsonUtil);
+        assertThat(opts.slaSeconds()).isEqualTo(7200L);
+        assertThat(opts.slaAction()).isEqualTo(SlaAction.ALERT_ONLY);
+    }
+
+    @Test
+    void parse_invalidSlaAction_fallsBackToAlertOnly() {
+        String json = "{\"slaAction\":\"NUKE_FROM_ORBIT\"}";
+        RunOptions opts = RunOptions.parse(json, jsonUtil);
+        assertThat(opts.slaAction()).isEqualTo(SlaAction.ALERT_ONLY);
+    }
+
+    @Test
+    void parse_unknownFieldsIgnored_keepingSla() {
+        String json = "{\"slaSeconds\":300,\"unknownFuture\":42}";
+        RunOptions opts = RunOptions.parse(json, jsonUtil);
+        assertThat(opts.slaSeconds()).isEqualTo(300L);
+    }
+
+    @Test
+    void backwardCompat_threeArgConstructor_setsSlaNull() {
+        RunOptions opts = new RunOptions(RunOptions.OnFailure.ABORT, Map.of(), "https://x");
+        assertThat(opts.slaSeconds()).isNull();
+        assertThat(opts.slaAction()).isNull();
+    }
+
+    @Test
+    void slaActionParse_caseInsensitive() {
+        assertThat(SlaAction.parse("auto_terminate")).isEqualTo(SlaAction.AUTO_TERMINATE);
+        assertThat(SlaAction.parse(" ALERT_ONLY ")).isEqualTo(SlaAction.ALERT_ONLY);
+    }
+
+    @Test
+    void slaActionParse_nullOrBlank_isAlertOnly() {
+        assertThat(SlaAction.parse(null)).isEqualTo(SlaAction.ALERT_ONLY);
+        assertThat(SlaAction.parse("")).isEqualTo(SlaAction.ALERT_ONLY);
+        assertThat(SlaAction.parse("   ")).isEqualTo(SlaAction.ALERT_ONLY);
+    }
 }

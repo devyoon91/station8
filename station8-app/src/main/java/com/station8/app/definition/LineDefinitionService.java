@@ -81,10 +81,12 @@ public class LineDefinitionService {
         // 검증 — 위반 시 LineEngineException(DAG_INVALID) 으로 실패
         dagValidator.validate(nodes, edges, workflowRegistry.getActivityNames());
 
-        // 정의 + 역 + 엣지 저장
+        // 정의 + 역 + 엣지 저장 — #138 SLA는 req에서 받아 저장
         LineDefinition def = new LineDefinition(
                 definitionId, req.definitionNm(), req.description(),
-                nextVersion, "Y", "Y", "Y", "N",
+                nextVersion, "Y",
+                req.slaSeconds(), req.slaAction(),
+                "Y", "Y", "N",
                 null, "api", null, null
         );
         definitionRepository.insertDefinition(def);
@@ -107,6 +109,7 @@ public class LineDefinitionService {
         return new DagDefinitionResponse(
                 def.id(), def.definitionNm(), def.description(),
                 def.versionNo(), def.activeFl(),
+                def.slaSeconds(), def.slaAction(),
                 nodes.stream().map(n -> new DagDefinitionRequest.NodeDef(
                         n.id(), n.nodeNm(), n.activityNm(), n.inputParams(),
                         n.posXNo(), n.posYNo(),
@@ -139,12 +142,14 @@ public class LineDefinitionService {
         dagValidator.validate(nodes, edges, workflowRegistry.getActivityNames());
 
         definitionRepository.updateDefinitionMeta(definitionId, req.description(), null);
+        definitionRepository.updateDefinitionSla(definitionId, req.slaSeconds(), req.slaAction());
         definitionRepository.softDeleteEdgesByDefinition(definitionId);
         definitionRepository.softDeleteNodesByDefinition(definitionId);
         for (LineStation n : nodes) definitionRepository.insertNode(n);
         for (LineTrack e : edges) definitionRepository.insertEdge(e);
 
-        log.info("DAG 정의 교체: id={}, nodes={}, edges={}", definitionId, nodes.size(), edges.size());
+        log.info("DAG 정의 교체: id={}, nodes={}, edges={}, sla={}s/{}",
+                definitionId, nodes.size(), edges.size(), req.slaSeconds(), req.slaAction());
     }
 
     @Transactional
@@ -201,7 +206,9 @@ public class LineDefinitionService {
     private String serializeRunOptions(RunOptions opt) {
         boolean isDefault = opt.onFailure() == RunOptions.OnFailure.CONTINUE
                 && (opt.runtimeParams() == null || opt.runtimeParams().isEmpty())
-                && (opt.notificationWebhookUrl() == null || opt.notificationWebhookUrl().isBlank());
+                && (opt.notificationWebhookUrl() == null || opt.notificationWebhookUrl().isBlank())
+                && opt.slaSeconds() == null
+                && opt.slaAction() == null;
         if (isDefault) return null;
         Map<String, Object> map = new java.util.LinkedHashMap<>();
         map.put("onFailure", opt.onFailure().name());
@@ -211,6 +218,9 @@ public class LineDefinitionService {
         if (opt.notificationWebhookUrl() != null && !opt.notificationWebhookUrl().isBlank()) {
             map.put("notificationWebhookUrl", opt.notificationWebhookUrl());
         }
+        // #138 — SLA override
+        if (opt.slaSeconds() != null) map.put("slaSeconds", opt.slaSeconds());
+        if (opt.slaAction() != null) map.put("slaAction", opt.slaAction().name());
         return jsonUtil.toJson(map);
     }
 

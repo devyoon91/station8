@@ -37,6 +37,19 @@ public interface LineExecutor {
     void terminateLine(String instanceId);
 
     /**
+     * #138 — {@link #terminateLine(String)}과 동일하지만 사유를 {@code OUTPUT_DATA}에 기록한다.
+     *
+     * <p>SLA 위반(auto-terminate)처럼 시스템이 자체 판단으로 종료할 때 사용. 사유는
+     * {@code {"failureReason": "..."}} JSON으로 저장된다.</p>
+     *
+     * <p>인스턴스가 RUNNING이 아니면 idempotent하게 무시 (이미 다른 경로로 종료됐을 수 있음).</p>
+     *
+     * @param instanceId 라인 인스턴스 ID
+     * @param reason     종료 사유 (예: "SLA violation: 3700s exceeds threshold 3600s")
+     */
+    void terminateLineWithReason(String instanceId, String reason);
+
+    /**
      * 인스턴스를 {@code FAILED}로 마킹하고 사유를 {@code OUTPUT_DATA}에 기록한다 (#152).
      *
      * <p>{@link #terminateLine(String)}과 유사하지만 의미가 다르다 — TERMINATED는 운영자가

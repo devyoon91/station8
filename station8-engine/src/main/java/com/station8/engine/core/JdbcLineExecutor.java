@@ -119,6 +119,36 @@ public class JdbcLineExecutor implements LineExecutor {
 
     @Override
     @Transactional
+    public void terminateLineWithReason(String instanceId, String reason) {
+        // #138 — terminateLine과 동일하지만 OUTPUT_DATA에 사유 기록 + RUNNING이 아니면 idempotent skip
+        LineInstance instance;
+        try {
+            instance = activityRepository.findInstanceById(instanceId);
+        } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
+            log.warn("[#138] terminateLineWithReason — 인스턴스 없음 (idempotent skip): {}", instanceId);
+            return;
+        }
+        if (instance == null || !"RUNNING".equals(instance.statusSt())) {
+            log.info("[#138] terminateLineWithReason 무시 — 이미 종료됨: {} (status={})",
+                    instanceId, instance == null ? "null" : instance.statusSt());
+            return;
+        }
+
+        String reasonJson = jsonUtil.toJson(java.util.Map.of("failureReason", reason == null ? "" : reason));
+        jdbcTemplate.update("""
+            UPDATE U_LINE_INSTANCE
+            SET STATUS_ST = 'TERMINATED', OUTPUT_DATA = ?, END_DT = CURRENT_TIMESTAMP,
+                EDIT_DT = CURRENT_TIMESTAMP, EDIT_ID = 'sla'
+            WHERE ID = ?
+            """, reasonJson, instanceId);
+
+        int affected = activityRepository.bulkUpdateNotStartedStatuses(instanceId, "TERMINATED");
+        log.warn("[#138] Instance auto-terminated: {} ({} pending/waiting marked TERMINATED) — reason: {}",
+                instanceId, affected, reason);
+    }
+
+    @Override
+    @Transactional
     public void failLine(String instanceId, String reason) {
         // 1. 인스턴스 상태 — RUNNING이 아니면 idempotent하게 무시 (이미 다른 경로로 종료됐을 수 있음)
         LineInstance instance;

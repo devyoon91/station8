@@ -235,6 +235,33 @@
         새 버전을 만들고 싶으면 <a href="/line/builder">신규 생성</a>으로.
     </div>
     {{/editMode}}
+
+    <!-- #138 — Line settings: SLA -->
+    <details {{#hasSla}}open{{/hasSla}} class="swe-card swe-mb-lg" style="padding: var(--space-md) var(--space-lg);">
+        <summary style="cursor: pointer; font-weight: 600; user-select: none;">Line settings — SLA</summary>
+        <div style="margin-top: var(--space-md); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+            <div>
+                <label for="slaSeconds">Max duration (seconds)</label>
+                <input type="number" id="slaSeconds" class="swe-input" min="1" step="1"
+                       placeholder="예: 3600 (1시간)"
+                       value="{{#slaSeconds}}{{slaSeconds}}{{/slaSeconds}}">
+                <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
+                    인스턴스 시작 후 N초 넘으면 SLA 위반. 비워두면 SLA 비활성.
+                </div>
+            </div>
+            <div>
+                <label for="slaAction">Action on violation</label>
+                <select id="slaAction" class="swe-input">
+                    <option value="">— select —</option>
+                    <option value="ALERT_ONLY" {{#slaActionAlert}}selected{{/slaActionAlert}}>ALERT_ONLY (알림만, 인스턴스 진행)</option>
+                    <option value="AUTO_TERMINATE" {{#slaActionTerminate}}selected{{/slaActionTerminate}}>AUTO_TERMINATE (알림 + 인스턴스 종료)</option>
+                </select>
+                <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
+                    위반 시 webhook으로 알림 (engine.sla.webhook-url). 인스턴스 RunOptions로 override 가능.
+                </div>
+            </div>
+        </div>
+    </details>
     {{#loadError}}
     <div class="swe-card swe-mb-lg" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid var(--accent-pink);">
         <strong>로드 실패:</strong> {{loadError}}
@@ -892,9 +919,16 @@ async function saveDefinition() {
         ? '/api/line/definitions/' + EDIT_DEFINITION_ID
         : '/api/line/definitions';
     const method = EDIT_MODE ? 'PUT' : 'POST';
+
+    // #138 — SLA settings (선택)
+    const slaSecondsRaw = document.getElementById('slaSeconds').value.trim();
+    const slaActionRaw = document.getElementById('slaAction').value;
+    const slaSeconds = slaSecondsRaw ? parseInt(slaSecondsRaw, 10) : null;
+    const slaAction = slaActionRaw || null;
+
     const payload = EDIT_MODE
-        ? {definitionNm, description: 'Edited via Builder', nodes, edges}
-        : {definitionNm, description: 'Created via Builder', nodes, edges};
+        ? {definitionNm, description: 'Edited via Builder', slaSeconds, slaAction, nodes, edges}
+        : {definitionNm, description: 'Created via Builder', slaSeconds, slaAction, nodes, edges};
 
     setStatus(EDIT_MODE ? 'Updating…' : 'Saving…');
     const res = await fetch(url, {

@@ -104,7 +104,20 @@ public class LineDefinitionController {
         String webhook = optMap.get("notificationWebhookUrl") == null
                 ? null : String.valueOf(optMap.get("notificationWebhookUrl"));
 
-        return new RunOptions(onFailure, params, webhook);
+        // #138 — SLA override (선택)
+        Long slaSeconds = null;
+        Object slaRaw = optMap.get("slaSeconds");
+        if (slaRaw instanceof Number sn) slaSeconds = sn.longValue();
+        else if (slaRaw instanceof String ss && !ss.isBlank()) {
+            try { slaSeconds = Long.parseLong(ss.trim()); } catch (NumberFormatException ignore) {}
+        }
+        com.station8.engine.core.SlaAction slaAction = null;
+        Object slaActRaw = optMap.get("slaAction");
+        if (slaActRaw instanceof String sas && !sas.isBlank()) {
+            slaAction = com.station8.engine.core.SlaAction.parse(sas);
+        }
+
+        return new RunOptions(onFailure, params, webhook, slaSeconds, slaAction);
     }
 
     // === 예외 매핑 ===

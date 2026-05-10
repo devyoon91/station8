@@ -192,7 +192,29 @@
                        style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
                               color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"/>
                 <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
-                    DLQ 적재 시 전역 webhook 대신 이 URL로 알림. 비워두면 전역(engine.dlq.webhook-url) 사용.
+                    DLQ 및 SLA 알림 시 전역 webhook 대신 이 URL로 발송. 비워두면 전역(engine.dlq.webhook-url / engine.sla.webhook-url) 사용.
+                </div>
+            </div>
+            <!-- #138 — SLA override -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+                <div>
+                    <label for="run-sla-seconds" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">SLA (seconds)</label>
+                    <input type="number" id="run-sla-seconds" min="1" step="1" placeholder="예: 3600"
+                           style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                                  color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"/>
+                    <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
+                        비워두면 정의의 default SLA 사용. 0/빈값 = SLA override 없음.
+                    </div>
+                </div>
+                <div>
+                    <label for="run-sla-action" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">SLA action</label>
+                    <select id="run-sla-action"
+                            style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                                   color:var(--ink); border-radius:var(--radius-sm); font-size:0.9em;">
+                        <option value="">— inherit —</option>
+                        <option value="ALERT_ONLY">ALERT_ONLY</option>
+                        <option value="AUTO_TERMINATE">AUTO_TERMINATE</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -327,11 +349,18 @@ window.submitRun = async function () {
             }
         }
 
+        // #138 — SLA override
+        const slaSecondsRaw = document.getElementById('run-sla-seconds').value.trim();
+        const slaAction = document.getElementById('run-sla-action').value;
+        const slaSeconds = slaSecondsRaw ? parseInt(slaSecondsRaw, 10) : null;
+
         // options는 default와 다를 때만 포함 (서버측 default 동작 유지)
         const options = {};
         if (onFailure && onFailure !== 'CONTINUE') options.onFailure = onFailure;
         if (runtimeParams && Object.keys(runtimeParams).length > 0) options.runtimeParams = runtimeParams;
         if (webhook) options.notificationWebhookUrl = webhook;
+        if (slaSeconds && slaSeconds > 0) options.slaSeconds = slaSeconds;
+        if (slaAction) options.slaAction = slaAction;
 
         const body = {};
         if (inputData) body.input = inputData;
