@@ -18,20 +18,32 @@ import java.util.Map;
  *                               null이면 빈 맵.
  * @param notificationWebhookUrl 인스턴스 단위 DLQ webhook override (D8). null이면 전역
  *                               {@code engine.dlq.webhook-url} 사용.
+ * @param slaSeconds             #138 — 인스턴스 단위 SLA 시간 임계치 override.
+ *                               null이면 정의의 default ({@code U_LINE_DEFINITION.SLA_SECONDS}) 사용.
+ * @param slaAction              #138 — SLA 위반 시 액션 override.
+ *                               null이면 정의의 default 사용.
  */
 public record RunOptions(
         OnFailure onFailure,
         Map<String, String> runtimeParams,
-        String notificationWebhookUrl
+        String notificationWebhookUrl,
+        Long slaSeconds,
+        SlaAction slaAction
 ) {
     public RunOptions {
         if (onFailure == null) onFailure = OnFailure.CONTINUE;
         if (runtimeParams == null) runtimeParams = Collections.emptyMap();
     }
 
-    /** 옵션 미설정 시 default 객체. continue + 빈 params + 전역 webhook. */
+    /** 후방 호환 — 3-arg 생성자 (SLA 없음). */
+    public RunOptions(OnFailure onFailure, Map<String, String> runtimeParams,
+                      String notificationWebhookUrl) {
+        this(onFailure, runtimeParams, notificationWebhookUrl, null, null);
+    }
+
+    /** 옵션 미설정 시 default 객체. continue + 빈 params + 전역 webhook + SLA 비활성. */
     public static RunOptions defaults() {
-        return new RunOptions(OnFailure.CONTINUE, new LinkedHashMap<>(), null);
+        return new RunOptions(OnFailure.CONTINUE, new LinkedHashMap<>(), null, null, null);
     }
 
     /**
@@ -51,7 +63,22 @@ public record RunOptions(
             pm.forEach((k, v) -> params.put(String.valueOf(k), v == null ? null : String.valueOf(v)));
         }
         String webhook = (String) raw.get("notificationWebhookUrl");
-        return new RunOptions(onFailure, params, webhook);
+
+        // #138 — slaSeconds (Number 또는 String 모두 허용)
+        Long slaSeconds = null;
+        Object slaRaw = raw.get("slaSeconds");
+        if (slaRaw instanceof Number sn) {
+            slaSeconds = sn.longValue();
+        } else if (slaRaw instanceof String ss && !ss.isBlank()) {
+            try { slaSeconds = Long.parseLong(ss.trim()); } catch (NumberFormatException ignore) {}
+        }
+        SlaAction slaAction = null;
+        Object slaActRaw = raw.get("slaAction");
+        if (slaActRaw instanceof String sas && !sas.isBlank()) {
+            slaAction = SlaAction.parse(sas);
+        }
+
+        return new RunOptions(onFailure, params, webhook, slaSeconds, slaAction);
     }
 
     public enum OnFailure {

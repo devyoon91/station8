@@ -131,11 +131,14 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
     public void insertDefinition(LineDefinition definition) {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_DEFINITION
-                  (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                  (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL,
+                   SLA_SECONDS, SLA_ACTION,
+                   USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
                 """,
                 definition.id(), definition.definitionNm(), definition.description(),
                 definition.versionNo(), definition.activeFl() != null ? definition.activeFl() : "Y",
+                definition.slaSeconds(), definition.slaAction(),
                 definition.regId());
     }
 
@@ -147,6 +150,17 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 SET DESCRIPTION = ?, ACTIVE_FL = COALESCE(?, ACTIVE_FL), EDIT_DT = CURRENT_TIMESTAMP
                 WHERE ID = ?
                 """, description, activeFl, definitionId);
+    }
+
+    /** #138 — SLA 메타 업데이트 (replace 시 사용). null 값도 그대로 SET (SLA 비활성화 가능). */
+    @Override
+    @Transactional
+    public void updateDefinitionSla(String definitionId, Long slaSeconds, String slaAction) {
+        jdbcTemplate.update("""
+                UPDATE U_LINE_DEFINITION
+                SET SLA_SECONDS = ?, SLA_ACTION = ?, EDIT_DT = CURRENT_TIMESTAMP
+                WHERE ID = ?
+                """, slaSeconds, slaAction, definitionId);
     }
 
     @Override
@@ -214,15 +228,30 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
         return max != null ? max : 0;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public LineDefinition findActiveDefinitionByName(String workflowName) {
+        // #138 — 같은 이름으로 여러 버전이 있을 수 있어 가장 최근 active 버전 1개만 반환
+        String sql = "SELECT * FROM U_LINE_DEFINITION "
+                + "WHERE DEFINITION_NM = ? AND ACTIVE_FL = 'Y' AND DEL_FL = 'N' "
+                + "ORDER BY VERSION_NO DESC " + dbDialect.limit(1);
+        List<LineDefinition> rows = jdbcTemplate.query(sql, new DefinitionMapper(), workflowName);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
     private static class DefinitionMapper implements RowMapper<LineDefinition> {
         @Override
         public LineDefinition mapRow(ResultSet rs, int rowNum) throws SQLException {
+            long slaSecRaw = rs.getLong("SLA_SECONDS");
+            Long slaSeconds = rs.wasNull() ? null : slaSecRaw;
             return new LineDefinition(
                 rs.getString("ID"),
                 rs.getString("DEFINITION_NM"),
                 rs.getString("DESCRIPTION"),
                 rs.getInt("VERSION_NO"),
                 rs.getString("ACTIVE_FL"),
+                slaSeconds,
+                rs.getString("SLA_ACTION"),
                 rs.getString("USE_FL"),
                 rs.getString("VIEW_FL"),
                 rs.getString("DEL_FL"),

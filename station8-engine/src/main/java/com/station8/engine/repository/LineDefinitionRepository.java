@@ -57,11 +57,24 @@ public interface LineDefinitionRepository {
     /** 시작 역(들): incoming edge가 0개인 역. */
     List<LineStation> findStartNodes(String definitionId);
 
+    /**
+     * #138 — workflowName으로 가장 최근 active 버전의 정의를 조회한다.
+     * SLA poller가 인스턴스의 SLA default를 알아낼 때 사용.
+     *
+     * @return 일치하는 정의 또는 null
+     */
+    LineDefinition findActiveDefinitionByName(String workflowName);
+
     /** 정의 INSERT. */
     void insertDefinition(LineDefinition definition);
 
     /** 정의 메타(DESC/ACTIVE_FL) 업데이트. */
     void updateDefinitionMeta(String definitionId, String description, String activeFl);
+
+    /**
+     * #138 — SLA 메타(slaSeconds / slaAction) 업데이트. null 값도 그대로 SET (비활성화 가능).
+     */
+    void updateDefinitionSla(String definitionId, Long slaSeconds, String slaAction);
 
     /** 정의 소프트 삭제 (DEL_FL='Y'). */
     void softDeleteDefinition(String definitionId);

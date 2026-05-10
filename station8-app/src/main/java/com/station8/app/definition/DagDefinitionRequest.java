@@ -30,9 +30,18 @@ import java.util.Map;
 public record DagDefinitionRequest(
         String definitionNm,
         String description,
+        /** #138 — SLA 시간 임계치 (초). null이면 SLA 비활성. 인스턴스 RUN_OPTIONS로 override 가능. */
+        Long slaSeconds,
+        /** #138 — SLA 위반 시 액션 (`ALERT_ONLY` / `AUTO_TERMINATE`). null이면 ALERT_ONLY 기본. */
+        String slaAction,
         List<NodeDef> nodes,
         List<EdgeDef> edges
 ) {
+    /** 후방 호환 — SLA 없이 기존 4-arg 생성. */
+    public DagDefinitionRequest(String definitionNm, String description,
+                                List<NodeDef> nodes, List<EdgeDef> edges) {
+        this(definitionNm, description, null, null, nodes, edges);
+    }
     public record NodeDef(
             String nodeId,
             String nodeNm,

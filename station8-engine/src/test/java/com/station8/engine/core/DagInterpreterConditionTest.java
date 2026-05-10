@@ -197,7 +197,9 @@ class DagInterpreterConditionTest {
     private String setupLinearDef(String name, String conditionOnAB) {
         String defId = "def-" + System.nanoTime();
         defRepo.insertDefinition(new LineDefinition(
-                defId, name, null, 1, "Y", "Y", "Y", "N",
+                defId, name, null, 1, "Y",
+                null, null,
+                "Y", "Y", "N",
                 null, "test", null, null));
         defRepo.insertNode(new LineStation("n-a", defId, "A", "A", null, null, 0, 0,
                 "Y", "Y", "N", null, null, null, null));
@@ -212,7 +214,9 @@ class DagInterpreterConditionTest {
     private String setupBranchDef(String name, String condAB, String condAC) {
         String defId = "def-" + System.nanoTime();
         defRepo.insertDefinition(new LineDefinition(
-                defId, name, null, 1, "Y", "Y", "Y", "N",
+                defId, name, null, 1, "Y",
+                null, null,
+                "Y", "Y", "N",
                 null, "test", null, null));
         defRepo.insertNode(new LineStation("n-a", defId, "A", "A", null, null, 0, 0,
                 "Y", "Y", "N", null, null, null, null));

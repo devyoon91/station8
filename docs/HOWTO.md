@@ -288,7 +288,9 @@ curl -X POST http://localhost:8080/api/line/definitions/<DEF_ID>/run \
 |---|---|---|
 | `onFailure` | `CONTINUE` — 활동이 최종 실패해도 인스턴스의 다른 활동은 계속 진행 (기본 동작). `ABORT` — 활동이 retry 한도를 초과해 DLQ로 가면 인스턴스를 즉시 `TERMINATED`로 종료(#101 위임). | `CONTINUE` |
 | `runtimeParams` | 활동에서 `LineContext.runtimeParams()`로 접근하는 string→string 맵. 정의(`U_LINE_STATION.INPUT_PARAMS`)는 건드리지 않고 이번 실행에만 영향. | `{}` |
-| `notificationWebhookUrl` | DLQ 적재 시 전역 webhook(`engine.dlq.webhook-url`) 대신 이 URL로 알림 발송. | `null` (전역 사용) |
+| `notificationWebhookUrl` | DLQ 적재 + SLA 위반 시 전역 webhook 대신 이 URL로 알림 발송. | `null` (전역 사용) |
+| `slaSeconds` | #138 — 인스턴스 SLA 시간 임계치 override (정의의 default보다 우선). null이면 정의의 `SLA_SECONDS` 사용. | `null` |
+| `slaAction` | #138 — `ALERT_ONLY` / `AUTO_TERMINATE`. null이면 정의의 `SLA_ACTION` 사용. | `null` |
 
 저장 위치 — `U_LINE_INSTANCE.RUN_OPTIONS` CLOB(JSON). 기본값(전부 default)인 경우 NULL로 둔다.
 
@@ -305,6 +307,70 @@ public String chargeOrder(String input, LineContext ctx) {
 ```
 
 `LineContext` 파라미터는 다른 지원 타입(String, `DataSourceRegistry`, `@BoundDataSource JdbcTemplate`)과 자유롭게 조합 가능.
+
+### 2.6. SLA — 시간 임계치 + auto-kill / 알림 (#138)
+
+라인 정의(또는 인스턴스)에 **시간 임계치**를 걸면 `SlaPoller`가 분 단위로 RUNNING 인스턴스를 검사해 위반 시 알림 + 옵션에 따라 auto-terminate.
+
+**정의 단위 default** — 빌더의 "Line settings — SLA" 영역 또는 REST:
+
+```bash
+curl -X POST http://localhost:8080/api/line/definitions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "definitionNm": "DailyEtl",
+    "slaSeconds": 3600,
+    "slaAction": "AUTO_TERMINATE",
+    "nodes": [...],
+    "edges": [...]
+  }'
+```
+
+**인스턴스 단위 override** — Run modal의 "Advanced options" 또는 RunOptions JSON:
+
+```bash
+curl -X POST http://localhost:8080/api/line/definitions/<DEF_ID>/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "options": {
+      "slaSeconds": 60,
+      "slaAction": "ALERT_ONLY",
+      "notificationWebhookUrl": "https://hooks.example.com/sla"
+    }
+  }'
+```
+
+**우선순위**: 인스턴스 RUN_OPTIONS > 정의 default > 비활성. 둘 다 없으면 SLA poller가 무시.
+
+**액션**:
+- `ALERT_ONLY` — webhook 알림만, 인스턴스 그대로 진행
+- `AUTO_TERMINATE` — 알림 + 인스턴스를 `TERMINATED`로 마킹, OUTPUT_DATA에 사유 기록
+
+**알림 페이로드** (`engine.sla.webhook-url`):
+
+```json
+{
+  "type": "SLA_VIOLATION",
+  "instanceId": "...",
+  "workflowName": "DailyEtl",
+  "startedAt": "2026-05-10T02:00:00",
+  "elapsedSeconds": 3700,
+  "thresholdSeconds": 3600,
+  "action": "AUTO_TERMINATE"
+}
+```
+
+**설정**:
+
+```properties
+# SLA webhook URL (비우면 콘솔 WARN 로그만)
+engine.sla.webhook-url=https://hooks.example.com/sla
+
+# 폴링 주기 (default 60000ms = 1분)
+engine.sla.polling-interval-ms=60000
+```
+
+**주의**: SLA는 DLQ와 의미적으로 다름 — DLQ는 "활동 최종 실패", SLA는 "인스턴스 시간 초과". 다른 webhook 채널로 받기 권장.
 
 ---
 

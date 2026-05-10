@@ -11,6 +11,8 @@ public record LineDefinition(
     String description,
     int versionNo,
     String activeFl,
+    Long slaSeconds,           // #138: NULL = SLA 비활성
+    String slaAction,          // #138: ALERT_ONLY / AUTO_TERMINATE / null
     String useFl,
     String viewFl,
     String delFl,
