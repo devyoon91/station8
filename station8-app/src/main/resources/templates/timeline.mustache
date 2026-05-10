@@ -28,6 +28,25 @@
             0%   { box-shadow: 0 0 0 2px var(--line-pink); }
             100% { box-shadow: 0 0 0 0 transparent; }
         }
+
+        /* #132 — Auto-refresh 인디케이터 */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: 12px;
+            color: var(--mute);
+        }
+        .live-indicator .pulse {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent-green);
+            animation: live-pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes live-pulse {
+            0%, 100% { opacity: 0.35; }
+            50%      { opacity: 1; }
+        }
+        .live-indicator.off .pulse { animation: none; background: var(--mute); opacity: 0.5; }
     </style>
 </head>
 <body>
@@ -39,6 +58,15 @@
         <div>
             <a href="/line/dashboard" class="swe-caption swe-mute" style="text-decoration: none;">← Dashboard</a>
             <h1 class="swe-display-lg" style="margin: var(--space-xs) 0 0;">Instance Timeline</h1>
+            {{#instance.isRunning}}
+            <div class="live-indicator" id="live-indicator">
+                <span class="pulse"></span>
+                <span>Auto-refresh 3s</span>
+                <span style="margin-left: var(--space-xs);" id="updated-at"></span>
+                <button type="button" class="swe-btn-tertiary swe-btn-sm" id="auto-refresh-toggle"
+                        style="margin-left: var(--space-md);" onclick="toggleAutoRefresh()">Pause</button>
+            </div>
+            {{/instance.isRunning}}
         </div>
         <div class="swe-row">
             {{#instance.isFailed}}
@@ -76,7 +104,7 @@
             </div>
             <div>
                 <div class="swe-caption swe-mute">Status</div>
-                <div><span class="swe-badge swe-badge-{{instance.badgeClass}}">{{instance.statusSt}}</span></div>
+                <div><span class="swe-badge swe-badge-{{instance.badgeClass}}" id="instance-status-badge">{{instance.statusSt}}</span></div>
             </div>
         </div>
         {{#instance.inputData}}
@@ -98,15 +126,15 @@
 
     <ul class="swe-timeline">
         {{#activities}}
-        <li class="swe-timeline-item" data-node-id="{{nodeId}}" id="exec-{{nodeId}}">
-            <span class="swe-timeline-dot {{dotClass}}"></span>
+        <li class="swe-timeline-item" data-node-id="{{nodeId}}" data-activity-id="{{id}}" id="exec-{{nodeId}}">
+            <span class="swe-timeline-dot {{dotClass}}" data-role="dot"></span>
             <div class="swe-card swe-card-tight">
                 <div class="swe-flex-between">
                     <div>
                         <div class="swe-heading-sm" style="margin: 0 0 var(--space-xs);">{{activityName}}</div>
-                        <div class="swe-caption swe-mute">Started: {{startDt}}{{#endDt}} · Ended: {{endDt}}{{/endDt}}</div>
+                        <div class="swe-caption swe-mute" data-role="time">Started: {{startDt}}{{#endDt}} · Ended: {{endDt}}{{/endDt}}</div>
                     </div>
-                    <span class="swe-badge swe-badge-{{badgeClass}}">{{statusSt}}</span>
+                    <span class="swe-badge swe-badge-{{badgeClass}}" data-role="badge">{{statusSt}}</span>
                 </div>
                 {{#inputData}}
                 <div style="margin-top: var(--space-md);">
@@ -144,12 +172,11 @@
 <script id="subway-data" type="application/json">{{{subwayJson}}}</script>
 <script src="/js/subway-map.js"></script>
 <script>
-(function () {
-    const raw = document.getElementById('subway-data').textContent;
-    const graph = JSON.parse(raw);
-    Station8SubwayMap.render(document.getElementById('subway-map'), graph, {
+// 노선도 — 초기 렌더 + #132 AJAX 갱신 시 statusByNode만 업데이트 후 재렌더
+window.__subwayGraph = JSON.parse(document.getElementById('subway-data').textContent);
+function renderSubway() {
+    Station8SubwayMap.render(document.getElementById('subway-map'), window.__subwayGraph, {
         interactive: true,
-        // M3: 역 클릭 → 해당 timeline 카드로 스크롤 + 일시 강조
         onStationClick: (node) => {
             const card = document.getElementById('exec-' + node.id);
             if (!card) return;
@@ -158,8 +185,123 @@
             setTimeout(() => card.classList.remove('flash'), 1600);
         }
     });
-})();
+}
+renderSubway();
 </script>
 {{/hasSubway}}
+
+<!-- #132 — 인스턴스가 RUNNING이면 3초 폴링으로 instance/activities/노선도 부분 갱신 -->
+<script>
+(function () {
+    const INSTANCE_ID = '{{instance.id}}';
+    const POLL_INTERVAL_MS = 3000;
+    const isRunningInitially = {{#instance.isRunning}}true{{/instance.isRunning}}{{^instance.isRunning}}false{{/instance.isRunning}};
+
+    let pollTimer = null;
+    let paused = false;
+
+    window.toggleAutoRefresh = function () {
+        const btn = document.getElementById('auto-refresh-toggle');
+        const indicator = document.getElementById('live-indicator');
+        if (paused) {
+            paused = false;
+            if (btn) btn.textContent = 'Pause';
+            if (indicator) indicator.classList.remove('off');
+            startPoll();
+        } else {
+            paused = true;
+            if (btn) btn.textContent = 'Resume';
+            if (indicator) indicator.classList.add('off');
+            stopPoll();
+        }
+    };
+
+    function startPoll() {
+        stopPoll();
+        pollTimer = setInterval(refreshState, POLL_INTERVAL_MS);
+        refreshState();  // 즉시 한 번
+    }
+
+    function stopPoll() {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+
+    function hideIndicator() {
+        const indicator = document.getElementById('live-indicator');
+        if (indicator) indicator.style.display = 'none';
+    }
+
+    async function refreshState() {
+        try {
+            const res = await fetch('/api/line/instances/' + INSTANCE_ID + '/state', {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) {
+                if (res.status === 404) { stopPoll(); hideIndicator(); }
+                return;
+            }
+            const data = await res.json();
+            applyState(data);
+            if (data.instance && data.instance.terminal === true) {
+                stopPoll();
+                hideIndicator();
+            }
+        } catch (e) {
+            console.warn('state poll failed', e);
+        }
+    }
+
+    function applyState(data) {
+        // 1) 인스턴스 status badge
+        const stBadge = document.getElementById('instance-status-badge');
+        if (stBadge && data.instance) {
+            stBadge.textContent = data.instance.statusSt;
+            stBadge.className = 'swe-badge swe-badge-' + data.instance.badgeClass;
+        }
+
+        // 2) 활동 카드 — id 매칭 후 status/badge/dot/시간만 갱신
+        (data.activities || []).forEach(a => {
+            const li = document.querySelector('[data-activity-id="' + a.id + '"]');
+            if (!li) return;  // 새 카드 추가는 비범위 — 사용자가 페이지 reload하면 보임
+            const dot = li.querySelector('[data-role="dot"]');
+            if (dot) dot.className = 'swe-timeline-dot ' + a.dotClass;
+            const badge = li.querySelector('[data-role="badge"]');
+            if (badge) {
+                badge.textContent = a.statusSt;
+                badge.className = 'swe-badge swe-badge-' + a.badgeClass;
+            }
+            const time = li.querySelector('[data-role="time"]');
+            if (time) {
+                let txt = a.startDt ? ('Started: ' + formatDt(a.startDt)) : 'Pending';
+                if (a.endDt) txt += ' · Ended: ' + formatDt(a.endDt);
+                time.textContent = txt;
+            }
+        });
+
+        // 3) 노선도 — statusByNode 갱신 후 재렌더
+        if (data.statusByNode && window.__subwayGraph) {
+            window.__subwayGraph.statusByNode = data.statusByNode;
+            if (typeof renderSubway === 'function') renderSubway();
+        }
+
+        // 4) "Updated HH:MM:SS"
+        const updated = document.getElementById('updated-at');
+        if (updated) {
+            const now = new Date();
+            updated.textContent = '· Updated ' + now.toLocaleTimeString();
+        }
+    }
+
+    function formatDt(iso) {
+        // 백엔드가 LocalDateTime 직렬화 → '2026-05-09T12:34:56' 또는 비슷
+        if (!iso) return '';
+        return iso.toString().replace('T', ' ').substring(0, 19);
+    }
+
+    if (isRunningInitially) {
+        startPoll();
+    }
+})();
+</script>
 </body>
 </html>
