@@ -118,7 +118,11 @@ class DefinitionPreviewRecentRunsTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("DEFINITION_ID = '" + defId + "'")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("'/api/line/definitions/' + DEFINITION_ID + '/run'")))
                 // 헤더에 ▶ Run now 버튼
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("▶ Run now")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("▶ Run now")))
+                // #134 + #148 — onFailure dropdown 옵션 3개
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"CONTINUE\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"ABORT\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"PAUSE_ON_FAILURE\"")));
     }
 
     private String seedInstance(String workflowName, String status) {

@@ -286,7 +286,7 @@ curl -X POST http://localhost:8080/api/line/definitions/<DEF_ID>/run \
 
 | 옵션 | 의미 | 기본값 |
 |---|---|---|
-| `onFailure` | `CONTINUE` — 활동이 최종 실패해도 인스턴스의 다른 활동은 계속 진행 (기본 동작). `ABORT` — 활동이 retry 한도를 초과해 DLQ로 가면 인스턴스를 즉시 `TERMINATED`로 종료(#101 위임). | `CONTINUE` |
+| `onFailure` | 활동 retry 한도 초과 시 인스턴스 처리 정책: `CONTINUE` (기본) — 다른 활동은 계속 진행 / `ABORT` — 인스턴스 즉시 `TERMINATED` (#101 위임) / `PAUSE_ON_FAILURE` (#148) — 인스턴스를 `PAUSED`로 마킹해 운영자 개입 대기 (#139 인프라 활용 — timeline에서 Unpause + 활동 Retry 또는 Terminate 선택) | `CONTINUE` |
 | `runtimeParams` | 활동에서 `LineContext.runtimeParams()`로 접근하는 string→string 맵. 정의(`U_LINE_STATION.INPUT_PARAMS`)는 건드리지 않고 이번 실행에만 영향. | `{}` |
 | `notificationWebhookUrl` | DLQ 적재 + SLA 위반 시 전역 webhook 대신 이 URL로 알림 발송. | `null` (전역 사용) |
 | `slaSeconds` | #138 — 인스턴스 SLA 시간 임계치 override (정의의 default보다 우선). null이면 정의의 `SLA_SECONDS` 사용. | `null` |

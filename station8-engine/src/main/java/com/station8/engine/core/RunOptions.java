@@ -85,7 +85,20 @@ public record RunOptions(
         /** 활동 FAILED 시 retry → DLQ. 인스턴스 다른 활동은 계속 (기존 동작). */
         CONTINUE,
         /** 활동 FAILED 시 인스턴스 즉시 TERMINATED. 진행 중 RUNNING은 워커 자연 완료 후 fan-out 차단 (#101). */
-        ABORT;
+        ABORT,
+        /**
+         * #148 — 활동 FAILED 시 인스턴스를 PAUSED로 마킹. 운영자 개입 대기.
+         *
+         * <p>{@link LineExecutor#pauseLine}을 통해 인스턴스만 PAUSED로 전이.
+         * 실패한 활동은 FAILED 상태 그대로 남아있어 운영자가 timeline에서:</p>
+         * <ul>
+         *   <li>Unpause → 인스턴스 RUNNING → FAILED 활동 옆 ↻ Retry 클릭 (#139) — 그 활동 1건만 재시도</li>
+         *   <li>또는 Terminate — 인스턴스 강제 종료</li>
+         * </ul>
+         *
+         * <p>의존: #139 PAUSED 상태 인프라 (워커 폴링이 PAUSED 인스턴스 활동 차단 + Unpause 시 fan-out 재평가).</p>
+         */
+        PAUSE_ON_FAILURE;
 
         public static OnFailure parse(String s) {
             if (s == null || s.isBlank()) return CONTINUE;

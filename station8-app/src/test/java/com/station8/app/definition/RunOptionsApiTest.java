@@ -92,6 +92,20 @@ class RunOptionsApiTest {
     }
 
     @Test
+    void runDefinition_withPauseOnFailureOption_storesJson() {
+        // #148 — PAUSE_ON_FAILURE 옵션 라운드트립
+        String defId = createSimpleDefinition("PauseOnFailFlow");
+
+        RunOptions opts = new RunOptions(RunOptions.OnFailure.PAUSE_ON_FAILURE, Map.of(), null);
+        String instanceId = service.runDefinition(defId, null, opts);
+
+        LineInstance inst = activityRepository.findInstanceById(instanceId);
+        assertThat(inst.runOptions()).isNotNull().contains("PAUSE_ON_FAILURE");
+        RunOptions roundTrip = RunOptions.parse(inst.runOptions(), jsonUtil);
+        assertThat(roundTrip.onFailure()).isEqualTo(RunOptions.OnFailure.PAUSE_ON_FAILURE);
+    }
+
+    @Test
     void runDefinition_withRuntimeParams_serializedAndRoundTrips() {
         String defId = createSimpleDefinition("ParamsOptsFlow");
 

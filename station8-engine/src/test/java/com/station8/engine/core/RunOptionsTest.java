@@ -82,6 +82,17 @@ class RunOptionsTest {
         assertThat(RunOptions.OnFailure.parse("abort")).isEqualTo(RunOptions.OnFailure.ABORT);
         assertThat(RunOptions.OnFailure.parse(" ABORT ")).isEqualTo(RunOptions.OnFailure.ABORT);
         assertThat(RunOptions.OnFailure.parse("Continue")).isEqualTo(RunOptions.OnFailure.CONTINUE);
+        // #148 — PAUSE_ON_FAILURE
+        assertThat(RunOptions.OnFailure.parse("pause_on_failure")).isEqualTo(RunOptions.OnFailure.PAUSE_ON_FAILURE);
+        assertThat(RunOptions.OnFailure.parse("PAUSE_ON_FAILURE")).isEqualTo(RunOptions.OnFailure.PAUSE_ON_FAILURE);
+    }
+
+    @Test
+    void parse_pauseOnFailure_roundTrip() {
+        // #148 — JSON에서 onFailure=PAUSE_ON_FAILURE 파싱
+        String json = "{\"onFailure\":\"PAUSE_ON_FAILURE\"}";
+        RunOptions opts = RunOptions.parse(json, jsonUtil);
+        assertThat(opts.onFailure()).isEqualTo(RunOptions.OnFailure.PAUSE_ON_FAILURE);
     }
 
     @Test
