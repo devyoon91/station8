@@ -29,13 +29,16 @@ services:
     environment:
       # docker: 컨테이너 네트워크용 datasource 설정 (mariadb 호스트)
       # demo: 부팅 직후 샘플 DAG + 스케줄 자동 시드 (DemoSeedRunner)
-      SPRING_PROFILES_ACTIVE: docker,demo
-      # docker 프로파일이 spring.datasource를 참조하므로 명시적 override는 불필요하나,
-      # 컨테이너 네트워크 호스트로 mariadb 사용 (compose 서비스명 = DNS)
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/workflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: wfuser
-      SPRING_DATASOURCE_PASSWORD: wfpw
-      JAVA_OPTS: "-Xms256m -Xmx512m"
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker,demo}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mariadb://mariadb:3306/workflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-wfuser}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-wfpw}
+      # 초기 ADMIN 시드 (#121) — .env 또는 docker/.env에서 주입. 비우면 랜덤 자동 생성.
+      STATION8_INITIAL_ADMIN_USERNAME: ${STATION8_INITIAL_ADMIN_USERNAME:-admin}
+      STATION8_INITIAL_ADMIN_PASSWORD: ${STATION8_INITIAL_ADMIN_PASSWORD:-}
+      # DLQ 웹훅 (선택) — Slack 등
+      ENGINE_DLQ_WEBHOOK_URL: ${ENGINE_DLQ_WEBHOOK_URL:-}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m}
     ports:
       - "8080:8080"
     restart: unless-stopped
