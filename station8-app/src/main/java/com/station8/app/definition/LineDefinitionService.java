@@ -1,6 +1,5 @@
 package com.station8.app.definition;
 
-import com.station8.engine.core.ConcurrencyPolicy;
 import com.station8.engine.core.DagInterpreter;
 import com.station8.engine.core.DagValidator;
 import com.station8.engine.core.LineRegistry;
@@ -285,17 +284,19 @@ public class LineDefinitionService {
             throw new IllegalArgumentException("정의를 찾을 수 없습니다: " + definitionId);
         }
 
-        // #141 — SKIP_IF_RUNNING 체크 (정의 정책)
-        ConcurrencyPolicy policy = ConcurrencyPolicy.parse(def.concurrencyPolicy());
-        if (policy == ConcurrencyPolicy.SKIP_IF_RUNNING) {
-            String conflicting = findActiveInstanceWithLock(def.definitionNm());
-            if (conflicting != null) {
-                String reason = "Definition '" + def.definitionNm() + "' has an active instance ("
-                        + conflicting + ") with policy SKIP_IF_RUNNING";
-                log.warn("[#141] 동시 실행 SKIP — definitionId={}, conflictingInstance={}",
-                        definitionId, conflicting);
-                return RunResult.skipped(reason, conflicting);
-            }
+        // #141, #177 — Concurrency strategy 평가 (시작 시점 게이트)
+        com.station8.engine.core.ConcurrencyStrategy strategy =
+                com.station8.engine.core.ConcurrencyStrategy.parse(def.concurrencyPolicy());
+        com.station8.engine.core.ConcurrencyStrategy.StartContext startCtx =
+                new com.station8.engine.core.ConcurrencyStrategy.StartContext(
+                        def.definitionNm(),
+                        () -> findActiveInstanceWithLock(def.definitionNm())  // lazy — Concurrent는 SQL 안 부름
+                );
+        com.station8.engine.core.ConcurrencyStrategy.StartResult startResult = strategy.evaluateOnStart(startCtx);
+        if (!startResult.allowed()) {
+            log.warn("[#141/#177] 동시 실행 SKIP — definitionId={}, policy={}, conflicting={}",
+                    definitionId, strategy.policyName(), startResult.conflictingInstanceId());
+            return RunResult.skipped(startResult.reason(), startResult.conflictingInstanceId());
         }
 
         RunOptions opt = options != null ? options : RunOptions.defaults();
@@ -309,7 +310,7 @@ public class LineDefinitionService {
 
         dagInterpreter.startInstance(definitionId, instanceId, inputData);
         log.info("DAG 즉시 실행: definitionId={}, instanceId={}, onFailure={}, concurrency={}",
-                definitionId, instanceId, opt.onFailure(), policy);
+                definitionId, instanceId, opt.onFailure(), strategy.policyName());
         return RunResult.started(instanceId);
     }
 
