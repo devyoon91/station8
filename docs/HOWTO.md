@@ -335,6 +335,25 @@ public String chargeOrder(String input, LineContext ctx) {
 - 인스턴스 RUN_OPTIONS override (`runtimeParams`/`onFailure`/`sla*` 옆에 `concurrencyPolicy` 추가)
 - Resource quota (CPU/메모리 단위 동시성)
 
+### 2.5.2. 태그 / 분류 (#142)
+
+라인 정의에 free-form 태그를 부여해 분류/검색 가능. 라인 수가 많아질 때 운영 효율 ↑.
+
+| 영역 | 동작 |
+|---|---|
+| **Builder** | "Line settings — SLA / Concurrency" details에 Tags input (쉼표 구분) |
+| **저장 시 정규화** | trim + lowercase + dedup + 50자 제한 |
+| **목록 페이지** (`/line/definitions`) | 행별 태그 뱃지 (자동 색상) + 이름/태그 검색 + tag cloud (자주 쓰는 태그 클릭으로 필터) |
+| **REST** | `POST /api/line/definitions` body의 `tags: [...]` 배열 |
+| **삭제** | 정의 soft-delete 시 태그는 DB에 남지만 cloud/검색에서 자동 제외 (`DEL_FL='N'` 조건) |
+
+**색상 정책**: 태그 문자열 hashCode → 6색 팔레트(인디고/핑크/그린/오렌지/시안/퍼플) — 같은 태그는 항상 같은 색상.
+
+**비범위 (별도 follow-up)**:
+- 워크스페이스 / 프로젝트 추상화 — per-line 권한(#140)과 묶어서 검토
+- 폴더 트리 구조
+- 태그 자체에 권한 부여 (예: `team:finance` 태그를 본인 팀만 볼 수 있도록 — #159 ACL READ enforcement에 의존)
+
 ### 2.6. SLA — 시간 임계치 + auto-kill / 알림 (#138)
 
 라인 정의(또는 인스턴스)에 **시간 임계치**를 걸면 `SlaPoller`가 분 단위로 RUNNING 인스턴스를 검사해 위반 시 알림 + 옵션에 따라 auto-terminate.

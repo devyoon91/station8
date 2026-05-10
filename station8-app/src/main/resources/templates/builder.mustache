@@ -271,6 +271,15 @@
                     SKIP 시: 즉시 실행 응답은 200 + <code>{skipped:true}</code> / cron 폴러는 nextRunDt만 갱신하고 다음 주기로.
                 </div>
             </div>
+            <!-- #142 — 태그 -->
+            <div style="grid-column: 1 / -1;">
+                <label for="tagsInput">Tags</label>
+                <input type="text" id="tagsInput" class="swe-input" placeholder="etl, daily, finance"
+                       value="{{#tagsCsv}}{{tagsCsv}}{{/tagsCsv}}">
+                <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
+                    쉼표로 구분 (free-form). 자동으로 trim + lowercase 적용. 정의 목록 페이지에서 필터/검색 사용.
+                </div>
+            </div>
         </div>
     </details>
     {{#loadError}}
@@ -939,10 +948,13 @@ async function saveDefinition() {
     // #141 — 동시 실행 정책 (선택)
     const concurrencyPolicyRaw = document.getElementById('concurrencyPolicy').value;
     const concurrencyPolicy = concurrencyPolicyRaw || null;
+    // #142 — 태그 (쉼표 구분, free-form)
+    const tagsRaw = document.getElementById('tagsInput').value;
+    const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
     const payload = EDIT_MODE
-        ? {definitionNm, description: 'Edited via Builder', slaSeconds, slaAction, concurrencyPolicy, nodes, edges}
-        : {definitionNm, description: 'Created via Builder', slaSeconds, slaAction, concurrencyPolicy, nodes, edges};
+        ? {definitionNm, description: 'Edited via Builder', slaSeconds, slaAction, concurrencyPolicy, tags, nodes, edges}
+        : {definitionNm, description: 'Created via Builder', slaSeconds, slaAction, concurrencyPolicy, tags, nodes, edges};
 
     setStatus(EDIT_MODE ? 'Updating…' : 'Saving…');
     const res = await fetch(url, {

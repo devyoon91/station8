@@ -62,10 +62,14 @@ public class BuilderController {
             String concurrency = existing.concurrencyPolicy() == null ? "" : existing.concurrencyPolicy();
             model.addAttribute("concurrencyConcurrent", concurrency.isEmpty() || "CONCURRENT".equals(concurrency));
             model.addAttribute("concurrencySkip", "SKIP_IF_RUNNING".equals(concurrency));
-            // 둘 중 하나라도 설정됐으면 details open
+            // #142 — 태그 폼 미리채움 (쉼표 join)
+            java.util.List<String> tags = existing.tags() == null ? java.util.List.of() : existing.tags();
+            model.addAttribute("tagsCsv", String.join(", ", tags));
+            // 셋 중 하나라도 설정됐으면 details open
             model.addAttribute("hasLineSettings", existing.slaSeconds() != null
                     || (existing.slaAction() != null && !existing.slaAction().isBlank())
-                    || "SKIP_IF_RUNNING".equals(concurrency));
+                    || "SKIP_IF_RUNNING".equals(concurrency)
+                    || !tags.isEmpty());
         } catch (IllegalArgumentException ex) {
             log.warn("Builder edit — definition not found: {} ({})", definitionId, ex.getMessage());
             model.addAttribute("editMode", false);
