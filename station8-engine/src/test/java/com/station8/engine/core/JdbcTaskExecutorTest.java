@@ -242,13 +242,13 @@ class JdbcTaskExecutorTest {
         }
 
         @Override
-        public List<LineInstance> findInstancesPage(String workflowName, String statusSt, String instanceId,
-                                                    int offset, int limit) {
+        public List<LineInstance> findInstancesPage(
+                com.station8.engine.repository.InstanceQueryFilter filter, int offset, int limit) {
             return List.of();
         }
 
         @Override
-        public long countInstances(String workflowName, String statusSt, String instanceId) {
+        public long countInstances(com.station8.engine.repository.InstanceQueryFilter filter) {
             return 0L;
         }
 

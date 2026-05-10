@@ -38,16 +38,87 @@
         </div>
     </div>
 
+    <!-- 검색/필터 (#137) -->
+    <div class="swe-card-elevated swe-mb-xl">
+        <form method="get" action="/line/dlq">
+            <div class="swe-grid swe-grid-3">
+                <div>
+                    <label for="dlq-workflow">Line Name</label>
+                    <input type="text" id="dlq-workflow" name="workflowName" class="swe-input"
+                           value="{{#workflowName}}{{workflowName}}{{/workflowName}}" placeholder="Name substring">
+                </div>
+                <div>
+                    <label for="dlq-activity">Activity</label>
+                    <input type="text" id="dlq-activity" name="activityName" class="swe-input"
+                           value="{{#activityName}}{{activityName}}{{/activityName}}" placeholder="Activity 이름 substring">
+                </div>
+                <div style="display: flex; align-items: end; gap: var(--space-md); justify-content: flex-end;">
+                    <a href="/line/dlq" class="swe-btn-secondary">Reset</a>
+                    <button type="submit" class="swe-btn-primary">Apply</button>
+                </div>
+            </div>
+            <details {{#advancedOpen}}open{{/advancedOpen}} style="margin-top: var(--space-md);">
+                <summary style="cursor: pointer; font-weight: 600; user-select: none;">More filters</summary>
+                <div style="margin-top: var(--space-md); display: flex; flex-direction: column; gap: var(--space-md);">
+                    <div>
+                        <label for="dlq-error-message">Error message (부분일치)</label>
+                        <input type="text" id="dlq-error-message" name="errorMessage" class="swe-input"
+                               value="{{#errorMessage}}{{errorMessage}}{{/errorMessage}}" placeholder="예: Timeout / NullPointerException">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom: var(--space-xs); font-weight: 600;">DLQ Status (다중)</label>
+                        <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
+                            <label style="display:flex; align-items:center; gap: var(--space-xs); cursor:pointer;">
+                                <input type="checkbox" name="dlqStatusSt" value="NEW" {{#selectedNew}}checked{{/selectedNew}}>
+                                <span class="swe-badge swe-badge-danger">NEW</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap: var(--space-xs); cursor:pointer;">
+                                <input type="checkbox" name="dlqStatusSt" value="REQUEUED" {{#selectedRequeued}}checked{{/selectedRequeued}}>
+                                <span class="swe-badge swe-badge-info">REQUEUED</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap: var(--space-xs); cursor:pointer;">
+                                <input type="checkbox" name="dlqStatusSt" value="DISCARDED" {{#selectedDiscarded}}checked{{/selectedDiscarded}}>
+                                <span class="swe-badge swe-badge-mute">DISCARDED</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="swe-grid swe-grid-2" style="gap: var(--space-md);">
+                        <div>
+                            <label for="dlq-failed-from">Failed at from</label>
+                            <input type="date" id="dlq-failed-from" name="failedAtFrom" class="swe-input"
+                                   value="{{failedAtFrom}}">
+                        </div>
+                        <div>
+                            <label for="dlq-failed-to">Failed at to</label>
+                            <input type="date" id="dlq-failed-to" name="failedAtTo" class="swe-input"
+                                   value="{{failedAtTo}}">
+                        </div>
+                    </div>
+                </div>
+            </details>
+            <input type="hidden" name="sortBy" value="{{sortBy}}">
+            <input type="hidden" name="sortDir" value="{{sortDir}}">
+        </form>
+    </div>
+
     <div class="swe-card" style="padding: 0;">
         <table class="swe-table">
             <thead>
             <tr>
                 <th>ID</th>
                 <th>Line</th>
-                <th>Activity</th>
+                <th>
+                    <a href="{{{activitySortHref}}}" class="swe-mute" style="text-decoration:none;">
+                        Activity {{#sortActivity}}{{#sortAsc}}▲{{/sortAsc}}{{^sortAsc}}▼{{/sortAsc}}{{/sortActivity}}
+                    </a>
+                </th>
                 <th>Status</th>
                 <th>Retry</th>
-                <th>Failed at</th>
+                <th>
+                    <a href="{{{failedAtSortHref}}}" class="swe-mute" style="text-decoration:none;">
+                        Failed at {{#sortFailedAt}}{{#sortAsc}}▲{{/sortAsc}}{{^sortAsc}}▼{{/sortAsc}}{{/sortFailedAt}}
+                    </a>
+                </th>
                 <th class="swe-text-right">Actions</th>
             </tr>
             </thead>

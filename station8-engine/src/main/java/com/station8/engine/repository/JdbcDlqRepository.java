@@ -62,15 +62,62 @@ public class JdbcDlqRepository implements DlqRepository {
     }
 
     @Override
-    public List<DlqEntry> findPage(int offset, int limit) {
-        String sql = "SELECT * FROM H_LINE_DLQ ORDER BY REG_DT DESC " + dbDialect.offsetLimit(offset, limit);
-        return jdbcTemplate.query(sql, new DlqEntryRowMapper());
+    public List<DlqEntry> findPage(DlqQueryFilter filter, int offset, int limit) {
+        DlqFilter f = new DlqFilter(filter);
+        String sql = "SELECT * FROM H_LINE_DLQ " + f.where()
+                + " ORDER BY " + filter.sortBy() + " " + filter.sortDir()
+                + " " + dbDialect.offsetLimit(offset, limit);
+        return jdbcTemplate.query(sql, new DlqEntryRowMapper(), f.args().toArray());
     }
 
     @Override
-    public long count() {
-        Long n = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM H_LINE_DLQ", Long.class);
+    public long count(DlqQueryFilter filter) {
+        DlqFilter f = new DlqFilter(filter);
+        String sql = "SELECT COUNT(*) FROM H_LINE_DLQ " + f.where();
+        Long n = jdbcTemplate.queryForObject(sql, Long.class, f.args().toArray());
         return n == null ? 0L : n;
+    }
+
+    /**
+     * DLQ 필터를 동적 WHERE로 빌드 (#137).
+     * 모든 인자는 ``?``로 바인딩 → SQL 인젝션 방지. sortBy/sortDir은 record의 컴팩트 생성자에서 화이트리스트 정규화됨.
+     */
+    private static final class DlqFilter {
+        private final java.util.List<String> conditions = new java.util.ArrayList<>();
+        private final java.util.List<Object> args = new java.util.ArrayList<>();
+        DlqFilter(DlqQueryFilter f) {
+            if (f.workflowName() != null && !f.workflowName().isBlank()) {
+                conditions.add("WORKFLOW_NAME LIKE ?");
+                args.add("%" + f.workflowName() + "%");
+            }
+            if (f.activityName() != null && !f.activityName().isBlank()) {
+                conditions.add("ACTIVITY_NAME LIKE ?");
+                args.add("%" + f.activityName() + "%");
+            }
+            if (f.errorMessage() != null && !f.errorMessage().isBlank()) {
+                conditions.add("ERROR_MESSAGE LIKE ?");
+                args.add("%" + f.errorMessage() + "%");
+            }
+            if (f.dlqStatusList() != null && !f.dlqStatusList().isEmpty()) {
+                String placeholders = f.dlqStatusList().stream()
+                        .map(s -> "?")
+                        .collect(java.util.stream.Collectors.joining(", "));
+                conditions.add("DLQ_STATUS_ST IN (" + placeholders + ")");
+                args.addAll(f.dlqStatusList());
+            }
+            if (f.failedAtFrom() != null) {
+                conditions.add("FAILED_AT_DT >= ?");
+                args.add(java.sql.Timestamp.valueOf(f.failedAtFrom()));
+            }
+            if (f.failedAtTo() != null) {
+                conditions.add("FAILED_AT_DT <= ?");
+                args.add(java.sql.Timestamp.valueOf(f.failedAtTo()));
+            }
+        }
+        String where() {
+            return conditions.isEmpty() ? "" : "WHERE " + String.join(" AND ", conditions);
+        }
+        java.util.List<Object> args() { return args; }
     }
 
     @Override
