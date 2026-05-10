@@ -439,8 +439,34 @@ engine.dlq.webhook-url=https://hooks.slack.com/services/T00/B00/XXXX
 | cron 표현식 실패 | `WF-E402` | Spring 6필드(초 분 시 일 월 요일). UI 미리보기로 확인 |
 | Batch Job 미등록 | `WF-E603` | `@Bean Job` 등록 + `jobName`이 빈 이름과 일치하는지 |
 | DLQ가 안 채워짐 | — | retryCount만큼 시도 후 적재. backoff 누적 시간만큼 대기 (5/10/20/40/80s) |
+| 로그인 안 됨 — `.env`에 비번 적었는데 거부 | — | 첫 부팅에서 자동 생성된 admin이 DB 영속됐을 가능성. 아래 "ADMIN 비밀번호 잊음/안 맞음" 참조 |
 
 상세 코드 카탈로그: [docs/ERROR_CODES.md](ERROR_CODES.md)
+
+### ADMIN 비밀번호 잊음/안 맞음
+
+`InitialAdminSeeder`는 **같은 username이 DB에 이미 있으면 skip** (멱등 정책) — `.env`에 비밀번호 적어도 기존 admin이 있으면 적용 안 됨. 해결 3가지:
+
+1. **콘솔 로그에서 자동 생성된 비밀번호 찾기** (첫 부팅 직후, 로그 스크롤백 살아있을 때):
+   ```bash
+   docker compose -f docker/docker-compose.yml logs app | grep -A 6 "Auto-generated"
+   ```
+
+2. **DB 완전 초기화 + 새 비밀번호로 시드** (★ 권장):
+   ```bash
+   docker compose -f docker/docker-compose.yml down -v   # -v: volume 삭제
+   # docker/.env에서 STATION8_INITIAL_ADMIN_PASSWORD 채우기
+   docker compose -f docker/docker-compose.yml up --build -d
+   ```
+
+3. **DB 직접 admin만 삭제 후 재시작** (다른 사용자/스케줄 보존):
+   ```bash
+   docker exec -it swe-mariadb mariadb -uroot -prootpw -e \
+     "DELETE FROM workflow.U_LINE_USER_ROLE; DELETE FROM workflow.U_LINE_USER WHERE USERNAME='admin';"
+   docker compose -f docker/docker-compose.yml restart app
+   ```
+
+> 부팅 시 env에 비밀번호가 명시되어 있는데 admin이 이미 DB에 있으면 콘솔에 WARN 로그가 출력되어 운영자에게 알린다 (#127 후속).
 
 ---
 

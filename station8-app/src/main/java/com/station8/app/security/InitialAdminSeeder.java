@@ -55,8 +55,17 @@ public class InitialAdminSeeder {
     @EventListener(ApplicationReadyEvent.class)
     public void seedIfNeeded() {
         if (repository.findByUsername(initialAdminUsername) != null) {
-            log.debug("Initial admin '{}' already exists — seed skipped (idempotent)",
-                    initialAdminUsername);
+            // env에 비밀번호 명시했는데 이미 admin이 있으면 운영자가 혼동할 수 있음 — WARN
+            // (이전에 부팅된 시점의 비밀번호가 우선, env 변경은 적용 안 됨 — 멱등 정책)
+            if (initialAdminPassword != null && !initialAdminPassword.isBlank()) {
+                log.warn("Initial admin '{}' already exists in DB — STATION8_INITIAL_ADMIN_PASSWORD" +
+                        " is IGNORED. To apply a new password: (1) login + change at /me/password," +
+                        " or (2) reset via DB and restart, or (3) 'docker compose down -v' to wipe.",
+                        initialAdminUsername);
+            } else {
+                log.debug("Initial admin '{}' already exists — seed skipped (idempotent)",
+                        initialAdminUsername);
+            }
             return;
         }
 
