@@ -112,7 +112,7 @@
             min-width: 24px;
             height: 24px;
             padding: 0 6px;
-            background: var(--accent-pink);
+            background: var(--accent-pink, var(--line-pink, #e6197f));
             color: #0d0d0d;
             border: 2px solid var(--surface);
             border-radius: 12px;
@@ -239,12 +239,12 @@
 <!-- Drawflow SVG 엣지에 적용할 화살표 marker. 모든 connection .main-path가 marker-end로 참조. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
-        <marker id="dag-edge-arrow" viewBox="0 0 10 10" refX="9" refY="5"
-                markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="dag-edge-arrow" viewBox="0 0 10 10" refX="10" refY="5"
+                markerWidth="8" markerHeight="8" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" style="fill: var(--mute);"/>
         </marker>
-        <marker id="dag-edge-arrow-selected" viewBox="0 0 10 10" refX="9" refY="5"
-                markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="dag-edge-arrow-selected" viewBox="0 0 10 10" refX="10" refY="5"
+                markerWidth="8" markerHeight="8" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" style="fill: var(--primary);"/>
         </marker>
     </defs>
@@ -488,7 +488,7 @@ canvas.addEventListener('drop', e => {
     const pos_x = e.clientX - rect.left;
     const pos_y = e.clientY - rect.top;
     const html = '<div><strong>' + activity + '</strong>' +
-        '<div style="font-size: 11px; color: var(--mute); margin-top: 4px;" data-label-id></div></div>';
+        '<div style="font-size: 11px; color: var(--body); margin-top: 4px;" data-label-id></div></div>';
     const nodeId = editor.addNode(activity, 1, 1, pos_x, pos_y, activity, {activityNm: activity, inputParams: '', datasourceBindings: ''}, html);
     setStatus('Added node #' + nodeId + ' (' + activity + ')');
 });
@@ -1179,7 +1179,7 @@ function restoreExistingDefinition() {
 
     (def.nodes || []).forEach(n => {
         const html = '<div><strong>' + n.activityNm + '</strong>' +
-            '<div style="font-size: 11px; color: var(--mute); margin-top: 4px;" data-label-id></div></div>';
+            '<div style="font-size: 11px; color: var(--body); margin-top: 4px;" data-label-id></div></div>';
         const bindingsJson = (n.datasourceBindings && Object.keys(n.datasourceBindings).length > 0)
             ? JSON.stringify(n.datasourceBindings)
             : '';
@@ -1261,6 +1261,8 @@ function refreshExecutionOrder() {
     ids.forEach(id => {
         const nodeEl = document.getElementById('node-' + id);
         if (!nodeEl) return;
+        const labelEl = nodeEl.querySelector('[data-label-id]');
+        if (labelEl) labelEl.textContent = '#' + id;
         let badge = nodeEl.querySelector('.exec-order-badge');
         if (!badge) {
             badge = document.createElement('div');
