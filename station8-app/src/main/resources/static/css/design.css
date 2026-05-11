@@ -694,12 +694,19 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
   border-bottom: 2px solid transparent;
   cursor: pointer;
   font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
 }
 .swe-tab:hover { color: var(--ink); background: var(--surface); }
 .swe-tab.active {
   color: var(--ink);
   border-bottom-color: var(--primary);
   background: var(--surface);
+}
+.swe-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 /* Stations list — Builder + Preview 공통 */
