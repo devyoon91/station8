@@ -64,27 +64,12 @@
             border-radius: var(--radius-md);
             padding: var(--space-md);
             min-width: 180px;
-            /* #195 후속 — 라벨 채움/제거로 박스 높이가 변동되면 Drawflow가 포트 좌표를 stale 캐싱해
-               드래그 중 임시 path와 confirmed connection이 모두 어긋남. min-height로 박스 사이즈를
-               고정하고 라벨은 absolute로 띄워 사이즈 변동 zero 보장. */
-            min-height: 64px;
             box-shadow: none;
             font-family: inherit;
             font-size: 13px;
             position: relative;
         }
         .drawflow .drawflow-node.selected { border-color: var(--primary); }
-        /* 노드 ID 라벨 — absolute 좌하단. 인라인이면 박스 사이즈 변동 → 화살표 정렬 회귀. */
-        .drawflow .drawflow-node [data-label-id] {
-            position: absolute;
-            bottom: var(--space-md);
-            left: var(--space-md);
-            font-size: 11px;
-            color: var(--body);
-            line-height: 1;
-            pointer-events: none;
-            user-select: none;
-        }
         /* #135 — 좌측 stations list 클릭 시 캔버스 노드를 강조 */
         .drawflow .drawflow-node.builder-focused {
             border-color: var(--line-yellow, #FBCA04);
@@ -496,9 +481,17 @@ canvas.addEventListener('drop', e => {
     const rect = canvas.getBoundingClientRect();
     const pos_x = e.clientX - rect.left;
     const pos_y = e.clientY - rect.top;
+    // 라벨 div는 placeholder(&#160;)로 미리 채워 박스 사이즈가 처음부터 최종 사이즈와 동일하게.
+    // 빈 div와 채워진 div의 height 차이로 Drawflow가 포트 좌표를 잘못 계산하던 회귀 차단.
     const html = '<div><strong>' + activity + '</strong>' +
-        '<div data-label-id></div></div>';
+        '<div data-label-id style="font-size:11px; color:var(--body); margin-top:4px; line-height:1; min-height:11px;">&#160;</div></div>';
     const nodeId = editor.addNode(activity, 1, 1, pos_x, pos_y, activity, {activityNm: activity, inputParams: '', datasourceBindings: ''}, html);
+    // 동기적으로 라벨 채움 — setTimeout race 회피 (placeholder와 final 모두 1줄 텍스트라 height 변동 zero)
+    const newNodeEl = document.getElementById('node-' + nodeId);
+    if (newNodeEl) {
+        const labelEl = newNodeEl.querySelector('[data-label-id]');
+        if (labelEl) labelEl.textContent = '#' + nodeId;
+    }
     setStatus('Added node #' + nodeId + ' (' + activity + ')');
 });
 
@@ -1205,7 +1198,7 @@ function restoreExistingDefinition() {
 
     (def.nodes || []).forEach(n => {
         const html = '<div><strong>' + n.activityNm + '</strong>' +
-            '<div data-label-id></div></div>';
+            '<div data-label-id style="font-size:11px; color:var(--body); margin-top:4px; line-height:1; min-height:11px;">&#160;</div></div>';
         const bindingsJson = (n.datasourceBindings && Object.keys(n.datasourceBindings).length > 0)
             ? JSON.stringify(n.datasourceBindings)
             : '';
@@ -1222,6 +1215,12 @@ function restoreExistingDefinition() {
             },
             html
         );
+        // 동기적으로 라벨 채움 — placeholder와 final 모두 1줄 텍스트라 height 변동 zero
+        const newNodeEl = document.getElementById('node-' + drawflowId);
+        if (newNodeEl) {
+            const labelEl = newNodeEl.querySelector('[data-label-id]');
+            if (labelEl) labelEl.textContent = '#' + drawflowId;
+        }
         idMap[n.nodeId] = drawflowId;
     });
 
