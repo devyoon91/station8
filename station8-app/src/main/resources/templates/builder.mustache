@@ -57,6 +57,9 @@
                 radial-gradient(circle, var(--hairline) 1px, transparent 1px) 0 0 / 24px 24px,
                 var(--canvas);
         }
+        /* position: absolute는 Drawflow 기본 — 절대 덮어쓰지 말 것.
+           이전에 exec-order-badge anchor용으로 position:relative를 추가했다가 노드 좌표가 block flow로
+           세로 stacking되어 화살표/포트 위치가 모든 시점에서 어긋나던 회귀(#191/#200/#203의 진짜 원인)를 유발. */
         .drawflow .drawflow-node {
             background: var(--surface-elevated);
             border: 1px solid var(--hairline);
@@ -67,7 +70,6 @@
             box-shadow: none;
             font-family: inherit;
             font-size: 13px;
-            position: relative;
         }
         .drawflow .drawflow-node.selected { border-color: var(--primary); }
         /* #135 — 좌측 stations list 클릭 시 캔버스 노드를 강조 */
