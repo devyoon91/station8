@@ -23,7 +23,10 @@
         {{^autoRefresh}}<a href="/line/dashboard?auto=1" class="swe-btn-tertiary">↻ Auto-refresh</a>{{/autoRefresh}}
     </div>
 
-    <!-- 통계 -->
+    <!-- 통계 (#195 — 글로벌 카운트, 필터와 무관) -->
+    <p class="swe-mute" style="font-size: 12px; margin: 0 0 var(--space-sm);">
+        헤더 카드는 <strong>전체 기간</strong> 기준 · 아래 테이블은 적용된 필터 결과
+    </p>
     <div class="swe-grid swe-grid-4 swe-mb-xl">
         <div class="swe-stat-card">
             <div class="swe-stat-label">Total</div>
@@ -66,7 +69,7 @@
                 <summary style="cursor: pointer; font-weight: 600; user-select: none;">More filters</summary>
                 <div style="margin-top: var(--space-md); display: flex; flex-direction: column; gap: var(--space-md);">
                     <div>
-                        <label style="display:block; margin-bottom: var(--space-xs); font-weight: 600;">Status (다중 선택)</label>
+                        <label style="display:block; margin-bottom: var(--space-xs); font-weight: 600;">Status (다중 선택 — 모두 미체크 = 전부 표시)</label>
                         <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
                             <label style="display:flex; align-items:center; gap: var(--space-xs); cursor: pointer;">
                                 <input type="checkbox" name="statusSt" value="RUNNING" {{#selectedRunning}}checked{{/selectedRunning}}>
@@ -101,6 +104,7 @@
                     <div class="swe-mute" style="font-size: 11px;">
                         날짜 범위는 <code>START_DT</code> 기준 inclusive 양 끝 (to는 23:59:59까지 포함).
                         정렬은 컬럼 헤더 클릭으로 변경 (시작/종료/등록일).
+                        {{#appliedDateDefault}}<br>💡 첫 진입 — <strong>최근 7일</strong> 기본 적용 중. 다른 기간 보려면 위 입력 수정 후 Apply.{{/appliedDateDefault}}
                     </div>
                 </div>
             </details>

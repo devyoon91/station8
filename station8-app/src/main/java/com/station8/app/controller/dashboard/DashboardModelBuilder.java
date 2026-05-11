@@ -10,6 +10,7 @@ import com.station8.engine.repository.LineDefinitionRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.ui.Model;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -43,6 +44,9 @@ public class DashboardModelBuilder {
     /** Auto-refresh 간격(초) — 워커 폴링 주기 1초 + 여유. */
     private static final int AUTO_REFRESH_INTERVAL_SECONDS = 5;
 
+    /** #195 — 초기 진입 시 적용되는 기본 날짜 범위(일). 첫 인상 UX를 위한 합리적 default. */
+    private static final int DEFAULT_RECENT_DAYS = 7;
+
     private final ActivityRepository activityRepository;
     private final LineDefinitionRepository definitionRepository;
     private final LineAclService aclService;
@@ -69,9 +73,21 @@ public class DashboardModelBuilder {
 
         int pageSize = PaginationModel.normalizeSize(req.size());
 
+        // #195 — 초기 진입(둘 다 null) 시 최근 7일 default 적용. 사용자가 from/to 중 하나라도
+        // 명시하면 사용자 의도 보호 차원에서 default 미적용. URL에는 default를 명시하지 않으므로
+        // Reset 링크(/line/dashboard)는 그대로 default 재적용 의미.
+        LocalDate effectiveFromDate = req.startDtFrom();
+        LocalDate effectiveToDate = req.startDtTo();
+        boolean appliedDateDefault = (effectiveFromDate == null && effectiveToDate == null);
+        if (appliedDateDefault) {
+            LocalDate today = LocalDate.now();
+            effectiveFromDate = today.minusDays(DEFAULT_RECENT_DAYS);
+            effectiveToDate = today;
+        }
+
         // 날짜 양 끝 inclusive — from은 자정, to는 23:59:59 (사용자가 to 같은 날짜 선택 시 그 날 끝까지 포함)
-        LocalDateTime startFromDt = req.startDtFrom() != null ? req.startDtFrom().atStartOfDay() : null;
-        LocalDateTime startToDt = req.startDtTo() != null ? req.startDtTo().atTime(23, 59, 59) : null;
+        LocalDateTime startFromDt = effectiveFromDate != null ? effectiveFromDate.atStartOfDay() : null;
+        LocalDateTime startToDt = effectiveToDate != null ? effectiveToDate.atTime(23, 59, 59) : null;
 
         // null/빈 statusSt 정규화 — 전부 빈 문자열이면 null로 떨어뜨려 SQL에서 무시
         List<String> normalizedStatuses = (req.statusSt() == null || req.statusSt().isEmpty())
@@ -80,6 +96,8 @@ public class DashboardModelBuilder {
         if (normalizedStatuses != null && normalizedStatuses.isEmpty()) {
             normalizedStatuses = null;
         }
+        // #195 — status 미체크 = "전부" 의미. UI에서는 4개 모두 selected 표시해 사용자 혼동 제거.
+        boolean noStatusFilter = (normalizedStatuses == null);
 
         InstanceQueryFilter filter = new InstanceQueryFilter(
                 req.workflowName(), normalizedStatuses, req.instanceId(),
@@ -99,18 +117,20 @@ public class DashboardModelBuilder {
         List<LineInstance> rows = activityRepository.findInstancesPage(filter, offset, pageSize);
         model.addAttribute("instances", toInstanceViews(rows));
 
-        // 폼 값 보존 — 사용자가 검색 조건을 유지한 채 페이지 이동 가능
+        // 폼 값 보존 — 사용자가 검색 조건을 유지한 채 페이지 이동 가능.
+        // 날짜 input에는 effective 값을 표시 (default 적용 시에도 사용자가 적용된 범위를 시각적으로 인지)
         model.addAttribute("workflowName", req.workflowName());
         model.addAttribute("instanceId", req.instanceId());
-        model.addAttribute("startDtFrom", req.startDtFrom() == null ? "" : req.startDtFrom().toString());
-        model.addAttribute("startDtTo", req.startDtTo() == null ? "" : req.startDtTo().toString());
+        model.addAttribute("startDtFrom", effectiveFromDate == null ? "" : effectiveFromDate.toString());
+        model.addAttribute("startDtTo", effectiveToDate == null ? "" : effectiveToDate.toString());
+        model.addAttribute("appliedDateDefault", appliedDateDefault);
 
-        // 다중 status 체크박스 selected 상태
+        // 다중 status 체크박스 selected 상태 — 미체크면 "전부" 의미라 4개 모두 selected 표시
         Set<String> selStatus = normalizedStatuses == null ? Set.of() : Set.copyOf(normalizedStatuses);
-        model.addAttribute("selectedRunning", selStatus.contains("RUNNING"));
-        model.addAttribute("selectedCompleted", selStatus.contains("COMPLETED"));
-        model.addAttribute("selectedFailed", selStatus.contains("FAILED"));
-        model.addAttribute("selectedTerminated", selStatus.contains("TERMINATED"));
+        model.addAttribute("selectedRunning", noStatusFilter || selStatus.contains("RUNNING"));
+        model.addAttribute("selectedCompleted", noStatusFilter || selStatus.contains("COMPLETED"));
+        model.addAttribute("selectedFailed", noStatusFilter || selStatus.contains("FAILED"));
+        model.addAttribute("selectedTerminated", noStatusFilter || selStatus.contains("TERMINATED"));
 
         // 정렬 상태 — 컬럼 헤더에서 화살표 표시
         String effectiveSortBy = filter.sortBy();
@@ -122,11 +142,12 @@ public class DashboardModelBuilder {
         model.addAttribute("sortRegDt", "REG_DT".equals(effectiveSortBy));
         model.addAttribute("sortAsc", "ASC".equals(effectiveSortDir));
 
-        // Advanced 필터 영역 자동 펼침 — 날짜/다중상태/정렬 중 하나라도 사용 시
+        // Advanced 필터 영역 자동 펼침 — 날짜/다중상태/정렬 중 하나라도 사용 시,
+        // 또는 #195 default 적용 시(사용자가 적용된 7일 범위 + 안내문을 즉시 인지하도록)
         boolean hasAdvanced = (req.startDtFrom() != null || req.startDtTo() != null
                 || (normalizedStatuses != null && !normalizedStatuses.isEmpty())
                 || (req.sortBy() != null && !req.sortBy().isBlank()));
-        model.addAttribute("advancedOpen", hasAdvanced);
+        model.addAttribute("advancedOpen", hasAdvanced || appliedDateDefault);
 
         // 헤더 통계 — 필터와 무관한 글로벌 카운트 (GROUP BY 한 방, 가시 통계는 follow-up #159 비범위)
         Map<String, Long> byStatus = activityRepository.countInstancesByStatus();
