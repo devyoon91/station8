@@ -76,7 +76,7 @@ public class LineAclService {
             if (sch == null) return false;
             return canSchedule(sch.definitionId());
         } catch (Exception ex) {
-            log.debug("[#140] canScheduleByScheduleId — schedule not found: {}", scheduleId);
+            log.debug("canScheduleByScheduleId — schedule not found: {}", scheduleId);
             return false;
         }
     }
@@ -93,14 +93,14 @@ public class LineAclService {
         try {
             inst = activityRepo.findInstanceById(instanceId);
         } catch (Exception ex) {
-            log.debug("[#140] canExecuteInstance — instance not found: {}", instanceId);
+            log.debug("canExecuteInstance — instance not found: {}", instanceId);
             return false;
         }
         if (inst == null) return false;
 
         LineDefinition def = definitionRepo.findActiveDefinitionByName(inst.workflowName());
         if (def == null) {
-            log.debug("[#140] canExecuteInstance — active definition for workflowName='{}' not found", inst.workflowName());
+            log.debug("canExecuteInstance — active definition for workflowName='{}' not found", inst.workflowName());
             return false;  // 글로벌 ADMIN은 위에서 이미 통과
         }
         return canExecute(def.id());

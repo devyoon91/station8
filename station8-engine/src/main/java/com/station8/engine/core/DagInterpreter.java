@@ -142,7 +142,7 @@ public class DagInterpreter {
                 // D5=b — 조건 평가 예외는 인스턴스 FAILED 사유로 명시
                 String reason = "Edge condition evaluation failed at " + completedNodeId
                         + " → " + edge.toNodeId() + ": " + ex.getMessage();
-                log.error("[#152] {}", reason, ex);
+                log.error("{}", reason, ex);
                 lineExecutor.failLine(instanceId, reason);
                 return;
             }
@@ -152,7 +152,7 @@ public class DagInterpreter {
         if (activatedEdges.isEmpty()) {
             String reason = "All outgoing edges from " + completedNodeId
                     + " failed condition: " + String.join("; ", failedConditions);
-            log.warn("[#152] Instance blocked — no edge satisfied: instanceId={}, {}",
+            log.warn("Instance blocked — no edge satisfied: instanceId={}, {}",
                     instanceId, reason);
             lineExecutor.failLine(instanceId, reason);
             return;

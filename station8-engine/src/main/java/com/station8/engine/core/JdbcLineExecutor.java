@@ -137,11 +137,11 @@ public class JdbcLineExecutor implements LineExecutor {
         try {
             instance = activityRepository.findInstanceById(instanceId);
         } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
-            log.warn("[#138] terminateLineWithReason — 인스턴스 없음 (idempotent skip): {}", instanceId);
+            log.warn("terminateLineWithReason — 인스턴스 없음 (idempotent skip): {}", instanceId);
             return;
         }
         if (instance == null || !"RUNNING".equals(instance.statusSt())) {
-            log.info("[#138] terminateLineWithReason 무시 — 이미 종료됨: {} (status={})",
+            log.info("terminateLineWithReason 무시 — 이미 종료됨: {} (status={})",
                     instanceId, instance == null ? "null" : instance.statusSt());
             return;
         }
@@ -155,7 +155,7 @@ public class JdbcLineExecutor implements LineExecutor {
             """, reasonJson, instanceId);
 
         int affected = activityRepository.bulkUpdateNotStartedStatuses(instanceId, "TERMINATED");
-        log.warn("[#138] Instance auto-terminated: {} ({} pending/waiting marked TERMINATED) — reason: {}",
+        log.warn("Instance auto-terminated: {} ({} pending/waiting marked TERMINATED) — reason: {}",
                 instanceId, affected, reason);
     }
 
@@ -167,11 +167,11 @@ public class JdbcLineExecutor implements LineExecutor {
         try {
             instance = activityRepository.findInstanceById(instanceId);
         } catch (org.springframework.dao.EmptyResultDataAccessException ex) {
-            log.warn("[#152] failLine — 인스턴스 없음 (idempotent skip): {}", instanceId);
+            log.warn("failLine — 인스턴스 없음 (idempotent skip): {}", instanceId);
             return;
         }
         if (instance == null || !"RUNNING".equals(instance.statusSt())) {
-            log.info("[#152] failLine 무시 — 이미 종료됨: {} (status={})",
+            log.info("failLine 무시 — 이미 종료됨: {} (status={})",
                     instanceId, instance == null ? "null" : instance.statusSt());
             return;
         }
@@ -187,7 +187,7 @@ public class JdbcLineExecutor implements LineExecutor {
 
         // 3. 시작 안 한 액티비티 정리 — terminateLine과 동일 패턴
         int affected = activityRepository.bulkUpdateNotStartedStatuses(instanceId, "TERMINATED");
-        log.warn("[#152] Instance failed from condition: {} ({} pending/waiting marked TERMINATED) — reason: {}",
+        log.warn("Instance failed from condition: {} ({} pending/waiting marked TERMINATED) — reason: {}",
                 instanceId, affected, reason);
     }
 
@@ -205,7 +205,7 @@ public class JdbcLineExecutor implements LineExecutor {
             SET STATUS_ST = 'PAUSED', EDIT_DT = CURRENT_TIMESTAMP, EDIT_ID = 'pause'
             WHERE ID = ? AND STATUS_ST = 'RUNNING'
             """, instanceId);
-        log.info("[#139] Paused instance: {} (PENDING/WAITING 활동은 그대로 — 워커 폴링이 인스턴스 상태로 차단)",
+        log.info("Paused instance: {} (PENDING/WAITING 활동은 그대로 — 워커 폴링이 인스턴스 상태로 차단)",
                 instanceId);
     }
 
@@ -235,10 +235,10 @@ public class JdbcLineExecutor implements LineExecutor {
                     reEvaluated++;
                 }
             }
-            log.info("[#139] Unpaused instance: {} (fan-out 재평가 {}건 of COMPLETED nodes)",
+            log.info("Unpaused instance: {} (fan-out 재평가 {}건 of COMPLETED nodes)",
                     instanceId, reEvaluated);
         } else {
-            log.info("[#139] Unpaused instance: {} (DagInterpreter 미주입 — fan-out 재평가 skip)",
+            log.info("Unpaused instance: {} (DagInterpreter 미주입 — fan-out 재평가 skip)",
                     instanceId);
         }
     }
@@ -262,7 +262,7 @@ public class JdbcLineExecutor implements LineExecutor {
                     + " (Pause된 상태면 먼저 Unpause)");
         }
         activityRepository.resetToPending(activityExecutionId);
-        log.info("[#139] Reset single activity to PENDING: id={}, name={}, instance={}",
+        log.info("Reset single activity to PENDING: id={}, name={}, instance={}",
                 exec.id(), exec.activityName(), exec.instanceId());
     }
 

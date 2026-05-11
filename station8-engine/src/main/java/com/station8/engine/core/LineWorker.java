@@ -92,7 +92,7 @@ public class LineWorker {
             if (activity.nodeId() != null && !canDispatchUnderPipeline(activity)) {
                 LocalDateTime retryAt = LocalDateTime.now().plus(PipelineGate.GATE_BACKOFF);
                 activityRepository.revertGateBlocked(activity.id(), retryAt);
-                log.debug("[#164] Pipeline gate 차단 — activity={}, instance={}, retry@{}",
+                log.debug("Pipeline gate 차단 — activity={}, instance={}, retry@{}",
                         activity.id(), activity.instanceId(), retryAt);
                 continue;
             }
@@ -114,7 +114,7 @@ public class LineWorker {
             if (instance == null || instance.workflowName() == null) return true;
             return pipelineGate.canDispatch(activity.instanceId(), activity.nodeId(), instance.workflowName());
         } catch (Exception ex) {
-            log.warn("[#164] Pipeline gate 평가 실패 — activity={}, fallback=allow ({}: {})",
+            log.warn("Pipeline gate 평가 실패 — activity={}, fallback=allow ({}: {})",
                     activity.id(), ex.getClass().getSimpleName(), ex.getMessage());
             return true;
         }
@@ -224,15 +224,15 @@ public class LineWorker {
      * onFailure=ABORT 처리. 다른 액티비티가 먼저 트리거해 이미 종료된 경우는 idempotent하게 무시.
      */
     private void abortInstance(String instanceId) {
-        log.warn("[#134] onFailure=ABORT — terminating instance: {}", instanceId);
+        log.warn("onFailure=ABORT — terminating instance: {}", instanceId);
         try {
             lineExecutor.terminateLine(instanceId);
         } catch (IllegalStateException terminateEx) {
             // 다른 활동이 이미 abort 트리거 → instance가 RUNNING이 아닐 수 있음 (idempotent)
-            log.info("[#134] terminateLine 무시 — 이미 종료된 인스턴스: {} ({})",
+            log.info("terminateLine 무시 — 이미 종료된 인스턴스: {} ({})",
                     instanceId, terminateEx.getMessage());
         } catch (Exception terminateEx) {
-            log.error("[#134] terminateLine 실패 — instance: {}", instanceId, terminateEx);
+            log.error("terminateLine 실패 — instance: {}", instanceId, terminateEx);
         }
     }
 
@@ -242,15 +242,15 @@ public class LineWorker {
      * 다른 활동이 이미 트리거하거나 인스턴스가 이미 종료된 경우 idempotent.
      */
     private void pauseInstanceOnFailure(String instanceId) {
-        log.warn("[#148] onFailure=PAUSE_ON_FAILURE — pausing instance: {}", instanceId);
+        log.warn("onFailure=PAUSE_ON_FAILURE — pausing instance: {}", instanceId);
         try {
             lineExecutor.pauseLine(instanceId);
         } catch (IllegalStateException pauseEx) {
             // 인스턴스가 RUNNING이 아니어서 pause 불가 — 다른 활동이 먼저 trigger했거나 이미 PAUSED/TERMINATED
-            log.info("[#148] pauseLine 무시 — RUNNING 아님: {} ({})",
+            log.info("pauseLine 무시 — RUNNING 아님: {} ({})",
                     instanceId, pauseEx.getMessage());
         } catch (Exception pauseEx) {
-            log.error("[#148] pauseLine 실패 — instance: {}", instanceId, pauseEx);
+            log.error("pauseLine 실패 — instance: {}", instanceId, pauseEx);
         }
     }
 

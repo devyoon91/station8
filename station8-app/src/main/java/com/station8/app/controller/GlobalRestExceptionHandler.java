@@ -39,21 +39,21 @@ public class GlobalRestExceptionHandler {
 
     @ExceptionHandler(LineEngineException.class)
     public ResponseEntity<ErrorResponse> handleEngine(LineEngineException ex) {
-        log.warn("[#174] LineEngineException — code={}, message={}", ex.getErrorCode(), ex.getMessage());
+        log.warn("LineEngineException — code={}, message={}", ex.getErrorCode(), ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(IllegalArgumentException ex) {
-        log.debug("[#174] IllegalArgumentException — {}", ex.getMessage());
+        log.debug("IllegalArgumentException — {}", ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of(ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleForbidden(AccessDeniedException ex) {
-        log.info("[#174] AccessDenied — {}", ex.getMessage());
+        log.info("AccessDenied — {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ErrorResponse.of("ACCESS_DENIED", "권한이 없습니다."));
     }
@@ -69,7 +69,7 @@ public class GlobalRestExceptionHandler {
             fieldErrors.putIfAbsent(fe.getField(),
                     fe.getDefaultMessage() == null ? "invalid" : fe.getDefaultMessage());
         }
-        log.debug("[#174] MethodArgumentNotValid — fields={}", fieldErrors.keySet());
+        log.debug("MethodArgumentNotValid — fields={}", fieldErrors.keySet());
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of("VALIDATION_FAILED",
                         "요청 검증 실패: " + fieldErrors.size() + "개 필드", fieldErrors));
