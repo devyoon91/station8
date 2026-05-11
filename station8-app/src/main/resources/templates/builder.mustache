@@ -67,7 +67,7 @@
             box-shadow: none;
             font-family: inherit;
             font-size: 13px;
-            position: relative;       /* exec-order-badge anchor */
+            position: relative;
         }
         .drawflow .drawflow-node.selected { border-color: var(--primary); }
         /* #135 — 좌측 stations list 클릭 시 캔버스 노드를 강조 */
@@ -102,31 +102,6 @@
         .drawflow .connection.selected .main-path {
             stroke: var(--primary);
             marker-end: url(#dag-edge-arrow-selected);
-        }
-
-        /* 실행 순서 badge — 노드 좌상단 원형. topological sort 기반. */
-        .exec-order-badge {
-            position: absolute;
-            top: -10px;
-            left: -10px;
-            min-width: 24px;
-            height: 24px;
-            padding: 0 6px;
-            background: var(--accent-pink, var(--line-pink, #e6197f));
-            color: #0d0d0d;
-            border: 2px solid var(--surface);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: 700;
-            z-index: 5;
-            pointer-events: none;
-        }
-        .exec-order-badge.cycle {
-            background: var(--accent-red, #f55);
-            color: #fff;
         }
 
         .swe-builder-toolbar {
@@ -1220,73 +1195,30 @@ function restoreExistingDefinition() {
     setStatus('Loaded ' + (def.nodes || []).length + ' stations · ' + (def.edges || []).length + ' tracks');
 }
 
-// ===== 실행 순서 시각화 (topological sort + node badge) =====
-// Drawflow 그래프를 Kahn's algorithm으로 정렬하여 각 노드 좌상단에 1, 2, 3... 배지 표시.
-// 분기/병합이 있어도 BFS 순으로 결정적 순번 부여. 사이클이 있으면 도달 못 한 노드는 배지 없이
-// 'cycle' 클래스로 빨갛게 강조 (UI 단계에서 사이클 즉시 보임 → 검증 실패 전에 인지).
-function refreshExecutionOrder() {
+// ===== 노드 라벨 (#nodeId) 갱신 + connection path 좌표 재동기화 =====
+// 노드 내부의 빈 [data-label-id] div에 Drawflow 내부 ID(#1, #2, ...)를 채워 식별성 확보.
+// 라벨 채움으로 노드 박스 높이가 변동되면 Drawflow가 캐시한 connection path 좌표가 stale되어
+// 화살표가 포트와 어긋나 보이는 회귀가 발생 — 따라서 라벨 갱신 후 updateConnectionNodes로
+// 해당 노드의 모든 path 좌표를 즉시 재계산한다.
+function refreshNodeLabels() {
     const data = (editor.export().drawflow.Home || {}).data || {};
-    const ids = Object.keys(data);
-
-    // 그래프 구축
-    const inDegree = {};
-    const adj = {};
-    ids.forEach(id => { inDegree[id] = 0; adj[id] = []; });
-    ids.forEach(id => {
-        const n = data[id];
-        Object.values(n.outputs || {}).forEach(out => {
-            (out.connections || []).forEach(c => {
-                if (adj[id]) adj[id].push(c.node);
-                if (inDegree[c.node] !== undefined) inDegree[c.node]++;
-            });
-        });
-    });
-
-    // Kahn's BFS — 시작 노드(in-degree 0)부터 순번 부여
-    const queue = ids.filter(id => inDegree[id] === 0);
-    queue.sort((a, b) => parseInt(a) - parseInt(b));  // 결정적 순서
-    const order = {};
-    let counter = 1;
-    while (queue.length) {
-        const next = queue.shift();
-        order[next] = counter++;
-        const successors = (adj[next] || []).slice().sort((a, b) => parseInt(a) - parseInt(b));
-        successors.forEach(nbr => {
-            inDegree[nbr]--;
-            if (inDegree[nbr] === 0) queue.push(nbr);
-        });
-    }
-
-    // DOM에 배지 갱신
-    ids.forEach(id => {
+    Object.keys(data).forEach(id => {
         const nodeEl = document.getElementById('node-' + id);
         if (!nodeEl) return;
         const labelEl = nodeEl.querySelector('[data-label-id]');
-        if (labelEl) labelEl.textContent = '#' + id;
-        let badge = nodeEl.querySelector('.exec-order-badge');
-        if (!badge) {
-            badge = document.createElement('div');
-            badge.className = 'exec-order-badge';
-            nodeEl.appendChild(badge);
+        const expected = '#' + id;
+        if (labelEl && labelEl.textContent !== expected) {
+            labelEl.textContent = expected;
         }
-        if (order[id] !== undefined) {
-            badge.textContent = order[id];
-            badge.classList.remove('cycle');
-            badge.title = 'Step ' + order[id] + ' — 실행 순서';
-        } else {
-            // 사이클에 갇혔거나 도달 못 한 노드
-            badge.textContent = '⚠';
-            badge.classList.add('cycle');
-            badge.title = '사이클 또는 unreachable — 저장 시 검증 실패 가능';
-        }
+        editor.updateConnectionNodes('node-' + id);
     });
 }
 
-// Drawflow 이벤트 — 그래프 변경 시점마다 순서 재계산
+// Drawflow 이벤트 — 그래프 변경 시점마다 라벨/연결 재동기화
 ['nodeCreated', 'nodeRemoved', 'connectionCreated', 'connectionRemoved'].forEach(ev => {
     editor.on(ev, () => {
-        // setTimeout 0 — Drawflow 내부 상태 갱신 후 export() 가능하도록 한 tick 양보
-        setTimeout(refreshExecutionOrder, 0);
+        // setTimeout 0 — Drawflow 내부 상태 갱신 후 DOM 조회/업데이트 가능하도록 한 tick 양보
+        setTimeout(refreshNodeLabels, 0);
     });
 });
 
@@ -1296,8 +1228,8 @@ restoreExistingDefinition();
 refreshStationsList();
 const _searchEl = document.getElementById('stations-search');
 if (_searchEl) _searchEl.addEventListener('input', refreshStationsList);
-// #130 — preload 직후 Drawflow 내부 상태가 늦게 업데이트되는 케이스 대비 한 tick 양보 후 재계산
-setTimeout(refreshExecutionOrder, 50);
+// #130 — preload 직후 Drawflow 내부 상태가 늦게 업데이트되는 케이스 대비 한 tick 양보 후 재동기화
+setTimeout(refreshNodeLabels, 50);
 // #152 — preload된 엣지의 조건 시각화 적용
 setTimeout(refreshEdgeConditionVisualization, 60);
 </script>
