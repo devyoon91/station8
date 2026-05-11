@@ -402,6 +402,12 @@ code, pre {
   font-weight: 600;
   color: var(--ink);
   letter-spacing: -0.2px;
+  /* #208 — 로고는 항상 1줄 유지 (좁은 viewport에서 줄바꿈/잘림 차단) */
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.swe-nav-menu {
+  display: contents;  /* 데스크톱에선 wrapper가 없는 것처럼 동작 → 기존 flex layout 그대로 */
 }
 .swe-nav-links {
   display: flex;
@@ -423,6 +429,56 @@ code, pre {
   display: flex;
   align-items: center;
   gap: var(--space-md);
+}
+
+/* #208 — 햄버거 버튼: 데스크톱에선 숨김 */
+.swe-nav-hamburger {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 10px;
+  cursor: pointer;
+  margin-left: auto;
+}
+.swe-nav-hamburger:hover { border-color: var(--hairline-strong); }
+
+/* 모바일/좁은 viewport (< 768px) — 햄버거 토글로 메뉴 접기 */
+@media (max-width: 768px) {
+  .swe-nav { padding: 0 var(--space-md); }
+  .swe-nav-inner { gap: var(--space-md); }
+  .swe-nav-hamburger { display: inline-block; }
+  .swe-nav-menu {
+    display: none;
+    position: absolute;
+    top: 56px;
+    left: 0;
+    right: 0;
+    background: var(--canvas);
+    border-bottom: 1px solid var(--hairline);
+    padding: var(--space-md) var(--space-md) var(--space-lg);
+    flex-direction: column;
+    gap: var(--space-md);
+    z-index: 100;
+  }
+  .swe-nav-menu.open { display: flex; }
+  .swe-nav-links {
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin-left: 0;
+  }
+  .swe-nav-cta {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-sm);
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--space-md);
+  }
+  .swe-nav-cta form { display: block !important; }
+  .swe-nav-cta .swe-btn-secondary { text-align: center; }
 }
 
 /* ============================================================================
