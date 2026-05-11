@@ -7,6 +7,10 @@
     <link rel="stylesheet" href="/css/design.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow@0.0.59/dist/drawflow.min.css">
     <style>
+        /* #194 — 빌더는 fixed viewport / 패널만 스크롤 모델 (n8n/Node-RED 패턴).
+           body overflow:hidden으로 페이지 자체 스크롤을 차단해 패널 내부 스크롤과 중복되던 회귀 차단.
+           이 룰은 builder.mustache <style> 내부라 다른 페이지엔 영향 없음. */
+        body { overflow: hidden; }
         .swe-builder-layout {
             display: grid;
             grid-template-columns: 280px 1fr 320px;
@@ -278,7 +282,7 @@
     {{/editMode}}
 
     <!-- #138 + #141 — Line settings: SLA + 동시 실행 정책 -->
-    <details {{#hasLineSettings}}open{{/hasLineSettings}} class="swe-card swe-mb-lg" style="padding: var(--space-md) var(--space-lg);">
+    <details {{#hasLineSettings}}open{{/hasLineSettings}} class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg);">
         <summary style="cursor: pointer; font-weight: 600; user-select: none;">Line settings — SLA / Concurrency</summary>
         <div style="margin-top: var(--space-md); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
             <div>
