@@ -93,6 +93,25 @@
             background: var(--accent-pink);
         }
 
+        /* #197 — output 드래그 시작 시 다른 노드의 input 포트를 글로우 펄스로 강조 (drop-target affordance) */
+        .drawflow .drawflow-node .input.drop-target {
+            border-color: var(--line-pink, #e6197f);
+            animation: drop-target-pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes drop-target-pulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(230, 25, 127, 0.25); }
+            50%      { box-shadow: 0 0 0 6px rgba(230, 25, 127, 0.50); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .drawflow .drawflow-node .input.drop-target {
+                animation: none;
+                box-shadow: 0 0 0 4px rgba(230, 25, 127, 0.40);
+            }
+        }
+        .drawflow .drawflow-node .input.drop-target:hover {
+            background: var(--line-pink, #e6197f);
+        }
+
         /* 엣지 — 방향 화살표 추가 */
         .drawflow .connection .main-path {
             stroke: var(--mute);
@@ -642,6 +661,23 @@ editor.on('nodeCreated', refreshStationsList);
 editor.on('nodeRemoved', refreshStationsList);
 editor.on('connectionCreated', refreshStationsList);
 editor.on('connectionRemoved', refreshStationsList);
+
+// ===== #197 — output 드래그 시 input 포트 drop-target 강조 =====
+// Drawflow 0.0.59가 output → input 단방향 연결만 허용한다는 규칙을 시각적으로 드러내,
+// 첫 사용자의 onboarding 마찰을 줄인다 (도착지가 어디인지 명시적으로 표시).
+editor.on('connectionStart', payload => {
+    const sourceId = payload && (payload.output_id != null ? payload.output_id : payload.output);
+    document.querySelectorAll('.drawflow-node').forEach(nodeEl => {
+        if (sourceId != null && nodeEl.id === 'node-' + sourceId) return;  // 자기 자신 제외
+        nodeEl.querySelectorAll('.input').forEach(p => p.classList.add('drop-target'));
+    });
+});
+function clearDropTargets() {
+    document.querySelectorAll('.drawflow-node .input.drop-target')
+        .forEach(p => p.classList.remove('drop-target'));
+}
+editor.on('connectionCancel', clearDropTargets);
+editor.on('connectionCreated', clearDropTargets);
 
 // ===== #136 — 우클릭 컨텍스트 메뉴 =====
 
