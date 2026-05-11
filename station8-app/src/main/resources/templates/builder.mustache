@@ -64,12 +64,27 @@
             border-radius: var(--radius-md);
             padding: var(--space-md);
             min-width: 180px;
+            /* #195 후속 — 라벨 채움/제거로 박스 높이가 변동되면 Drawflow가 포트 좌표를 stale 캐싱해
+               드래그 중 임시 path와 confirmed connection이 모두 어긋남. min-height로 박스 사이즈를
+               고정하고 라벨은 absolute로 띄워 사이즈 변동 zero 보장. */
+            min-height: 64px;
             box-shadow: none;
             font-family: inherit;
             font-size: 13px;
             position: relative;
         }
         .drawflow .drawflow-node.selected { border-color: var(--primary); }
+        /* 노드 ID 라벨 — absolute 좌하단. 인라인이면 박스 사이즈 변동 → 화살표 정렬 회귀. */
+        .drawflow .drawflow-node [data-label-id] {
+            position: absolute;
+            bottom: var(--space-md);
+            left: var(--space-md);
+            font-size: 11px;
+            color: var(--body);
+            line-height: 1;
+            pointer-events: none;
+            user-select: none;
+        }
         /* #135 — 좌측 stations list 클릭 시 캔버스 노드를 강조 */
         .drawflow .drawflow-node.builder-focused {
             border-color: var(--line-yellow, #FBCA04);
@@ -482,7 +497,7 @@ canvas.addEventListener('drop', e => {
     const pos_x = e.clientX - rect.left;
     const pos_y = e.clientY - rect.top;
     const html = '<div><strong>' + activity + '</strong>' +
-        '<div style="font-size: 11px; color: var(--body); margin-top: 4px;" data-label-id></div></div>';
+        '<div data-label-id></div></div>';
     const nodeId = editor.addNode(activity, 1, 1, pos_x, pos_y, activity, {activityNm: activity, inputParams: '', datasourceBindings: ''}, html);
     setStatus('Added node #' + nodeId + ' (' + activity + ')');
 });
@@ -1190,7 +1205,7 @@ function restoreExistingDefinition() {
 
     (def.nodes || []).forEach(n => {
         const html = '<div><strong>' + n.activityNm + '</strong>' +
-            '<div style="font-size: 11px; color: var(--body); margin-top: 4px;" data-label-id></div></div>';
+            '<div data-label-id></div></div>';
         const bindingsJson = (n.datasourceBindings && Object.keys(n.datasourceBindings).length > 0)
             ? JSON.stringify(n.datasourceBindings)
             : '';
