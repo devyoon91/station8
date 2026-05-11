@@ -2,7 +2,7 @@
 <!--
   Station8 가로 lockup — dark 변형.
   GitHub 다크 테마 / 어두운 배경에서 사용. 트랙·워드마크 = #e6edf3 (GitHub 다크 본문 색).
-  역 링만 8호선 핑크 고정. 역 안쪽은 다크 표면 #0d1117.
+  Station 링만 시그니처 핑크 #e6197f 고정 — ∞ 루프 위의 노드 표시. Station 안쪽은 다크 표면 #0d1117.
   README의 <picture> source media="(prefers-color-scheme: dark)"용.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 100" fill="none" role="img" aria-label="Station8">

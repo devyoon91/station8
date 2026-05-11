@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Station8 favicon — figure-8 트랙을 8호선 핑크로 고정.
+  Station8 favicon — ∞(figure-8) 루프를 시그니처 핑크 #e6197f로 고정.
   브라우저 탭은 currentColor 미적용 + 라이트/다크 양쪽 탭 chrome에서 보여야 함.
   핑크 #e6197f는 라이트(#f4f4f4)/다크(#1f2024) 양쪽에서 충분한 대비.
   Station 안쪽은 흰색에 가까운 #f4f4f6으로 비워서 "도장 찍힌" 느낌.

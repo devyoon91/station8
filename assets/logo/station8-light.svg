@@ -2,7 +2,7 @@
 <!--
   Station8 가로 lockup — light 변형.
   GitHub 라이트 테마 / 흰 배경에서 사용. 트랙·워드마크 = #1f2328 (GitHub 본문 색).
-  역 링만 8호선 핑크 고정.
+  Station 링만 시그니처 핑크 #e6197f 고정 — ∞ 루프 위의 노드 표시.
   README의 <picture> srcset (light fallback)으로 사용.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 100" fill="none" role="img" aria-label="Station8">

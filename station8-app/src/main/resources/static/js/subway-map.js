@@ -1,4 +1,4 @@
-/* Station8 — Subway Map Renderer (#87 M1·M2·M3)
+/* Station8 — Line Map Renderer (#87 M1·M2·M3)
  *
  * 입력:
  *   {

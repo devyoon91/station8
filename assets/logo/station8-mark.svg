@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Station8 mark — figure-8 (숫자 8) 트랙 + 위/아래 station 2개
+  Station8 mark — figure-8 (옆으로 누이면 ∞) 트랙 + 위/아래 Station 2개
   - 트랙은 currentColor (다크/라이트 컨텍스트 자동 적응)
-  - 역 링은 8호선 핑크 #e6197f, 안쪽은 #0d0d0d 표면
+  - Station 링은 시그니처 핑크 #e6197f, 안쪽은 #0d0d0d 표면 — ∞ 루프 위의 노드를 표시
   - viewBox 100×100, 단일 path로 매끄럽게 figure-8을 트레이스
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-label="Station8">
