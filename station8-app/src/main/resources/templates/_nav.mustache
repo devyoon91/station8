@@ -9,7 +9,11 @@
             </svg>
             <span style="margin-left: 6px;">Station8</span>
         </a>
-        <div class="swe-nav-links">
+        <button type="button" class="swe-nav-hamburger" aria-label="Toggle navigation" aria-expanded="false" aria-controls="swe-nav-menu" onclick="(function(b){var m=document.getElementById('swe-nav-menu');var open=m.classList.toggle('open');b.setAttribute('aria-expanded',open);})(this)">
+            <span aria-hidden="true">≡</span>
+        </button>
+        <div class="swe-nav-menu" id="swe-nav-menu">
+            <div class="swe-nav-links">
             <a href="/line/dashboard" class="swe-nav-link {{#navDashboard}}active{{/navDashboard}}">Dashboard</a>
             <a href="/line/definitions" class="swe-nav-link {{#navLines}}active{{/navLines}}">Lines</a>
             <a href="/line/builder" class="swe-nav-link {{#navBuilder}}active{{/navBuilder}}">Builder</a>
@@ -34,6 +38,7 @@
                 <a href="/login" class="swe-btn-secondary">Login</a>
             {{/currentUser.authenticated}}
             <a href="https://github.com/devyoon91/station8" target="_blank" class="swe-btn-secondary">GitHub</a>
+        </div>
         </div>
     </div>
 </nav>
