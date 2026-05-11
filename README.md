@@ -7,9 +7,13 @@
 
 # Station8
 
-> 8호선을 옆으로 누이면 ∞ — 무한히 반복되는 자동화. 노드는 노선의 한 **역(Station)** 이 된다.
+> **Station**은 노드, **8**은 옆으로 누이면 **∞** — 노드들이 모여 만든 Line이 무한히 반복되는 Durable Workflow 엔진.
 
 Oracle/MariaDB 환경에서 동작하는 경량 Java 워크플로우 오케스트레이션 엔진. Temporal의 Durable Execution을 벤치마킹하되 외부 메시지 큐 없이 DB의 `SKIP LOCKED` 만으로 분산 작업 처리를 보장한다.
+
+## 이름의 유래
+
+한 번의 액티비티 실행이 하나의 **Station**, 그 역들을 잇는 노선이 하나의 **Line**. 그리고 **8**을 옆으로 누이면 **∞** — Line은 cron으로 무한히 반복되고, 실패한 Station은 DLQ → 자동 재시도로 끝까지 완주한다. 멈추지 않는 자동화 루프, 그게 Station8이다.
 
 ## 메타포
 
