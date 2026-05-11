@@ -281,56 +281,9 @@
     </div>
     {{/editMode}}
 
-    <!-- #138 + #141 — Line settings: SLA + 동시 실행 정책 -->
-    <details {{#hasLineSettings}}open{{/hasLineSettings}} class="swe-card swe-mb-xl" style="padding: var(--space-md) var(--space-lg);">
-        <summary style="cursor: pointer; font-weight: 600; user-select: none;">Line settings — SLA / Concurrency</summary>
-        <div style="margin-top: var(--space-md); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
-            <div>
-                <label for="slaSeconds">Max duration (seconds)</label>
-                <input type="number" id="slaSeconds" class="swe-input" min="1" step="1"
-                       placeholder="예: 3600 (1시간)"
-                       value="{{#slaSeconds}}{{slaSeconds}}{{/slaSeconds}}">
-                <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
-                    인스턴스 시작 후 N초 넘으면 SLA 위반. 비워두면 SLA 비활성.
-                </div>
-            </div>
-            <div>
-                <label for="slaAction">Action on violation</label>
-                <select id="slaAction" class="swe-input">
-                    <option value="">— select —</option>
-                    <option value="ALERT_ONLY" {{#slaActionAlert}}selected{{/slaActionAlert}}>ALERT_ONLY (알림만, 인스턴스 진행)</option>
-                    <option value="AUTO_TERMINATE" {{#slaActionTerminate}}selected{{/slaActionTerminate}}>AUTO_TERMINATE (알림 + 인스턴스 종료)</option>
-                </select>
-                <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
-                    위반 시 webhook으로 알림 (engine.sla.webhook-url). 인스턴스 RunOptions로 override 가능.
-                </div>
-            </div>
-            <!-- #141 — 동시 실행 정책 -->
-            <div style="grid-column: 1 / -1;">
-                <label for="concurrencyPolicy">Concurrency policy</label>
-                <select id="concurrencyPolicy" class="swe-input">
-                    <option value="" {{#concurrencyConcurrent}}selected{{/concurrencyConcurrent}}>CONCURRENT (default — 같은 정의 인스턴스 동시 실행 허용)</option>
-                    <option value="SKIP_IF_RUNNING" {{#concurrencySkip}}selected{{/concurrencySkip}}>SKIP_IF_RUNNING — RUNNING/PAUSED 인스턴스 있으면 새 시작 무시 (cron 적체 방지)</option>
-                    <option value="PIPELINE_1" {{#concurrencyPipeline1}}selected{{/concurrencyPipeline1}}>PIPELINE_1 — 새 인스턴스의 노드 X는 선행의 같은 X가 COMPLETED 되어야 시작</option>
-                    <option value="PIPELINE_2" {{#concurrencyPipeline2}}selected{{/concurrencyPipeline2}}>PIPELINE_2 — 선행이 X+1단계의 노드를 시작했어야 새 X 시작</option>
-                    <option value="PIPELINE_3" {{#concurrencyPipeline3}}selected{{/concurrencyPipeline3}}>PIPELINE_3 — 선행이 X+2단계의 노드를 시작했어야 새 X 시작</option>
-                </select>
-                <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
-                    SKIP 시: 즉시 실행 응답은 200 + <code>{skipped:true}</code> / cron 폴러는 nextRunDt만 갱신하고 다음 주기로.<br>
-                    PIPELINE_*: 동시 실행 허용하되 활동 단위로 단계 동기화. 데이터 race 방지에 유용 (#164).
-                </div>
-            </div>
-            <!-- #142 — 태그 -->
-            <div style="grid-column: 1 / -1;">
-                <label for="tagsInput">Tags</label>
-                <input type="text" id="tagsInput" class="swe-input" placeholder="etl, daily, finance"
-                       value="{{#tagsCsv}}{{tagsCsv}}{{/tagsCsv}}">
-                <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
-                    쉼표로 구분 (free-form). 자동으로 trim + lowercase 적용. 정의 목록 페이지에서 필터/검색 사용.
-                </div>
-            </div>
-        </div>
-    </details>
+    <!-- #206 — Line settings(SLA/Concurrency/Tags)는 우측 Properties 패널의 탭으로 이동.
+         페이지 상단 영역을 회수해 캔버스 가용 공간을 늘림. 노드 비선택 시 Line settings가
+         자연스럽게 보이고, 노드 선택 시 Properties 탭으로 자동 전환. -->
     {{#loadError}}
     <div class="swe-card swe-mb-lg" style="padding: var(--space-md) var(--space-lg); border-left: 4px solid var(--accent-pink);">
         <strong>로드 실패:</strong> {{loadError}}
@@ -367,11 +320,67 @@
             <div id="drawflow"></div>
         </main>
 
-        <!-- Right: properties + validation -->
+        <!-- Right: properties + line settings (#206 — tabbed) -->
         <aside class="swe-properties">
-            <div class="swe-panel-header">Properties</div>
-            <div class="swe-panel-body" id="props">
+            <div class="swe-tab-bar" role="tablist">
+                <button type="button" class="swe-tab" id="tab-props"
+                        role="tab" aria-selected="false" aria-controls="props"
+                        onclick="switchPropTab('props')">Properties</button>
+                <button type="button" class="swe-tab active" id="tab-line-settings"
+                        role="tab" aria-selected="true" aria-controls="line-settings-body"
+                        onclick="switchPropTab('line-settings')">Line settings</button>
+            </div>
+            <div class="swe-panel-body" id="props" role="tabpanel" aria-labelledby="tab-props" style="display: none;">
                 <div class="swe-mute" style="font-size: 12px;">Click a node to edit its inputParams</div>
+            </div>
+            <div class="swe-panel-body" id="line-settings-body" role="tabpanel" aria-labelledby="tab-line-settings">
+                <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+                    <div>
+                        <label for="slaSeconds">Max duration (seconds)</label>
+                        <input type="number" id="slaSeconds" class="swe-input" min="1" step="1"
+                               placeholder="예: 3600 (1시간)"
+                               value="{{#slaSeconds}}{{slaSeconds}}{{/slaSeconds}}">
+                        <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
+                            인스턴스 시작 후 N초 넘으면 SLA 위반. 비워두면 SLA 비활성.
+                        </div>
+                    </div>
+                    <div>
+                        <label for="slaAction">Action on violation</label>
+                        <select id="slaAction" class="swe-input">
+                            <option value="">— select —</option>
+                            <option value="ALERT_ONLY" {{#slaActionAlert}}selected{{/slaActionAlert}}>ALERT_ONLY (알림만, 인스턴스 진행)</option>
+                            <option value="AUTO_TERMINATE" {{#slaActionTerminate}}selected{{/slaActionTerminate}}>AUTO_TERMINATE (알림 + 인스턴스 종료)</option>
+                        </select>
+                        <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
+                            위반 시 webhook으로 알림 (engine.sla.webhook-url). 인스턴스 RunOptions로 override 가능.
+                        </div>
+                    </div>
+                    <!-- #141 — 동시 실행 정책 -->
+                    <div>
+                        <label for="concurrencyPolicy">Concurrency policy</label>
+                        <select id="concurrencyPolicy" class="swe-input">
+                            <option value="" {{#concurrencyConcurrent}}selected{{/concurrencyConcurrent}}>CONCURRENT (default)</option>
+                            <option value="SKIP_IF_RUNNING" {{#concurrencySkip}}selected{{/concurrencySkip}}>SKIP_IF_RUNNING</option>
+                            <option value="PIPELINE_1" {{#concurrencyPipeline1}}selected{{/concurrencyPipeline1}}>PIPELINE_1</option>
+                            <option value="PIPELINE_2" {{#concurrencyPipeline2}}selected{{/concurrencyPipeline2}}>PIPELINE_2</option>
+                            <option value="PIPELINE_3" {{#concurrencyPipeline3}}selected{{/concurrencyPipeline3}}>PIPELINE_3</option>
+                        </select>
+                        <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
+                            CONCURRENT: 같은 정의 인스턴스 동시 실행 허용.<br>
+                            SKIP_IF_RUNNING: RUNNING/PAUSED 있으면 새 시작 무시 (cron 적체 방지).<br>
+                            PIPELINE_N: 활동 단위 단계 동기화 (#164).
+                        </div>
+                    </div>
+                    <!-- #142 — 태그 -->
+                    <div>
+                        <label for="tagsInput">Tags</label>
+                        <input type="text" id="tagsInput" class="swe-input" placeholder="etl, daily, finance"
+                               value="{{#tagsCsv}}{{tagsCsv}}{{/tagsCsv}}">
+                        <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
+                            쉼표로 구분 (free-form). 자동 trim + lowercase. 목록에서 필터/검색.
+                        </div>
+                    </div>
+                </div>
             </div>
         </aside>
     </div>
@@ -505,6 +514,8 @@ canvas.addEventListener('drop', e => {
 function populateProps(id) {
     const node = editor.getNodeFromId(id);
     if (!node) return;
+    // #206 — 노드 선택 시 우측 패널을 Properties 탭으로 자동 전환
+    if (typeof switchPropTab === 'function') switchPropTab('props');
     const props = document.getElementById('props');
     props.innerHTML = '<div class="swe-stack">' +
         '<div><label>Node ID</label><input class="swe-input" value="' + id + '" disabled></div>' +
@@ -579,6 +590,18 @@ window.switchTab = function (name) {
     document.getElementById('palette').style.display = isActivities ? '' : 'none';
     document.getElementById('stations-tab-body').style.display = isActivities ? 'none' : '';
     if (!isActivities) refreshStationsList();
+};
+
+// ===== #206 — 우측 패널 탭 (Properties / Line settings) =====
+// 노드 선택 시 populateProps에서 자동으로 'props' 탭 활성. 비선택 시는 사용자가 직접 클릭.
+window.switchPropTab = function (name) {
+    const isProps = name === 'props';
+    document.getElementById('tab-props').classList.toggle('active', isProps);
+    document.getElementById('tab-props').setAttribute('aria-selected', isProps);
+    document.getElementById('tab-line-settings').classList.toggle('active', !isProps);
+    document.getElementById('tab-line-settings').setAttribute('aria-selected', !isProps);
+    document.getElementById('props').style.display = isProps ? '' : 'none';
+    document.getElementById('line-settings-body').style.display = isProps ? 'none' : '';
 };
 
 /** Drawflow 내부 데이터 → Station8SubwayMap.topologicalOrder 입력 형태로 변환. */
