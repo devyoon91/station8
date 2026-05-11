@@ -152,21 +152,21 @@ public class LineDefinitionService {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth == null || !auth.isAuthenticated()
                     || "anonymousUser".equals(auth.getPrincipal())) {
-                log.debug("[#140] 정의 생성 — 인증 컨텍스트 없음, ADMIN auto-grant skip: id={}", definitionId);
+                log.debug("정의 생성 — 인증 컨텍스트 없음, ADMIN auto-grant skip: id={}", definitionId);
                 return;
             }
             String username = auth.getName();
             LineUser user = userRepository.findByUsername(username);
             if (user == null) {
-                log.warn("[#140] 정의 생성 — 사용자 '{}' DB에 없음, ADMIN auto-grant skip: id={}",
+                log.warn("정의 생성 — 사용자 '{}' DB에 없음, ADMIN auto-grant skip: id={}",
                         username, definitionId);
                 return;
             }
             aclRepository.grant(definitionId, user.id(), "ADMIN", username);
-            log.info("[#140] 정의 생성자에게 ADMIN 자동 부여: definitionId={}, user={}", definitionId, username);
+            log.info("정의 생성자에게 ADMIN 자동 부여: definitionId={}, user={}", definitionId, username);
         } catch (Exception ex) {
             // ACL 부여 실패가 정의 생성 실패로 이어지지 않도록 — 정의는 성공, 권한은 운영자가 수동 grant
-            log.error("[#140] ADMIN auto-grant 실패 (definition은 그대로 저장됨): id={}", definitionId, ex);
+            log.error("ADMIN auto-grant 실패 (definition은 그대로 저장됨): id={}", definitionId, ex);
         }
     }
 
@@ -297,7 +297,7 @@ public class LineDefinitionService {
                 );
         com.station8.engine.core.ConcurrencyStrategy.StartResult startResult = strategy.evaluateOnStart(startCtx);
         if (!startResult.allowed()) {
-            log.warn("[#141/#177] 동시 실행 SKIP — definitionId={}, policy={}, conflicting={}",
+            log.warn("동시 실행 SKIP — definitionId={}, policy={}, conflicting={}",
                     definitionId, strategy.policyName(), startResult.conflictingInstanceId());
             return RunResult.skipped(startResult.reason(), startResult.conflictingInstanceId());
         }

@@ -95,7 +95,7 @@ public class PipelineGate {
 
         ConcurrencyStrategy.DispatchResult result = strategy.evaluateOnDispatch(ctx);
         if (!result.allowed() && log.isDebugEnabled()) {
-            log.debug("[#164/#177] Dispatch 차단 — instance={}, nodeId={}, step={}, policy={}, reason={}",
+            log.debug("Dispatch 차단 — instance={}, nodeId={}, step={}, policy={}, reason={}",
                     instanceId, nodeId, myStep, strategy.policyName(), result.reason());
         }
         return result.allowed();
