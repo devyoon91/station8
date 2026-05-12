@@ -83,13 +83,31 @@ class BuilderEditModeTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("editor.reroute = false")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("new Drawflow")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("function refreshNodeLabels")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("function saveDefinition")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("function restoreExistingDefinition")))
                 // PR-2 — buildBuilderGraph / escapeHtmlBuilder는 graph-model.js로 이동, index.js엔 없음
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("function buildBuilderGraph"))))
                 .andExpect(content().string(org.hamcrest.Matchers.not(
-                        org.hamcrest.Matchers.containsString("function escapeHtmlBuilder"))));
+                        org.hamcrest.Matchers.containsString("function escapeHtmlBuilder"))))
+                // PR-3 — saveDefinition / restoreExistingDefinition는 form-serializer.js로 이동
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("async function saveDefinition"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("function restoreExistingDefinition"))));
+    }
+
+    /**
+     * #181 PR-3 — form-serializer.js가 saveDefinition / restoreExistingDefinition을 제공하는지 검증.
+     */
+    @Test
+    void builder_externalFormSerializerJs_servesIO() throws Exception {
+        mockMvc.perform(get("/js/builder/form-serializer.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("async function saveDefinition")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function restoreExistingDefinition")))
+                // POST/PUT 라우팅 분기 + SLA/Concurrency/Tags 직렬화
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/api/line/definitions")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("EDIT_MODE")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("existing-definition-json")));
     }
 
     /**
@@ -108,15 +126,18 @@ class BuilderEditModeTest {
      * (classic script global scope 의존 → load order critical).
      */
     @Test
-    void builder_loadsGraphModelBeforeIndex() throws Exception {
+    void builder_loadsGraphModelAndFormSerializerBeforeIndex() throws Exception {
         String body = mockMvc.perform(get("/line/builder"))
                 .andReturn().getResponse().getContentAsString();
         // <script src="..."> 위치만 비교 — 코멘트 안의 파일명 언급은 무시
         int graphIdx = body.indexOf("src=\"/js/builder/graph-model.js\"");
+        int formIdx = body.indexOf("src=\"/js/builder/form-serializer.js\"");
         int indexIdx = body.indexOf("src=\"/js/builder/index.js\"");
         org.junit.jupiter.api.Assertions.assertTrue(graphIdx >= 0, "graph-model.js 참조 없음");
-        org.junit.jupiter.api.Assertions.assertTrue(indexIdx > graphIdx,
-                "graph-model.js는 index.js 보다 먼저 와야 함 (graphIdx=" + graphIdx + ", indexIdx=" + indexIdx + ")");
+        org.junit.jupiter.api.Assertions.assertTrue(formIdx >= 0, "form-serializer.js 참조 없음");
+        org.junit.jupiter.api.Assertions.assertTrue(indexIdx > formIdx && formIdx > graphIdx,
+                "load 순서: graph-model.js < form-serializer.js < index.js (graphIdx=" + graphIdx +
+                        ", formIdx=" + formIdx + ", indexIdx=" + indexIdx + ")");
     }
 
     @Test
