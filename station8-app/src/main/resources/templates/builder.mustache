@@ -42,8 +42,12 @@
             min-height: 0;
         }
 
+        /* 모바일 overlay 인프라 — 데스크톱/태블릿에선 hidden (override는 mobile @media에서) */
+        .swe-mobile-fab-group { display: none; }
+        .swe-mobile-backdrop { display: none; }
+
         /* #205 PR-1 — 반응형 layout (CSS-only). 태블릿은 컬럼만 축소, 모바일은 세로 스택.
-           모바일 fullscreen 캔버스 + 플로팅 모달은 PR-2에서. */
+           PR-2: 모바일은 palette/properties를 fixed overlay로 빼고 FAB로 토글. */
         @media (max-width: 1023px) and (min-width: 768px) {
             .swe-builder-layout {
                 grid-template-columns: 240px 1fr 280px;
@@ -57,10 +61,35 @@
                 gap: var(--space-md);
                 min-height: 0;          /* 세로 스택에선 강제 600px 불필요 — body 스크롤로 흡수 */
             }
-            /* 캔버스를 최상단에 노출 — 작업 영역 우선. DOM 순서(palette→canvas→properties)는 그대로 두고 order로 시각 재배치 */
-            .swe-canvas-wrap { order: 1; min-height: 60vh; }
-            .swe-palette    { order: 2; min-height: 320px; max-height: 70vh; }
-            .swe-properties { order: 3; min-height: 320px; max-height: 70vh; }
+            /* PR-2: palette/properties는 fixed overlay로 빠짐 → flow에서 제거.
+               canvas만 흐름에 남아 flex: 1로 viewport 전체 점유. */
+            .swe-canvas-wrap { flex: 1 1 auto; min-height: 60vh; }
+            .swe-palette, .swe-properties {
+                position: fixed;
+                top: 56px;                              /* nav 아래 */
+                bottom: 0;
+                width: min(85vw, 360px);
+                z-index: 1000;                          /* nav(100) 위, 모달(1500) 아래 */
+                max-height: none;
+                min-height: 0;
+                border-radius: 0;
+                border-left: none;
+                border-right: none;
+                box-shadow: 0 0 32px rgba(0, 0, 0, 0.55);
+                transition: transform 0.25s ease;
+            }
+            .swe-palette {
+                left: 0;
+                transform: translateX(-110%);            /* off-screen 좌측 */
+            }
+            .swe-properties {
+                right: 0;
+                transform: translateX(110%);             /* off-screen 우측 */
+            }
+            .swe-palette.swe-mobile-open,
+            .swe-properties.swe-mobile-open {
+                transform: translateX(0);
+            }
 
             /* toolbar 가로 분할 깨면서 wrap — h1 + status가 한 줄, 버튼 행이 다음 줄 */
             .swe-builder-toolbar {
@@ -77,6 +106,56 @@
             .swe-builder-toolbar h1.swe-display-lg { font-size: 28px; line-height: 1.25; }
             /* Definition name input 폭 제한 해제 → 가용폭 사용 */
             .swe-builder-toolbar #defNm { width: 100%; min-width: 0; }
+
+            /* 모바일 backdrop — palette/properties 열림 시 표시 */
+            .swe-mobile-backdrop {
+                display: block;
+                position: fixed;
+                inset: 56px 0 0 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.2s ease, visibility 0.2s ease;
+            }
+            .swe-mobile-backdrop.swe-mobile-open {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            /* FAB — 좌하단 Palette, 우하단 Props */
+            .swe-mobile-fab-group {
+                display: flex;
+                position: fixed;
+                bottom: var(--space-md);
+                left: 0;
+                right: 0;
+                justify-content: space-between;
+                padding: 0 var(--space-md);
+                pointer-events: none;
+                z-index: 998;
+            }
+            .swe-mobile-fab {
+                pointer-events: auto;
+                background: var(--primary);
+                color: var(--on-primary);
+                border: none;
+                border-radius: var(--radius-md);
+                padding: 10px 18px;
+                font-size: 14px;
+                font-weight: 500;
+                font-family: inherit;
+                letter-spacing: 0.2px;
+                cursor: pointer;
+                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+            }
+            .swe-mobile-fab:hover { background: var(--primary-pressed); }
+            .swe-mobile-fab:active { transform: translateY(1px); }
+            /* panel 열린 동안엔 해당 FAB 숨김 — 중복/오해 방지 */
+            .swe-mobile-fab-group.palette-open .swe-mobile-fab[data-fab="palette"],
+            .swe-mobile-fab-group.properties-open .swe-mobile-fab[data-fab="properties"] {
+                visibility: hidden;
+            }
         }
         .swe-panel-header {
             padding: var(--space-md) var(--space-lg);
@@ -440,6 +519,15 @@
     <div id="validation" class="swe-card swe-validation-list" style="margin-top: var(--space-lg); display: none;"></div>
 </div>
 
+<!-- #205 PR-2 — 모바일 overlay 인프라 (데스크톱/태블릿에선 CSS로 숨김) -->
+<div class="swe-mobile-backdrop" id="mobile-backdrop" onclick="closeMobilePanels()" aria-hidden="true"></div>
+<div class="swe-mobile-fab-group" id="mobile-fab-group" aria-hidden="false">
+    <button type="button" class="swe-mobile-fab" data-fab="palette"
+            onclick="toggleMobilePanel('palette')" aria-label="Open palette panel">☰ Palette</button>
+    <button type="button" class="swe-mobile-fab" data-fab="properties"
+            onclick="toggleMobilePanel('properties')" aria-label="Open properties panel">⚙ Props</button>
+</div>
+
 <!-- #136 — 떠다니는 컨텍스트 메뉴 (노드/엣지 우클릭) -->
 <ul id="ctx-menu" class="swe-ctx-menu" role="menu" tabindex="-1" aria-label="Context menu" style="display:none;"></ul>
 
@@ -531,6 +619,12 @@ async function loadActivities() {
             div.addEventListener('dragstart', e => {
                 e.dataTransfer.setData('activity', a.activityName);
             });
+            // PR-2: 모바일 tap-to-add — drag 대신 클릭 1회로 캔버스 중앙에 노드 생성 후 패널 자동 닫힘.
+            div.addEventListener('click', () => {
+                if (!isMobile()) return;
+                addActivityNodeAtCenter(a.activityName);
+                closeMobilePanels();
+            });
             palette.appendChild(div);
         });
     } catch (e) {
@@ -568,6 +662,10 @@ function populateProps(id) {
     if (!node) return;
     // #206 — 노드 선택 시 우측 패널을 Properties 탭으로 자동 전환
     if (typeof switchPropTab === 'function') switchPropTab('props');
+    // #205 PR-2 — 모바일에선 properties overlay 자동 노출
+    if (typeof openMobilePanel === 'function' && typeof isMobile === 'function' && isMobile()) {
+        openMobilePanel('properties');
+    }
     const props = document.getElementById('props');
     props.innerHTML = '<div class="swe-stack">' +
         '<div><label>Node ID</label><input class="swe-input" value="' + id + '" disabled></div>' +
@@ -584,6 +682,57 @@ function populateProps(id) {
 editor.on('nodeSelected', id => { selectedNodeId = id; populateProps(id); });
 editor.on('nodeUnselected', () => { selectedNodeId = null; });
 editor.on('nodeRemoved', () => { selectedNodeId = null; });
+
+// ===== #205 PR-2 — 모바일 panel overlay 제어 =====
+// 데스크톱/태블릿에선 CSS @media로 FAB/backdrop이 숨겨져 아래 함수는 호출되지 않음.
+const MOBILE_MQ = window.matchMedia('(max-width: 767px)');
+function isMobile() { return MOBILE_MQ.matches; }
+
+function openMobilePanel(which) {
+    closeMobilePanels();
+    const target = which === 'palette'
+        ? document.querySelector('.swe-palette')
+        : document.querySelector('.swe-properties');
+    target.classList.add('swe-mobile-open');
+    document.getElementById('mobile-backdrop').classList.add('swe-mobile-open');
+    document.getElementById('mobile-fab-group').classList.add(which + '-open');
+}
+function closeMobilePanels() {
+    document.querySelectorAll('.swe-palette, .swe-properties, .swe-mobile-backdrop')
+        .forEach(el => el.classList.remove('swe-mobile-open'));
+    const fabGroup = document.getElementById('mobile-fab-group');
+    if (fabGroup) fabGroup.classList.remove('palette-open', 'properties-open');
+}
+function toggleMobilePanel(which) {
+    const target = which === 'palette'
+        ? document.querySelector('.swe-palette')
+        : document.querySelector('.swe-properties');
+    if (target.classList.contains('swe-mobile-open')) {
+        closeMobilePanels();
+    } else {
+        openMobilePanel(which);
+    }
+}
+
+// 모바일에서 노드 선택 시 properties overlay 자동 노출은 populateProps 본문에 직접 hook (위 함수 참조).
+
+// 모바일 tap-to-add — palette item 클릭 시 canvas 중앙에 노드 생성 + 패널 자동 닫힘.
+// Drawflow의 HTML5 drag는 touch에서 안정적이지 않음 — PR-3 전까지의 mobile-only 추가 입력 경로.
+function addActivityNodeAtCenter(activity) {
+    const rect = canvas.getBoundingClientRect();
+    const pos_x = rect.width / 2;
+    const pos_y = rect.height / 2;
+    const html = '<div><strong>' + activity + '</strong>' +
+        '<div data-label-id style="font-size:11px; color:var(--body); margin-top:4px; line-height:1; min-height:11px;">&#160;</div></div>';
+    const nodeId = editor.addNode(activity, 1, 1, pos_x, pos_y, activity,
+        {activityNm: activity, inputParams: '', datasourceBindings: ''}, html);
+    const newNodeEl = document.getElementById('node-' + nodeId);
+    if (newNodeEl) {
+        const labelEl = newNodeEl.querySelector('[data-label-id]');
+        if (labelEl) labelEl.textContent = '#' + nodeId;
+    }
+    setStatus('Added node #' + nodeId + ' (' + activity + ')');
+}
 
 function updateParams(id) {
     const node = editor.getNodeFromId(id);
@@ -1038,9 +1187,13 @@ document.addEventListener('keydown', e => {
         return;
     }
 
-    // Escape — connect mode 취소 + 노드 deselect
+    // Escape — connect mode 취소 + 노드 deselect (모바일 overlay panel 열려 있으면 우선 닫기)
     if (e.key === 'Escape') {
-        if (connectMode) {
+        const mobilePanelOpen = document.querySelector('.swe-palette.swe-mobile-open, .swe-properties.swe-mobile-open');
+        if (mobilePanelOpen) {
+            closeMobilePanels();
+            e.preventDefault();
+        } else if (connectMode) {
             cancelConnect();
             e.preventDefault();
         } else if (selectedNodeId != null) {
