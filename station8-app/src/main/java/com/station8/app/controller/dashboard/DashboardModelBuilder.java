@@ -47,6 +47,11 @@ public class DashboardModelBuilder {
     /** #195 — 초기 진입 시 적용되는 기본 날짜 범위(일). 첫 인상 UX를 위한 합리적 default. */
     private static final int DEFAULT_RECENT_DAYS = 7;
 
+    /** #195 진단 — 필터 좁힘으로 0건이 나왔을 때 빠른 확장 quick link 기간. */
+    private static final int DIAGNOSTIC_BROADER_DAYS = 30;
+    /** #195 진단 — "전체 기간" quick link의 시작일. 시드 데이터/실서비스 모두 2020 이후라 안전. */
+    private static final String DIAGNOSTIC_ALL_TIME_FROM = "2020-01-01";
+
     private final ActivityRepository activityRepository;
     private final LineDefinitionRepository definitionRepository;
     private final LineAclService aclService;
@@ -157,6 +162,22 @@ public class DashboardModelBuilder {
         long totalAll = byStatus.values().stream().mapToLong(Long::longValue).sum();
         model.addAttribute("totalCount", totalAll);
         model.addAttribute("navDashboard", true);
+
+        // #195 진단 — 빈 테이블 케이스: 전체는 있는데 필터로 0건이면 진단형 empty state 노출 트리거.
+        model.addAttribute("matchingCount", matchingCount);
+        model.addAttribute("filterEmptyDiagnostic", matchingCount == 0 && totalAll > 0);
+        // 사용자에게 노출할 "현재 적용된 status" 라벨 — 전부면 "all", 일부면 콤마로 나열
+        model.addAttribute("appliedStatusLabel",
+                noStatusFilter ? "all" : String.join(", ", normalizedStatuses));
+
+        // 진단 quick links — 헤더 통계엔 데이터가 있는데 테이블이 비었을 때 사용자가 즉시 확장 가능
+        LocalDate today = LocalDate.now();
+        LocalDate broaderFrom = today.minusDays(DIAGNOSTIC_BROADER_DAYS);
+        model.addAttribute("quickLinkBroaderDays", DIAGNOSTIC_BROADER_DAYS);
+        model.addAttribute("quickLinkBroader",
+                "/line/dashboard?startDtFrom=" + broaderFrom + "&startDtTo=" + today);
+        model.addAttribute("quickLinkAllTime",
+                "/line/dashboard?startDtFrom=" + DIAGNOSTIC_ALL_TIME_FROM + "&startDtTo=" + today);
 
         // 페이지네이션 — 검색 폼 값 보존 (다중 status는 콤마-조인으로 한 키에 — Spring이 자동 split)
         Map<String, String> preserve = buildPreserveMap(req, normalizedStatuses, effectiveSortBy, effectiveSortDir);

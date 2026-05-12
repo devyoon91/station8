@@ -153,7 +153,32 @@
             {{^instances}}
             <tr>
                 <td colspan="6" style="text-align: center; padding: var(--space-section) 0; color: var(--mute);">
+                    {{#filterEmptyDiagnostic}}
+                    <!-- #195 진단형 empty state — 헤더엔 totalCount건 있으나 현재 필터로 0건일 때 -->
+                    <div style="max-width: 560px; margin: 0 auto;">
+                        <div class="swe-ink" style="font-size: 15px; margin-bottom: var(--space-sm);">
+                            전체 <strong>{{totalCount}}</strong>건 중 현재 필터에 해당하는 인스턴스가 <strong>0건</strong>입니다.
+                        </div>
+                        <div style="font-size: 13px; margin-bottom: var(--space-lg); line-height: 1.7;">
+                            현재 필터 — 기간 <code>{{startDtFrom}}</code> ~ <code>{{startDtTo}}</code>
+                            · status <code>{{appliedStatusLabel}}</code>
+                            {{#workflowName}} · Line name <code>{{workflowName}}</code>{{/workflowName}}
+                            {{#instanceId}} · Instance ID <code>{{instanceId}}</code>{{/instanceId}}
+                        </div>
+                        <div style="display: flex; gap: var(--space-sm); justify-content: center; flex-wrap: wrap;">
+                            <a href="/line/dashboard" class="swe-btn-tertiary swe-btn-sm">필터 초기화 (최근 7일)</a>
+                            <a href="{{quickLinkBroader}}" class="swe-btn-tertiary swe-btn-sm">최근 {{quickLinkBroaderDays}}일 보기</a>
+                            <a href="{{quickLinkAllTime}}" class="swe-btn-tertiary swe-btn-sm">전체 기간 보기</a>
+                        </div>
+                        <div class="swe-mute" style="font-size: 11px; margin-top: var(--space-md);">
+                            여전히 0건이라면 ACL 가시성(라인 권한) 또는 시드 데이터의 startDt 분포를 확인하세요.
+                        </div>
+                    </div>
+                    {{/filterEmptyDiagnostic}}
+                    {{^filterEmptyDiagnostic}}
+                    <!-- 진짜 데이터 없음 — 헤더 통계도 0 -->
                     No instances. Use <a href="/line/schedules" class="swe-ink">Schedules</a> to create one.
+                    {{/filterEmptyDiagnostic}}
                 </td>
             </tr>
             {{/instances}}
