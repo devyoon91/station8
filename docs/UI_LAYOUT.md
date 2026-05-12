@@ -129,12 +129,23 @@ body > .swe-container {
 
 ## 5. 반응형 분기점
 
-| 분기점 | 동작 |
+전역 규약 (전 페이지 공통):
+
+| 분기점 | 영역 | 동작 |
+|---|---|---|
+| `(max-width: 768px)` | 전역 nav | 햄버거 메뉴 토글 (#208). swe-container padding 축소. |
+
+툴형 (Builder) 추가 분기 (#205 PR-1):
+
+| 분기점 | layout |
 |---|---|
-| `(max-width: 768px)` | nav → 햄버거 메뉴. swe-container padding 축소. |
-| `(max-width: 600px)` 미만 | 추후 정의. 현재 Builder는 데스크톱 최소(1024×600) 가정. 모바일 적응형은 [#205](https://github.com/devyoon91/station8/issues/205)에서. |
+| `≥ 1024px` (데스크톱) | 3-column grid: `280px 1fr 320px` |
+| `768~1023px` (태블릿) | 3-column grid 축소: `240px 1fr 280px` |
+| `< 768px` (모바일/좁은 viewport) | flex 세로 스택. `order`로 캔버스 최상단. 캔버스 `min-height: 60vh`, 패널 `min-height: 320px; max-height: 70vh`. body 스크롤 활성 (§3.1 합산이 100dvh 초과 → 자연 스크롤). |
 
 콘텐츠형 페이지는 768px 분기점 외에 별도 처리 거의 불필요 (grid가 자연스럽게 흐름).
+
+> PR-2에서 모바일 fullscreen 캔버스 + 플로팅 버튼 → 패널 모달 패턴 추가 예정. PR-3은 Drawflow 터치 이벤트 보강.
 
 ---
 
