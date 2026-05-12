@@ -7,15 +7,29 @@
     <link rel="stylesheet" href="/css/design.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow@0.0.59/dist/drawflow.min.css">
     <style>
-        /* #194 — 빌더는 fixed viewport / 패널만 스크롤 모델 (n8n/Node-RED 패턴).
-           body overflow:hidden으로 페이지 자체 스크롤을 차단해 패널 내부 스크롤과 중복되던 회귀 차단.
-           이 룰은 builder.mustache <style> 내부라 다른 페이지엔 영향 없음. */
-        body { overflow: hidden; }
+        /* viewport-locked 빌더: flex 체인으로 chrome 자동 흡수.
+           이전 `height: calc(100vh - 56px - 120px)` 하드코딩은 #207에서 h1을 swe-display-lg(56px)로
+           키우면서 toolbar가 ~103px가 됐고, editMode/loadError 배너까지 들어가면 chrome이 가변이라
+           아래가 viewport 밖으로 밀려나는데 body overflow:hidden 때문에 스크롤도 못해 잘리던 회귀(#210 후속).
+           body는 min-height: 100dvh만 잡고 overflow는 풀어둠 → 정상 viewport는 합산이 정확히 100dvh라
+           스크롤바 안 뜨고, 작은 viewport (또는 chrome이 커진 케이스)에선 자연스럽게 body 스크롤 가능. */
+        html { height: auto; }
+        body {
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+        }
+        body > .swe-container {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
         .swe-builder-layout {
             display: grid;
             grid-template-columns: 280px 1fr 320px;
             gap: var(--space-lg);
-            height: calc(100vh - 56px - 120px);
+            flex: 1 1 auto;
             min-height: 600px;
         }
         .swe-palette, .swe-canvas-wrap, .swe-properties {
@@ -25,6 +39,7 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            min-height: 0;
         }
         .swe-panel-header {
             padding: var(--space-md) var(--space-lg);
