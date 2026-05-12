@@ -39,16 +39,17 @@ class BuilderShortcutsRenderTest {
                 // 토글버튼 노출
                 .andExpect(content().string(containsString("Keyboard shortcuts (?)")))
                 .andExpect(content().string(containsString("swe-shortcut-hint")))
-                // #181 PR-1 — 외부 스크립트 참조
-                .andExpect(content().string(containsString("/js/builder/index.js")));
+                // #181 PR-1 — 외부 entrypoint 참조 / PR-4 — shortcuts.js 모듈 참조
+                .andExpect(content().string(containsString("/js/builder/index.js")))
+                .andExpect(content().string(containsString("/js/builder/shortcuts.js")));
     }
 
     /**
-     * #181 PR-1 — 단축키 핸들러 로직은 /js/builder/index.js로 이전. 본 테스트가 외부 파일을 직접 검증.
+     * #181 PR-1 → PR-4 — 단축키 핸들러는 /js/builder/shortcuts.js로 분리됨.
      */
     @Test
     void builderJs_includesShortcutsHandlers() throws Exception {
-        mockMvc.perform(get("/js/builder/index.js"))
+        mockMvc.perform(get("/js/builder/shortcuts.js"))
                 .andExpect(status().isOk())
                 // open/close API
                 .andExpect(content().string(containsString("openShortcutsModal")))
@@ -65,8 +66,8 @@ class BuilderShortcutsRenderTest {
                 .andExpect(content().string(containsString("e.key === 'Backspace'")))
                 .andExpect(content().string(containsString("e.key === 'Escape'")))
                 .andExpect(content().string(containsString("e.key === '?'")))
-                .andExpect(content().string(containsString("e.ctrlKey || e.metaKey")))
-                // ctx-menu Delete 항목에 단축키 hint
-                .andExpect(content().string(containsString("shortcut: 'Del'")));
+                .andExpect(content().string(containsString("e.ctrlKey || e.metaKey")));
+        // 'shortcut: 'Del'' 단축키 힌트는 ctx-menu.js의 Delete node 메뉴 항목에 위치 —
+        // BuilderEditModeTest.builder_externalCtxMenuJs_servesContextMenu에서 검증.
     }
 }
