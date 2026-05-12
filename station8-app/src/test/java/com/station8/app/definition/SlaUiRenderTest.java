@@ -14,7 +14,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -47,19 +46,20 @@ class SlaUiRenderTest {
 
     @Test
     void builder_newMode_rendersSlaSettings() throws Exception {
+        // #210 — Line settings(SLA 포함)는 Properties 패널의 탭으로 이동.
+        // <details>는 사라졌고, SLA 입력은 Line settings 탭 안에 항상 렌더링됨.
         mockMvc.perform(get("/line/builder"))
                 .andExpect(status().isOk())
-                // SLA 입력 필드
                 .andExpect(content().string(containsString("id=\"slaSeconds\"")))
                 .andExpect(content().string(containsString("id=\"slaAction\"")))
                 .andExpect(content().string(containsString("AUTO_TERMINATE")))
                 .andExpect(content().string(containsString("ALERT_ONLY")))
-                // SLA가 새로 만들 때는 닫혀있음
-                .andExpect(content().string(not(containsString("<details open class=\"swe-card swe-mb-lg\""))));
+                // Line settings 탭에 위치
+                .andExpect(content().string(containsString("Line settings")));
     }
 
     @Test
-    void builder_editMode_preloadsSlaAndOpensDetails() throws Exception {
+    void builder_editMode_preloadsSla() throws Exception {
         DagDefinitionRequest req = new DagDefinitionRequest(
                 "SlaFlow", null, 3600L, "AUTO_TERMINATE",
                 List.of(new DagDefinitionRequest.NodeDef("s-1", "A", "MIGRATION_WRITE", null, 0, 0, null)),
@@ -69,11 +69,9 @@ class SlaUiRenderTest {
 
         mockMvc.perform(get("/line/builder?id=" + defId))
                 .andExpect(status().isOk())
-                // 기존 값 채워짐
+                // 기존 값 채워짐 — #210 후엔 <details> 없이 Line settings 탭에 항상 표시
                 .andExpect(content().string(containsString("value=\"3600\"")))
-                .andExpect(content().string(containsString("AUTO_TERMINATE\" selected")))
-                // SLA 있는 정의 → details 펼침
-                .andExpect(content().string(containsString("<details open class=\"swe-card swe-mb-lg\"")));
+                .andExpect(content().string(containsString("AUTO_TERMINATE\" selected")));
     }
 
     @Test

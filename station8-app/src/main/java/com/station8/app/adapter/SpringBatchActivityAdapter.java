@@ -64,7 +64,8 @@ public class SpringBatchActivityAdapter {
         this.jsonUtil = jsonUtil;
     }
 
-    @Activity(value = "RUN_BATCH_JOB", retryCount = 3, backoffSeconds = 60)
+    @Activity(value = "RUN_BATCH_JOB", retryCount = 3, backoffSeconds = 60,
+            description = "Spring Batch Job 실행 어댑터 — inputJson은 {jobName, parameters} 형식. JobExecution ExitStatus를 문자열로 반환.")
     public String runJob(String inputJson) {
         if (inputJson == null || inputJson.isBlank()) {
             throw new IllegalArgumentException("RUN_BATCH_JOB: 입력 JSON이 비어있습니다");

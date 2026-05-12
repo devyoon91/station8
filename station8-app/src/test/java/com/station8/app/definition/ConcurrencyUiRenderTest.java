@@ -57,7 +57,8 @@ class ConcurrencyUiRenderTest {
                 .andExpect(content().string(containsString("value=\"PIPELINE_1\"")))
                 .andExpect(content().string(containsString("value=\"PIPELINE_2\"")))
                 .andExpect(content().string(containsString("value=\"PIPELINE_3\"")))
-                .andExpect(content().string(containsString("Line settings — SLA / Concurrency")))
+                // #210 — Line settings는 Properties 패널의 탭으로 이동. "Line settings" 탭 label로 검증.
+                .andExpect(content().string(containsString("Line settings")))
                 .andExpect(content().string(containsString("concurrencyPolicy")));
     }
 

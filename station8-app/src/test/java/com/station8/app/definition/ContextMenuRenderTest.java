@@ -25,14 +25,26 @@ class ContextMenuRenderTest {
     @Autowired MockMvc mockMvc;
 
     @Test
-    void builder_rendersContextMenuDomAndHandlers() throws Exception {
+    void builder_rendersContextMenuDom() throws Exception {
+        // mustache 응답: DOM + 외부 ctx-menu.js 참조
         mockMvc.perform(get("/line/builder"))
                 .andExpect(status().isOk())
                 // 떠다니는 메뉴 DOM + ARIA
                 .andExpect(content().string(containsString("id=\"ctx-menu\"")))
                 .andExpect(content().string(containsString("class=\"swe-ctx-menu\"")))
                 .andExpect(content().string(containsString("role=\"menu\"")))
-                // 핵심 JS — show/close 메뉴
+                // #181 PR-4 — JS 로직은 외부 모듈
+                .andExpect(content().string(containsString("/js/builder/ctx-menu.js")))
+                .andExpect(content().string(containsString("/js/builder/edge-condition-modal.js")));
+    }
+
+    /**
+     * #181 PR-4 — ctx-menu.js: show/close + 노드 액션 4종 + 키보드 nav 검증.
+     */
+    @Test
+    void ctxMenuJs_includesShowCloseAndNodeActions() throws Exception {
+        mockMvc.perform(get("/js/builder/ctx-menu.js"))
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("showCtxMenu(")))
                 .andExpect(content().string(containsString("closeCtxMenu()")))
                 // 노드 액션 4개 (D1=b)
@@ -40,13 +52,21 @@ class ContextMenuRenderTest {
                 .andExpect(content().string(containsString("Connect from this node")))
                 .andExpect(content().string(containsString("Disconnect all edges")))
                 .andExpect(content().string(containsString("Delete node")))
-                // 엣지 액션 (D2=b)
-                .andExpect(content().string(containsString("disconnectEdge")))
-                .andExpect(content().string(containsString("disconnectAllEdges")))
-                .andExpect(content().string(containsString("parseConnectionFromElement")))
                 // 키보드 nav (D4=a)
                 .andExpect(content().string(containsString("ArrowDown")))
                 .andExpect(content().string(containsString("ArrowUp")))
                 .andExpect(content().string(containsString("Escape")));
+    }
+
+    /**
+     * #181 PR-4 — edge-condition-modal.js: 엣지 액션 + parseConnectionFromElement.
+     */
+    @Test
+    void edgeConditionModalJs_includesEdgeActions() throws Exception {
+        mockMvc.perform(get("/js/builder/edge-condition-modal.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("disconnectEdge")))
+                .andExpect(content().string(containsString("disconnectAllEdges")))
+                .andExpect(content().string(containsString("parseConnectionFromElement")));
     }
 }

@@ -44,6 +44,11 @@
                 <span class="swe-keycap">backoff: {{backoffSeconds}}s</span>
             </div>
         </div>
+        {{#description}}
+        <div class="swe-body-sm" style="margin-top: var(--space-md); padding: var(--space-md) var(--space-lg); background: var(--surface-card); border-radius: var(--radius-sm); color: var(--body);">
+            {{description}}
+        </div>
+        {{/description}}
         <div style="margin-top: var(--space-lg); display: grid; grid-template-columns: 120px 1fr; gap: var(--space-sm) var(--space-lg);">
             <div class="swe-caption swe-mute">Parameters</div>
             <div>

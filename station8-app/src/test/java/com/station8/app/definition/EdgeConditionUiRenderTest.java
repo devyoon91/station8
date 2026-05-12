@@ -48,7 +48,8 @@ class EdgeConditionUiRenderTest {
     }
 
     @Test
-    void builder_rendersEdgeConditionModalAndHandlers() throws Exception {
+    void builder_rendersEdgeConditionModalDom() throws Exception {
+        // mustache 응답: 모달 DOM + CSS + 외부 JS 참조
         mockMvc.perform(get("/line/builder"))
                 .andExpect(status().isOk())
                 // 모달 DOM
@@ -58,15 +59,25 @@ class EdgeConditionUiRenderTest {
                 // SpEL 힌트
                 .andExpect(content().string(containsString("#result")))
                 .andExpect(content().string(containsString("SpEL")))
-                // JS 훅
+                // dashed CSS
+                .andExpect(content().string(containsString("has-condition")))
+                .andExpect(content().string(containsString("stroke-dasharray")))
+                // #181 PR-4 — JS 로직은 외부 모듈
+                .andExpect(content().string(containsString("/js/builder/edge-condition-modal.js")));
+    }
+
+    /**
+     * #181 PR-4 — edge-condition-modal.js: 모달 open/close/save/clear + 시각화 함수.
+     */
+    @Test
+    void edgeConditionModalJs_includesHandlers() throws Exception {
+        mockMvc.perform(get("/js/builder/edge-condition-modal.js"))
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("openEdgeCondModal")))
                 .andExpect(content().string(containsString("saveEdgeCond")))
                 .andExpect(content().string(containsString("clearEdgeCond")))
                 .andExpect(content().string(containsString("edgeConditions")))
-                .andExpect(content().string(containsString("refreshEdgeConditionVisualization")))
-                // dashed CSS
-                .andExpect(content().string(containsString("has-condition")))
-                .andExpect(content().string(containsString("stroke-dasharray")));
+                .andExpect(content().string(containsString("refreshEdgeConditionVisualization")));
     }
 
     @Test

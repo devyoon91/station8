@@ -12,6 +12,8 @@ public record ActivityCatalogEntry(
         int retryCount,
         long backoffSeconds,
         List<String> parameterTypes,
-        String returnType
+        String returnType,
+        /** #192 — @Activity(description) 메타. 빈 문자열이면 UI에서 숨김. */
+        String description
 ) {
 }
