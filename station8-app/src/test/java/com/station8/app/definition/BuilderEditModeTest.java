@@ -84,7 +84,39 @@ class BuilderEditModeTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("new Drawflow")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("function refreshNodeLabels")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("function saveDefinition")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("function restoreExistingDefinition")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function restoreExistingDefinition")))
+                // PR-2 — buildBuilderGraph / escapeHtmlBuilder는 graph-model.js로 이동, index.js엔 없음
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("function buildBuilderGraph"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("function escapeHtmlBuilder"))));
+    }
+
+    /**
+     * #181 PR-2 — graph-model.js가 buildBuilderGraph / escapeHtmlBuilder를 제공하는지 검증.
+     */
+    @Test
+    void builder_externalGraphModelJs_servesPureHelpers() throws Exception {
+        mockMvc.perform(get("/js/builder/graph-model.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function buildBuilderGraph(editor)")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function escapeHtmlBuilder")));
+    }
+
+    /**
+     * #181 PR-2 — builder.mustache가 graph-model.js를 index.js 보다 먼저 참조해야 함
+     * (classic script global scope 의존 → load order critical).
+     */
+    @Test
+    void builder_loadsGraphModelBeforeIndex() throws Exception {
+        String body = mockMvc.perform(get("/line/builder"))
+                .andReturn().getResponse().getContentAsString();
+        // <script src="..."> 위치만 비교 — 코멘트 안의 파일명 언급은 무시
+        int graphIdx = body.indexOf("src=\"/js/builder/graph-model.js\"");
+        int indexIdx = body.indexOf("src=\"/js/builder/index.js\"");
+        org.junit.jupiter.api.Assertions.assertTrue(graphIdx >= 0, "graph-model.js 참조 없음");
+        org.junit.jupiter.api.Assertions.assertTrue(indexIdx > graphIdx,
+                "graph-model.js는 index.js 보다 먼저 와야 함 (graphIdx=" + graphIdx + ", indexIdx=" + indexIdx + ")");
     }
 
     @Test

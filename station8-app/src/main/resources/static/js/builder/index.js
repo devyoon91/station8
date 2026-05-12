@@ -228,40 +228,11 @@ window.switchPropTab = function (name) {
     document.getElementById('line-settings-body').style.display = isProps ? 'none' : '';
 };
 
-/** Drawflow 내부 데이터 → Station8SubwayMap.topologicalOrder 입력 형태로 변환. */
-function buildBuilderGraph() {
-    const data = editor.export().drawflow.Home.data;
-    const nodes = [];
-    const edges = [];
-    const idMap = {};  // 외부ID → 자기 자신 (1:1) — buildBuilderGraph는 Drawflow 숫자 ID를 그대로 nodeId로 씀
-    Object.keys(data).forEach(k => {
-        const n = data[k];
-        const nid = String(n.id);
-        idMap[n.id] = nid;
-        nodes.push({
-            id: nid,
-            name: n.data.activityNm || n.name || nid,
-            activity: n.data.activityNm || n.name || nid
-        });
-    });
-    let edgeCounter = 0;
-    Object.keys(data).forEach(k => {
-        const n = data[k];
-        Object.keys(n.outputs || {}).forEach(outKey => {
-            (n.outputs[outKey].connections || []).forEach(c => {
-                edges.push({
-                    id: 'e-' + (++edgeCounter),
-                    from: idMap[n.id],
-                    to: idMap[c.node]
-                });
-            });
-        });
-    });
-    return { nodes: nodes, edges: edges };
-}
+// #181 PR-2 — buildBuilderGraph / escapeHtmlBuilder 는 /js/builder/graph-model.js로 분리.
+// classic script global scope를 통해 그대로 호출 (mustache가 graph-model.js를 index.js보다 먼저 로드).
 
 function refreshStationsList() {
-    const graph = buildBuilderGraph();
+    const graph = buildBuilderGraph(editor);
     const sorted = Station8SubwayMap.topologicalOrder(graph);
     const listEl = document.getElementById('stations-list');
     const countEl = document.getElementById('stations-count');
@@ -311,11 +282,7 @@ function focusBuilderNode(idStr) {
     setStatus('Focused #' + idStr);
 }
 
-function escapeHtmlBuilder(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    })[c]);
-}
+// escapeHtmlBuilder 도 graph-model.js로 분리 (#181 PR-2).
 
 // 노드/엣지 변경 시 stations list 자동 갱신 (현재 active일 때만 의미 있지만 항상 갱신해 카운트 동기화)
 editor.on('nodeCreated', refreshStationsList);
