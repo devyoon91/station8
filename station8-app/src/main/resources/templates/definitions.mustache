@@ -16,7 +16,11 @@
             <h1 class="swe-display-lg" style="margin: 0;">Lines</h1>
             <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">활성 라인 정의 ({{totalCount}}건) — 노선도로 보거나 빌더에서 새 라인을 만든다</p>
         </div>
-        <a href="/line/builder" class="swe-btn-primary">+ New Line</a>
+        <div class="swe-row">
+            <!-- #193 — JSON export 파일을 업로드해 정의 import. -->
+            <button type="button" class="swe-btn-tertiary" onclick="openImportModal()">⬆ Import</button>
+            <a href="/line/builder" class="swe-btn-primary">+ New Line</a>
+        </div>
     </div>
 
     <!-- #142 — 검색 / 태그 필터 -->
@@ -95,5 +99,107 @@
     </div>
 
 </div>
+
+<!-- #193 — Import 모달 (JSON 업로드 → POST /api/line/definitions/import) -->
+<div class="swe-modal-backdrop" id="import-backdrop" style="display:none;" onclick="closeImportModal()"></div>
+<div class="swe-modal" id="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title"
+     style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+            width: 480px; max-width: 90vw; background: var(--surface); border: 1px solid var(--hairline);
+            border-radius: var(--radius-lg); padding: var(--space-lg); z-index: 1600;">
+    <div class="swe-flex-between swe-mb-md">
+        <h3 id="import-title" class="swe-heading-md" style="margin:0;">Import line definition</h3>
+        <button type="button" class="swe-btn-tertiary swe-btn-sm" onclick="closeImportModal()">✕</button>
+    </div>
+    <div class="swe-stack" style="gap: var(--space-md);">
+        <div>
+            <label for="import-file">JSON 파일</label>
+            <input type="file" id="import-file" class="swe-input" accept=".json,application/json">
+            <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
+                <code>/line/definitions/{id}</code> 페이지의 <strong>⬇ Export</strong> 로 받은 JSON.
+            </div>
+        </div>
+        <div>
+            <label for="import-conflict">이름 충돌 정책</label>
+            <select id="import-conflict" class="swe-input">
+                <option value="newVersion" selected>newVersion — 동일 이름이면 새 버전으로 추가 (기본)</option>
+                <option value="rename">rename — "이름 (1)", "(2)" … suffix로 새 이름</option>
+                <option value="reject">reject — 동일 이름 있으면 거부 (4xx)</option>
+            </select>
+        </div>
+        <div id="import-result" class="swe-mute" style="font-size: 12px; min-height: 18px;"></div>
+    </div>
+    <div class="swe-flex-between" style="margin-top: var(--space-lg);">
+        <button type="button" class="swe-btn-tertiary" onclick="closeImportModal()">Cancel</button>
+        <button type="button" class="swe-btn-primary" id="import-submit" onclick="submitImport()">Import</button>
+    </div>
+</div>
+
+<script>
+function openImportModal() {
+    document.getElementById('import-backdrop').style.display = 'block';
+    document.getElementById('import-modal').style.display = 'block';
+    document.getElementById('import-result').textContent = '';
+    document.getElementById('import-result').style.color = '';
+}
+function closeImportModal() {
+    document.getElementById('import-backdrop').style.display = 'none';
+    document.getElementById('import-modal').style.display = 'none';
+}
+async function submitImport() {
+    const fileEl = document.getElementById('import-file');
+    const resultEl = document.getElementById('import-result');
+    const submitBtn = document.getElementById('import-submit');
+    if (!fileEl.files || fileEl.files.length === 0) {
+        resultEl.textContent = 'JSON 파일을 선택하세요.';
+        resultEl.style.color = 'var(--accent-pink)';
+        return;
+    }
+    const file = fileEl.files[0];
+    let payload;
+    try {
+        payload = JSON.parse(await file.text());
+    } catch (e) {
+        resultEl.textContent = 'JSON 파싱 실패: ' + e.message;
+        resultEl.style.color = 'var(--accent-pink)';
+        return;
+    }
+    const policy = document.getElementById('import-conflict').value;
+    submitBtn.disabled = true;
+    resultEl.textContent = 'Importing…';
+    resultEl.style.color = 'var(--mute)';
+    try {
+        const res = await fetch('/api/line/definitions/import?onConflict=' + encodeURIComponent(policy), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            const j = await res.json();
+            resultEl.textContent = '[OK] id=' + j.definitionId + ' · nm=' + j.definitionNm
+                + ' · policy=' + j.appliedPolicy;
+            resultEl.style.color = 'var(--accent-green, #1f883d)';
+            // 1.5초 후 리스트 새로고침 (새 정의 노출)
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            const j = await res.json().catch(() => ({}));
+            resultEl.textContent = '[FAIL] ' + (j.errorCode ? '[' + j.errorCode + '] ' : '')
+                + (j.message || res.statusText);
+            resultEl.style.color = 'var(--accent-pink)';
+        }
+    } catch (e) {
+        resultEl.textContent = '[FAIL] ' + e.message;
+        resultEl.style.color = 'var(--accent-pink)';
+    } finally {
+        submitBtn.disabled = false;
+    }
+}
+// Esc로 닫기
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && document.getElementById('import-modal').style.display === 'block') {
+        closeImportModal();
+    }
+});
+</script>
+
 </body>
 </html>
