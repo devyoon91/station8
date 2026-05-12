@@ -51,29 +51,40 @@ class BuilderEditModeTest {
                 // preload <script id="existing-definition-json">는 편집 모드에서만 임베드
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("<script id=\"existing-definition-json\""))))
-                // 신규 모드 JS flag
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("EDIT_MODE = false")));
+                // #181 PR-1 — Builder JS는 /js/builder/index.js로 외부화. data-island JSON으로 모드 식별값 주입.
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"editMode\": false")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"editDefinitionId\": null")))
+                // external 스크립트 참조 존재
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/builder/index.js")));
     }
 
     /**
-     * Builder UX 수정 검증:
-     * - reroute 비활성 (엣지 더블클릭 split UX 차단)
-     * - SVG 화살표 marker (방향성 시각화)
-     * - 토폴로지 순서 badge CSS + JS 함수
-     * - 포트 hover 강조 CSS
+     * Builder UX — HTML/CSS는 mustache, JS 로직은 /js/builder/index.js. 본 테스트는 mustache 응답만 검증.
+     * (외부 JS 내용은 builder_externalIndexJs_servesCoreLogic 가 별도 검증)
      */
     @Test
     void builder_includesUxFixesForOrderAndConnections() throws Exception {
         mockMvc.perform(get("/line/builder"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("editor.reroute = false")))
+                // mustache 응답에 남아 있는 HTML/CSS만 검증
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"dag-edge-arrow\"")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString(".exec-order-badge")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("function refreshExecutionOrder")))
-                // 포트 hover 강조
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(".drawflow-node .output:hover")))
                 // 새 사용자 안내 문구
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("포트에서 다른 노드의 좌측")));
+    }
+
+    /**
+     * #181 PR-1 — 외부화된 /js/builder/index.js가 핵심 로직을 포함하는지 직접 검증.
+     */
+    @Test
+    void builder_externalIndexJs_servesCoreLogic() throws Exception {
+        mockMvc.perform(get("/js/builder/index.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("editor.reroute = false")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("new Drawflow")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function refreshNodeLabels")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function saveDefinition")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function restoreExistingDefinition")));
     }
 
     @Test
@@ -105,8 +116,9 @@ class BuilderEditModeTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("ops-x")))
                 // 편집 모드 UI 표시
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Edit Line")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("EDIT_MODE = true")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("EDIT_DEFINITION_ID = '" + defId + "'")));
+                // #181 PR-1 — data-island JSON으로 모드 식별값 전달
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"editMode\": true")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"editDefinitionId\": \"" + defId + "\"")));
     }
 
     @Test
@@ -114,7 +126,7 @@ class BuilderEditModeTest {
         mockMvc.perform(get("/line/builder?id=ghost-definition"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("로드 실패")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("EDIT_MODE = false")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"editMode\": false")));
     }
 
     @Test

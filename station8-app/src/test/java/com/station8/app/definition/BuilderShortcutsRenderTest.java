@@ -25,20 +25,34 @@ class BuilderShortcutsRenderTest {
     @Autowired MockMvc mockMvc;
 
     @Test
-    void builder_rendersShortcutsModalAndHandlers() throws Exception {
+    void builder_rendersShortcutsModalAndOpenApi() throws Exception {
+        // mustache 응답: cheatsheet 모달 DOM + 토글 버튼 + 외부 스크립트 참조
         mockMvc.perform(get("/line/builder"))
                 .andExpect(status().isOk())
-                // cheatsheet 모달 DOM
                 .andExpect(content().string(containsString("id=\"shortcuts-modal\"")))
                 .andExpect(content().string(containsString("id=\"shortcuts-backdrop\"")))
                 .andExpect(content().string(containsString("Keyboard shortcuts")))
-                // open/close API
-                .andExpect(content().string(containsString("openShortcutsModal")))
-                .andExpect(content().string(containsString("closeShortcutsModal")))
-                // 단축키 항목 cheatsheet 표기
+                // 단축키 항목 cheatsheet 표기 (mustache 마크업)
                 .andExpect(content().string(containsString("Backspace")))
                 .andExpect(content().string(containsString("Stations 탭 + 검색 input 포커스")))
                 .andExpect(content().string(containsString("Connect 모드 취소")))
+                // 토글버튼 노출
+                .andExpect(content().string(containsString("Keyboard shortcuts (?)")))
+                .andExpect(content().string(containsString("swe-shortcut-hint")))
+                // #181 PR-1 — 외부 스크립트 참조
+                .andExpect(content().string(containsString("/js/builder/index.js")));
+    }
+
+    /**
+     * #181 PR-1 — 단축키 핸들러 로직은 /js/builder/index.js로 이전. 본 테스트가 외부 파일을 직접 검증.
+     */
+    @Test
+    void builderJs_includesShortcutsHandlers() throws Exception {
+        mockMvc.perform(get("/js/builder/index.js"))
+                .andExpect(status().isOk())
+                // open/close API
+                .andExpect(content().string(containsString("openShortcutsModal")))
+                .andExpect(content().string(containsString("closeShortcutsModal")))
                 // 핵심 핸들러 키워드
                 .andExpect(content().string(containsString("shouldIgnoreShortcut")))
                 .andExpect(content().string(containsString("isAnyModalOpen")))
@@ -52,10 +66,7 @@ class BuilderShortcutsRenderTest {
                 .andExpect(content().string(containsString("e.key === 'Escape'")))
                 .andExpect(content().string(containsString("e.key === '?'")))
                 .andExpect(content().string(containsString("e.ctrlKey || e.metaKey")))
-                // 토글버튼 노출
-                .andExpect(content().string(containsString("Keyboard shortcuts (?)")))
                 // ctx-menu Delete 항목에 단축키 hint
-                .andExpect(content().string(containsString("shortcut: 'Del'")))
-                .andExpect(content().string(containsString("swe-shortcut-hint")));
+                .andExpect(content().string(containsString("shortcut: 'Del'")));
     }
 }
