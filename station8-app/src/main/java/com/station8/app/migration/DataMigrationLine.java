@@ -30,7 +30,8 @@ public class DataMigrationLine {
      *
      * 강제 오류 유발: content에 "Second"가 포함되면 RuntimeException을 던져 재시도 백오프 동작을 검증한다.
      */
-    @Activity(value = "MIGRATION_WRITE", retryCount = 5, backoffSeconds = 5)
+    @Activity(value = "MIGRATION_WRITE", retryCount = 5, backoffSeconds = 5,
+            description = "SRC_DATA→DEST_DATA 단건 마이그레이션 — input은 {id, content} JSON. content에 'Second' 포함 시 강제 실패(데모).")
     public String migrateItem(String inputJson) {
         if (inputJson == null || inputJson.isBlank()) {
             throw new IllegalArgumentException("Empty migration payload");

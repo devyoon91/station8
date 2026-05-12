@@ -29,7 +29,8 @@ public class NoopLine {
     private static final java.util.concurrent.ConcurrentMap<String, Integer> attemptCounter =
             new java.util.concurrent.ConcurrentHashMap<>();
 
-    @Activity(value = "NOOP", retryCount = 0, backoffSeconds = 0)
+    @Activity(value = "NOOP", retryCount = 0, backoffSeconds = 0,
+            description = "입력을 그대로 반환하는 no-op — 연결 데모 / placeholder 노드 용.")
     public String noop(String input) {
         log.info("NOOP activity: input={}", input);
         return input == null ? "null" : input;
@@ -39,7 +40,8 @@ public class NoopLine {
      * 첫 호출은 실패, 두 번째 호출은 성공. 재시도 백오프 동작 시연용.
      * inputData를 키로 사용하므로 동일 input으로 두 번 호출하지 말 것.
      */
-    @Activity(value = "NOOP_FAIL_ONCE", retryCount = 3, backoffSeconds = 2)
+    @Activity(value = "NOOP_FAIL_ONCE", retryCount = 3, backoffSeconds = 2,
+            description = "재시도 백오프 데모 — 같은 input 첫 호출은 실패, 두 번째 호출부터 성공.")
     public String noopFailOnce(String input) {
         String key = input == null ? "null" : input;
         int attempt = attemptCounter.merge(key, 1, Integer::sum);

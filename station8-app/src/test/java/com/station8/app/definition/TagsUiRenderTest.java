@@ -59,7 +59,8 @@ class TagsUiRenderTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"tagsInput\"")))
                 .andExpect(content().string(containsString("etl, daily, finance")))
-                .andExpect(content().string(containsString("Line settings — SLA / Concurrency")));
+                // #210 — Line settings는 Properties 패널 탭으로 이동
+                .andExpect(content().string(containsString("Line settings")));
     }
 
     @Test

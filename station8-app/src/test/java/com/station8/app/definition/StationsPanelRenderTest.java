@@ -49,7 +49,8 @@ class StationsPanelRenderTest {
     }
 
     @Test
-    void builder_newMode_rendersTabBarWithActivitiesAndStations() throws Exception {
+    void builder_newMode_rendersTabBarDom() throws Exception {
+        // mustache 응답: 탭 DOM + 외부 JS 참조
         mockMvc.perform(get("/line/builder"))
                 .andExpect(status().isOk())
                 // 탭 바 + 두 탭 ID
@@ -60,12 +61,20 @@ class StationsPanelRenderTest {
                 .andExpect(content().string(containsString("id=\"stations-tab-body\"")))
                 .andExpect(content().string(containsString("id=\"stations-search\"")))
                 .andExpect(content().string(containsString("id=\"stations-list\"")))
-                // JS 훅 — 탭 스위치 + refresh
-                .andExpect(content().string(containsString("switchTab(")))
-                .andExpect(content().string(containsString("refreshStationsList")))
-                .andExpect(content().string(containsString("focusBuilderNode")))
                 // subway-map.js (topologicalOrder 사용)가 빌더에서도 로드돼야 함
-                .andExpect(content().string(containsString("/js/subway-map.js")));
+                .andExpect(content().string(containsString("/js/subway-map.js")))
+                // #181 PR-1~4 — JS 로직은 외부 모듈
+                .andExpect(content().string(containsString("/js/builder/index.js")));
+    }
+
+    /** #181 PR-1~4 — index.js: switchTab 정의 / refreshStationsList / focusBuilderNode. */
+    @Test
+    void indexJs_includesTabAndStationsListHandlers() throws Exception {
+        mockMvc.perform(get("/js/builder/index.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("window.switchTab")))
+                .andExpect(content().string(containsString("function refreshStationsList")))
+                .andExpect(content().string(containsString("function focusBuilderNode")));
     }
 
     @Test

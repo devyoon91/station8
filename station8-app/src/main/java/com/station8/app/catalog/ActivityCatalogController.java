@@ -86,7 +86,8 @@ public class ActivityCatalogController {
                 meta.annotation().retryCount(),
                 meta.annotation().backoffSeconds(),
                 paramTypes,
-                m.getReturnType().getName()
+                m.getReturnType().getName(),
+                meta.annotation().description()
         );
     }
 }

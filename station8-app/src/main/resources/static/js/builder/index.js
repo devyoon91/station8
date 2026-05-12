@@ -37,8 +37,14 @@ async function loadActivities() {
             div.className = 'swe-palette-item';
             div.draggable = true;
             div.dataset.activity = a.activityName;
+            // #192 — description은 @Activity(description) 메타에서 옴. 빈 문자열이면 표시 안 함.
+            const descHtml = a.description
+                ? '<div class="desc">' + escapeHtmlBuilder(a.description) + '</div>'
+                : '';
             div.innerHTML = '<strong>' + a.activityName + '</strong>' +
+                descHtml +
                 '<div class="meta">retry ' + a.retryCount + ' · backoff ' + a.backoffSeconds + 's</div>';
+            if (a.description) div.title = a.description;
             div.addEventListener('dragstart', e => {
                 e.dataTransfer.setData('activity', a.activityName);
             });
@@ -90,7 +96,16 @@ function populateProps(id) {
         openMobilePanel('properties');
     }
     const props = document.getElementById('props');
+    // #192 — activities catalog에서 description lookup (없으면 빈 문자열)
+    const meta = (typeof activities !== 'undefined' && Array.isArray(activities))
+        ? activities.find(x => x.activityName === node.data.activityNm)
+        : null;
+    const descHtml = (meta && meta.description)
+        ? '<div class="swe-mute" style="font-size: 12px; padding: var(--space-sm) var(--space-md); background: var(--surface-card); border-radius: var(--radius-sm); margin-bottom: var(--space-sm);">'
+            + escapeHtmlBuilder(meta.description) + '</div>'
+        : '';
     props.innerHTML = '<div class="swe-stack">' +
+        descHtml +
         '<div><label>Node ID</label><input class="swe-input" value="' + id + '" disabled></div>' +
         '<div><label>Activity</label><input class="swe-input" value="' + node.data.activityNm + '" disabled></div>' +
         '<div><label>Input params (JSON)</label><textarea class="swe-input" rows="6" id="paramsInput" style="height: auto; padding: 8px;" placeholder="{}">' + (node.data.inputParams || '') + '</textarea></div>' +
