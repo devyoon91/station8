@@ -191,6 +191,20 @@
             background:
                 radial-gradient(circle, var(--hairline) 1px, transparent 1px) 0 0 / 24px 24px,
                 var(--canvas);
+            /* #205 PR-3 — Drawflow 내부 터치 핸들러에 모든 gesture 위임.
+               touch-action: none이면 브라우저 pan/zoom 안 일어남 → Drawflow의 1-finger 노드 드래그 /
+               2-finger 핀치줌이 충돌 없이 동작. body 영역 밖 스크롤엔 영향 없음 (canvas만 적용). */
+            touch-action: none;
+        }
+
+        /* touch device — 포트 hit area 키움 (#205 PR-3). pointer: coarse는 stylus/finger 등 정밀도 낮은 입력 매체.
+           desktop 마우스(fine)는 18px 유지, 손가락은 22px로 확장. */
+        @media (pointer: coarse) {
+            .drawflow .drawflow-node .input,
+            .drawflow .drawflow-node .output {
+                width: 22px;
+                height: 22px;
+            }
         }
         /* position: absolute는 Drawflow 기본 — 절대 덮어쓰지 말 것.
            이전에 exec-order-badge anchor용으로 position:relative를 추가했다가 노드 좌표가 block flow로
@@ -1275,7 +1289,58 @@ editor.on('connectionRemoved', () => setTimeout(refreshEdgeConditionVisualizatio
 editor.on('translate', () => setTimeout(refreshEdgeConditionVisualization, 0));
 editor.on('zoom', () => setTimeout(refreshEdgeConditionVisualization, 0));
 
-// canvas 우클릭 인터셉트 (capture로 Drawflow 자체 메뉴 선점)
+// ===== #205 PR-3 — touch long-press 컨텍스트 메뉴 =====
+// touch에는 contextmenu 이벤트가 없거나 브라우저별 편차가 큼. 500ms 이상 누르면
+// 합성 contextmenu 이벤트를 노드/엣지 element에서 dispatch하여 아래 우클릭 핸들러
+// (capture 단계) 가 그대로 처리하게 함 — 코드 중복 zero.
+(function setupTouchLongPress() {
+    const LONG_PRESS_MS = 500;
+    const MOVE_TOLERANCE = 10; // 손가락이 10px 이상 움직이면 drag 의도로 판단 → 취소
+    const drawflow = document.getElementById('drawflow');
+    let pressTimer = null;
+    let pressInfo = null;
+
+    function cancel() {
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+        pressInfo = null;
+    }
+
+    drawflow.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) { cancel(); return; }
+        const t = e.touches[0];
+        const conn = t.target.closest && t.target.closest('.connection');
+        const node = t.target.closest && t.target.closest('.drawflow-node');
+        if (!conn && !node) return;          // 빈 캔버스는 contextmenu 비활성과 동일
+
+        pressInfo = { x: t.clientX, y: t.clientY, el: node || conn };
+        pressTimer = setTimeout(() => {
+            if (!pressInfo) return;
+            const evt = new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: pressInfo.x,
+                clientY: pressInfo.y,
+                view: window
+            });
+            pressInfo.el.dispatchEvent(evt);
+            pressInfo = null;
+        }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    drawflow.addEventListener('touchmove', e => {
+        if (!pressInfo) return;
+        const t = e.touches[0];
+        if (Math.abs(t.clientX - pressInfo.x) > MOVE_TOLERANCE
+            || Math.abs(t.clientY - pressInfo.y) > MOVE_TOLERANCE) {
+            cancel();   // 손가락 이동 = drag 의도 → long-press 취소
+        }
+    }, { passive: true });
+
+    drawflow.addEventListener('touchend', cancel, { passive: true });
+    drawflow.addEventListener('touchcancel', cancel, { passive: true });
+})();
+
+// canvas 우클릭 인터셉트 (capture로 Drawflow 자체 메뉴 선점) — touch에선 위 long-press가 synth dispatch
 document.getElementById('drawflow').addEventListener('contextmenu', e => {
     const conn = e.target.closest('.connection');
     const node = e.target.closest('.drawflow-node');

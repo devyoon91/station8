@@ -162,7 +162,47 @@ body > .swe-container {
 - panel transform 기반 슬라이드 (`translateX(-110%)` ↔ `translateX(0)`), `transition: transform 0.25s ease`.
 - 데스크톱/태블릿에서는 FAB/backdrop을 `display: none` 기본값으로 두고 mobile @media에서만 `display: flex` / `display: block` 활성화.
 
-> PR-3은 Drawflow 터치 이벤트 보강 — pointer events / 터치 polyfill / 또는 wrapper 라이브러리 조사.
+### 터치 입력 규약 (Builder PR-3)
+
+캔버스 / 도구 페이지에서 터치 기기 호환을 위한 표준:
+
+| 영역 | 규약 |
+|---|---|
+| 캔버스 element (`#drawflow`) | `touch-action: none` — 브라우저 pan/zoom 끄고 라이브러리(Drawflow)에 모든 gesture 위임. body 영역 밖에는 영향 없음. |
+| 포트 / 핸들 같은 정밀 hit target | `@media (pointer: coarse)` 분기로 터치 환경에서만 hit area 확대 (예: 포트 18→22px). 마우스(fine) 환경 시각은 그대로. |
+| 우클릭 컨텍스트 메뉴 | 터치엔 `contextmenu` 이벤트 보장 없음 → **500ms long-press → synthetic MouseEvent('contextmenu') dispatch** 패턴. 기존 데스크톱 핸들러 그대로 재사용 (capture phase). 손가락 10px 이상 이동 시 long-press 취소 (drag 의도와 분리). |
+| HTML5 drag-and-drop | 터치에서 신뢰성 낮음. 대안으로 **tap-to-action** (예: palette 1-tap → 캔버스 중앙 생성) 구현 (Builder PR-2). |
+
+#### Long-press → contextmenu 보일러플레이트
+
+```js
+const LONG_PRESS_MS = 500;
+const MOVE_TOLERANCE = 10;
+let pressTimer = null, pressInfo = null;
+
+target.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const hit = t.target.closest('.your-target-selector');
+    if (!hit) return;
+    pressInfo = { x: t.clientX, y: t.clientY, el: hit };
+    pressTimer = setTimeout(() => {
+        if (!pressInfo) return;
+        pressInfo.el.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true, cancelable: true,
+            clientX: pressInfo.x, clientY: pressInfo.y, view: window
+        }));
+        pressInfo = null;
+    }, LONG_PRESS_MS);
+}, { passive: true });
+
+// touchmove / touchend / touchcancel에서 tolerance 초과 시 cancel
+```
+
+#### 알려진 잔여 한계
+
+- **palette → canvas 드래그 (HTML5 dnd)**: 터치에서 동작 보장 X. Builder는 tap-to-add 우회 패턴 사용.
+- **엣지 조건 편집**: 모달 자체는 정상이나, 작은 viewport에서 textarea 키보드 노출 시 모달 일부 가려질 수 있음. 향후 모달 `max-height: 90vh` + 내부 스크롤 점검 권장.
 
 ---
 
