@@ -41,6 +41,43 @@
             flex-direction: column;
             min-height: 0;
         }
+
+        /* #205 PR-1 — 반응형 layout (CSS-only). 태블릿은 컬럼만 축소, 모바일은 세로 스택.
+           모바일 fullscreen 캔버스 + 플로팅 모달은 PR-2에서. */
+        @media (max-width: 1023px) and (min-width: 768px) {
+            .swe-builder-layout {
+                grid-template-columns: 240px 1fr 280px;
+                gap: var(--space-md);
+            }
+        }
+        @media (max-width: 767px) {
+            .swe-builder-layout {
+                display: flex;
+                flex-direction: column;
+                gap: var(--space-md);
+                min-height: 0;          /* 세로 스택에선 강제 600px 불필요 — body 스크롤로 흡수 */
+            }
+            /* 캔버스를 최상단에 노출 — 작업 영역 우선. DOM 순서(palette→canvas→properties)는 그대로 두고 order로 시각 재배치 */
+            .swe-canvas-wrap { order: 1; min-height: 60vh; }
+            .swe-palette    { order: 2; min-height: 320px; max-height: 70vh; }
+            .swe-properties { order: 3; min-height: 320px; max-height: 70vh; }
+
+            /* toolbar 가로 분할 깨면서 wrap — h1 + status가 한 줄, 버튼 행이 다음 줄 */
+            .swe-builder-toolbar {
+                flex-wrap: wrap;
+                margin-bottom: var(--space-md);
+            }
+            .swe-builder-toolbar > div:first-child { flex: 1 1 100%; }
+            .swe-builder-toolbar .swe-row {
+                flex-wrap: wrap;
+                gap: var(--space-sm);
+                width: 100%;
+            }
+            /* h1 사이즈 다운 — display-lg(56px)는 모바일에서 과함 */
+            .swe-builder-toolbar h1.swe-display-lg { font-size: 28px; line-height: 1.25; }
+            /* Definition name input 폭 제한 해제 → 가용폭 사용 */
+            .swe-builder-toolbar #defNm { width: 100%; min-width: 0; }
+        }
         .swe-panel-header {
             padding: var(--space-md) var(--space-lg);
             border-bottom: 1px solid var(--hairline);
