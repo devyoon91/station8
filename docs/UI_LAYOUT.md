@@ -141,11 +141,28 @@ body > .swe-container {
 |---|---|
 | `≥ 1024px` (데스크톱) | 3-column grid: `280px 1fr 320px` |
 | `768~1023px` (태블릿) | 3-column grid 축소: `240px 1fr 280px` |
-| `< 768px` (모바일/좁은 viewport) | flex 세로 스택. `order`로 캔버스 최상단. 캔버스 `min-height: 60vh`, 패널 `min-height: 320px; max-height: 70vh`. body 스크롤 활성 (§3.1 합산이 100dvh 초과 → 자연 스크롤). |
+| `< 768px` (모바일/좁은 viewport) | 캔버스만 흐름에 남고 flex: 1로 viewport 점유. **palette/properties는 `position: fixed` slide-in overlay** — 좌하단 / 우하단 FAB로 toggle. backdrop 클릭 / Esc / 토글 재클릭으로 닫힘. 노드 선택 시 properties overlay 자동 노출. tap-to-add (palette item 1회 클릭) 로 캔버스 중앙에 노드 생성 (Drawflow 터치 드래그 한계 우회). |
 
 콘텐츠형 페이지는 768px 분기점 외에 별도 처리 거의 불필요 (grid가 자연스럽게 흐름).
 
-> PR-2에서 모바일 fullscreen 캔버스 + 플로팅 버튼 → 패널 모달 패턴 추가 예정. PR-3은 Drawflow 터치 이벤트 보강.
+### 모바일 overlay 표준 패턴 (Builder PR-2)
+
+```html
+<!-- 다른 툴형 페이지에서도 동일하게 재사용 가능 -->
+<div class="swe-mobile-backdrop" id="mobile-backdrop" onclick="closeMobilePanels()"></div>
+<div class="swe-mobile-fab-group" id="mobile-fab-group">
+    <button class="swe-mobile-fab" data-fab="palette" onclick="toggleMobilePanel('palette')">☰ Palette</button>
+    <button class="swe-mobile-fab" data-fab="properties" onclick="toggleMobilePanel('properties')">⚙ Props</button>
+</div>
+```
+
+규약:
+- z-index 위계: FAB 998 / backdrop 999 / panel 1000 / 일반 모달 backdrop 1500 / 일반 모달 1600.
+- `top: 56px` — nav 아래에서 시작 (nav는 그대로 노출되어 페이지 탐색 가능).
+- panel transform 기반 슬라이드 (`translateX(-110%)` ↔ `translateX(0)`), `transition: transform 0.25s ease`.
+- 데스크톱/태블릿에서는 FAB/backdrop을 `display: none` 기본값으로 두고 mobile @media에서만 `display: flex` / `display: block` 활성화.
+
+> PR-3은 Drawflow 터치 이벤트 보강 — pointer events / 터치 polyfill / 또는 wrapper 라이브러리 조사.
 
 ---
 
