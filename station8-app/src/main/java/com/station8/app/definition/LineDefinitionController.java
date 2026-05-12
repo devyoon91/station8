@@ -3,7 +3,9 @@ package com.station8.app.definition;
 import com.station8.engine.core.RunOptions;
 import com.station8.engine.core.RunOptionsCodec;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -58,6 +60,32 @@ public class LineDefinitionController {
     @GetMapping("/{id}")
     public DagDefinitionResponse get(@PathVariable("id") String id) {
         return service.getDefinition(id);
+    }
+
+    /**
+     * #193 — 정의를 JSON으로 export. {@code Content-Disposition: attachment}로 download 트리거.
+     *
+     * <p>파일명은 {@code <definitionNm>-v<versionNo>.json} (영숫자/하이픈/언더스코어/점 외 문자는 ``_``로 sanitize).
+     * 응답 본문은 {@link DefinitionExportPayload} — {@code schemaVersion} 명시.</p>
+     *
+     * <p>읽기 권한자만 호출 가능 (#140 — ACL READ).</p>
+     */
+    @GetMapping("/{id}/export")
+    @PreAuthorize("@lineAcl.canRead(#id)")
+    public ResponseEntity<DefinitionExportPayload> export(@PathVariable("id") String id) {
+        DagDefinitionResponse def = service.getDefinition(id);
+        DefinitionExportPayload payload = DefinitionExportPayload.from(def);
+        String filename = sanitizeFilename(def.definitionNm() + "-v" + def.versionNo() + ".json");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload);
+    }
+
+    /** 파일명 안전화 — 영숫자/하이픈/언더스코어/점 외 문자는 ``_``로 치환. 길이 100자 제한. */
+    private static String sanitizeFilename(String name) {
+        String cleaned = (name == null ? "definition" : name).replaceAll("[^A-Za-z0-9._-]", "_");
+        return cleaned.length() > 100 ? cleaned.substring(0, 100) : cleaned;
     }
 
     /**

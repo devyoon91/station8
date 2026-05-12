@@ -23,6 +23,9 @@
         <div class="swe-row">
             <a href="/line/definitions" class="swe-btn-tertiary">Back</a>
             <a href="/line/builder?id={{definitionId}}" class="swe-btn-tertiary">Edit</a>
+            <!-- #193 — 정의를 JSON으로 download. 브라우저가 Content-Disposition: attachment를 처리. -->
+            <a href="/api/line/definitions/{{definitionId}}/export" class="swe-btn-tertiary"
+               title="정의를 JSON 파일로 export — 사이트 간 이식 / 백업">⬇ Export</a>
             <button type="button" class="swe-btn-primary" onclick="openRunModal()">▶ Run now</button>
         </div>
     </div>
