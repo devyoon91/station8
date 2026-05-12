@@ -33,11 +33,14 @@ public class LineDefinitionController {
 
     private final LineDefinitionService service;
     private final RunOptionsCodec runOptionsCodec;
+    private final DefinitionImportService importService;
 
     public LineDefinitionController(LineDefinitionService service,
-                                    RunOptionsCodec runOptionsCodec) {
+                                    RunOptionsCodec runOptionsCodec,
+                                    DefinitionImportService importService) {
         this.service = service;
         this.runOptionsCodec = runOptionsCodec;
+        this.importService = importService;
     }
 
     /**
@@ -86,6 +89,29 @@ public class LineDefinitionController {
     private static String sanitizeFilename(String name) {
         String cleaned = (name == null ? "definition" : name).replaceAll("[^A-Za-z0-9._-]", "_");
         return cleaned.length() > 100 ? cleaned.substring(0, 100) : cleaned;
+    }
+
+    /**
+     * #193 — 정의 import. {@link DefinitionExportPayload}를 받아 새 정의로 저장.
+     *
+     * <p>인증된 사용자만 호출 가능 (#140 — create 권한과 동일). 충돌 정책은 query param
+     * {@code onConflict=newVersion|rename|reject} (default: newVersion).</p>
+     *
+     * <p>응답 — 201 Created + {@code {definitionId, definitionNm, appliedPolicy}}.</p>
+     */
+    @PostMapping("/import")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> importDefinition(
+            @RequestBody DefinitionExportPayload payload,
+            @RequestParam(value = "onConflict", required = false) String onConflict) {
+        DefinitionImportService.ConflictPolicy policy =
+                DefinitionImportService.ConflictPolicy.fromQuery(onConflict);
+        DefinitionImportService.ImportResult result = importService.importDefinition(payload, policy);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("definitionId", result.definitionId());
+        body.put("definitionNm", result.definitionNm());
+        body.put("appliedPolicy", result.appliedPolicy().name());
+        return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 
     /**
