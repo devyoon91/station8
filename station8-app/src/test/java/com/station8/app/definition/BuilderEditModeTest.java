@@ -74,25 +74,113 @@ class BuilderEditModeTest {
     }
 
     /**
-     * #181 PR-1 — 외부화된 /js/builder/index.js가 핵심 로직을 포함하는지 직접 검증.
+     * #181 PR-1~4 — index.js entrypoint: editor 생성 + 부트스트랩 + 잔존 함수(populateProps,
+     * refreshNodeLabels, switchTab/switchPropTab, refreshStationsList, deleteNode 등).
+     * 다음 함수들은 별도 모듈로 이동 — index.js에 더 이상 없음:
+     * <ul>
+     *   <li>PR-2 — buildBuilderGraph / escapeHtmlBuilder (graph-model.js)</li>
+     *   <li>PR-3 — saveDefinition / restoreExistingDefinition (form-serializer.js)</li>
+     *   <li>PR-4 — showCtxMenu (ctx-menu.js), shouldIgnoreShortcut (shortcuts.js),
+     *       openMobilePanel (mobile-overlay.js), parseConnectionFromElement (edge-condition-modal.js),
+     *       setupTouchLongPress (touch-longpress.js)</li>
+     * </ul>
      */
     @Test
-    void builder_externalIndexJs_servesCoreLogic() throws Exception {
+    void builder_externalIndexJs_servesEntrypointOnly() throws Exception {
         mockMvc.perform(get("/js/builder/index.js"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("editor.reroute = false")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("new Drawflow")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("function refreshNodeLabels")))
-                // PR-2 — buildBuilderGraph / escapeHtmlBuilder는 graph-model.js로 이동, index.js엔 없음
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function populateProps")))
+                // 이동된 함수들은 부재
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("function buildBuilderGraph"))))
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("function escapeHtmlBuilder"))))
-                // PR-3 — saveDefinition / restoreExistingDefinition는 form-serializer.js로 이동
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("async function saveDefinition"))))
                 .andExpect(content().string(org.hamcrest.Matchers.not(
-                        org.hamcrest.Matchers.containsString("function restoreExistingDefinition"))));
+                        org.hamcrest.Matchers.containsString("function restoreExistingDefinition"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("function showCtxMenu"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("function shouldIgnoreShortcut"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("function openMobilePanel"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("function parseConnectionFromElement"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("setupTouchLongPress"))));
+    }
+
+    /** #181 PR-4 — mobile-overlay.js: FAB 토글 / tap-to-add */
+    @Test
+    void builder_externalMobileOverlayJs_servesFAB() throws Exception {
+        mockMvc.perform(get("/js/builder/mobile-overlay.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function isMobile")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function openMobilePanel")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function closeMobilePanels")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function toggleMobilePanel")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function addActivityNodeAtCenter")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("MOBILE_MQ")));
+    }
+
+    /** #181 PR-4 — ctx-menu.js: 우클릭 컨텍스트 메뉴 (touch long-press가 합성 dispatch) */
+    @Test
+    void builder_externalCtxMenuJs_servesContextMenu() throws Exception {
+        mockMvc.perform(get("/js/builder/ctx-menu.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function showCtxMenu")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function closeCtxMenu")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function ctxMoveFocus")))
+                // 노드/엣지 contextmenu 핸들러 + capture phase
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("addEventListener('contextmenu'")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("capture: true")))
+                // Delete node 메뉴 항목에 단축키 hint
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("shortcut: 'Del'")));
+    }
+
+    /** #181 PR-4 — edge-condition-modal.js: 엣지 조건식 모달 + 연결 파싱/해제 + 시각화 */
+    @Test
+    void builder_externalEdgeConditionModalJs_servesEdgeFeatures() throws Exception {
+        mockMvc.perform(get("/js/builder/edge-condition-modal.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function parseConnectionFromElement")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function disconnectAllEdges")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function disconnectEdge")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("edgeConditions")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("openEdgeCondModal")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("saveEdgeCond")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function refreshEdgeConditionVisualization")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function bindEdgeConditionEditorEvents")));
+    }
+
+    /** #181 PR-4 — shortcuts.js: 키보드 단축키 (Delete / Esc / F / ? / Ctrl+S) */
+    @Test
+    void builder_externalShortcutsJs_servesKeydownHandler() throws Exception {
+        mockMvc.perform(get("/js/builder/shortcuts.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("openShortcutsModal")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("closeShortcutsModal")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function shouldIgnoreShortcut")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function isAnyModalOpen")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("e.key === 'Delete'")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("e.key === 'Escape'")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("e.key === '?'")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("e.ctrlKey || e.metaKey")));
+    }
+
+    /** #181 PR-4 — touch-longpress.js: 500ms long-press → 합성 contextmenu dispatch */
+    @Test
+    void builder_externalTouchLongpressJs_servesIIFE() throws Exception {
+        mockMvc.perform(get("/js/builder/touch-longpress.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("setupTouchLongPress")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("LONG_PRESS_MS")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("MOVE_TOLERANCE")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("new MouseEvent('contextmenu'")));
     }
 
     /**
@@ -122,22 +210,41 @@ class BuilderEditModeTest {
     }
 
     /**
-     * #181 PR-2 — builder.mustache가 graph-model.js를 index.js 보다 먼저 참조해야 함
-     * (classic script global scope 의존 → load order critical).
+     * #181 PR-1~4 — builder.mustache의 <script> load order 보장.
+     * classic script global scope 공유 의존 — index.js (entrypoint, editor 생성)가 마지막이어야 함.
+     * 본 모듈들은 모두 그 전에 로드해 함수/상태 선언이 끝나 있어야 한다.
      */
     @Test
-    void builder_loadsGraphModelAndFormSerializerBeforeIndex() throws Exception {
+    void builder_loadsAllModulesBeforeIndex() throws Exception {
         String body = mockMvc.perform(get("/line/builder"))
                 .andReturn().getResponse().getContentAsString();
-        // <script src="..."> 위치만 비교 — 코멘트 안의 파일명 언급은 무시
         int graphIdx = body.indexOf("src=\"/js/builder/graph-model.js\"");
         int formIdx = body.indexOf("src=\"/js/builder/form-serializer.js\"");
+        int mobileIdx = body.indexOf("src=\"/js/builder/mobile-overlay.js\"");
+        int shortcutsIdx = body.indexOf("src=\"/js/builder/shortcuts.js\"");
+        int ctxIdx = body.indexOf("src=\"/js/builder/ctx-menu.js\"");
+        int touchIdx = body.indexOf("src=\"/js/builder/touch-longpress.js\"");
+        int edgeIdx = body.indexOf("src=\"/js/builder/edge-condition-modal.js\"");
         int indexIdx = body.indexOf("src=\"/js/builder/index.js\"");
-        org.junit.jupiter.api.Assertions.assertTrue(graphIdx >= 0, "graph-model.js 참조 없음");
-        org.junit.jupiter.api.Assertions.assertTrue(formIdx >= 0, "form-serializer.js 참조 없음");
-        org.junit.jupiter.api.Assertions.assertTrue(indexIdx > formIdx && formIdx > graphIdx,
-                "load 순서: graph-model.js < form-serializer.js < index.js (graphIdx=" + graphIdx +
-                        ", formIdx=" + formIdx + ", indexIdx=" + indexIdx + ")");
+
+        for (var entry : java.util.Map.of(
+                "graph-model.js", graphIdx,
+                "form-serializer.js", formIdx,
+                "mobile-overlay.js", mobileIdx,
+                "shortcuts.js", shortcutsIdx,
+                "ctx-menu.js", ctxIdx,
+                "touch-longpress.js", touchIdx,
+                "edge-condition-modal.js", edgeIdx,
+                "index.js", indexIdx).entrySet()) {
+            org.junit.jupiter.api.Assertions.assertTrue(entry.getValue() >= 0,
+                    entry.getKey() + " <script> 참조 없음");
+        }
+        // 모든 보조 모듈이 index.js 보다 먼저 와야 함
+        int[] preIndex = { graphIdx, formIdx, mobileIdx, shortcutsIdx, ctxIdx, touchIdx, edgeIdx };
+        for (int idx : preIndex) {
+            org.junit.jupiter.api.Assertions.assertTrue(idx < indexIdx,
+                    "모듈 idx=" + idx + " 가 index.js idx=" + indexIdx + " 보다 뒤 — entrypoint는 마지막이어야 함");
+        }
     }
 
     @Test

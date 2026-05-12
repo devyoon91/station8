@@ -609,8 +609,16 @@
     "editDefinitionId": {{#editMode}}"{{definitionId}}"{{/editMode}}{{^editMode}}null{{/editMode}}
 }
 </script>
+<!-- #181 PR-1~4 모듈 — load order:
+     pure helpers → IO/직렬화 → UI 모듈(state 선언) → entrypoint (editor 생성 + 부트스트랩).
+     classic script global scope 공유: 모든 함수가 호출 시점에 globals lookup → safe. -->
 <script src="/js/builder/graph-model.js" defer></script>
 <script src="/js/builder/form-serializer.js" defer></script>
+<script src="/js/builder/mobile-overlay.js" defer></script>
+<script src="/js/builder/shortcuts.js" defer></script>
+<script src="/js/builder/ctx-menu.js" defer></script>
+<script src="/js/builder/touch-longpress.js" defer></script>
+<script src="/js/builder/edge-condition-modal.js" defer></script>
 <script src="/js/builder/index.js" defer></script>
 </body>
 </html>
