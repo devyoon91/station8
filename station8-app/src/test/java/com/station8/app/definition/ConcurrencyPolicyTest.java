@@ -180,11 +180,13 @@ class ConcurrencyPolicyTest {
     }
 
     private String createDefinition(String name, String concurrencyPolicy) {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                name, "test", null, null, concurrencyPolicy,
-                List.of(new DagDefinitionRequest.NodeDef("c-1", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm(name)
+                .description("test")
+                .concurrencyPolicy(concurrencyPolicy)
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("c-1", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         return service.createDefinition(req);
     }
 }

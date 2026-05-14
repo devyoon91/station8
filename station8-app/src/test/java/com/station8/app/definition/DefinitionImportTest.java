@@ -212,12 +212,12 @@ class DefinitionImportTest {
     }
 
     private void seedSimple(String name) {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                name, null,
-                List.of(new DagDefinitionRequest.NodeDef("s-1", "Only", "MIGRATION_WRITE",
-                        null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm(name)
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("s-1", "Only", "MIGRATION_WRITE",
+                        null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         service.createDefinition(req);
     }
 }

@@ -58,12 +58,12 @@ class RunOptionsApiTest {
     }
 
     private String createSimpleDefinition(String name) {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                name, null,
-                List.of(new DagDefinitionRequest.NodeDef("n-1", "A", "MIGRATION_WRITE",
-                        jsonUtil.toJson(Map.of("id", "1", "content", "noop")), 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm(name)
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("n-1", "A", "MIGRATION_WRITE",
+                        jsonUtil.toJson(Map.of("id", "1", "content", "noop")), 0, 0, null)))
+                .edges(List.of())
+                .build();
         return service.createDefinition(req);
     }
 

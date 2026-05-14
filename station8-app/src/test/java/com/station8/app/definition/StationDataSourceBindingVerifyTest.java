@@ -59,16 +59,16 @@ class StationDataSourceBindingVerifyTest {
      */
     @Test
     void datasourceBindings_persistsThroughCreateAndGetApi() {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "BindingFlow",
-                "#113 verification: bindings round-trip",
-                List.of(new DagDefinitionRequest.NodeDef(
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("BindingFlow")
+                .description("#113 verification: bindings round-trip")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef(
                         "n-bind", "BindStation", "MIGRATION_WRITE",
                         null, 0, 0,
                         Map.of("source", "ops-oracle", "target", "mart-mariadb")
-                )),
-                List.of()
-        );
+                )))
+                .edges(List.of())
+                .build();
 
         String defId = service.createDefinition(req);
         DagDefinitionResponse fetched = service.getDefinition(defId);

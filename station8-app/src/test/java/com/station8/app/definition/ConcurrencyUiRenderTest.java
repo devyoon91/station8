@@ -64,11 +64,13 @@ class ConcurrencyUiRenderTest {
 
     @Test
     void builder_editMode_preselectsSkipIfRunning() throws Exception {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "SkipFlow", "test", null, null, "SKIP_IF_RUNNING",
-                List.of(new DagDefinitionRequest.NodeDef("c-1", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("SkipFlow")
+                .description("test")
+                .concurrencyPolicy("SKIP_IF_RUNNING")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("c-1", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         mockMvc.perform(get("/line/builder?id=" + defId))
@@ -78,11 +80,13 @@ class ConcurrencyUiRenderTest {
 
     @Test
     void builder_editMode_preselectsPipeline2() throws Exception {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "PipelineFlow", "test", null, null, "PIPELINE_2",
-                List.of(new DagDefinitionRequest.NodeDef("p-1", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("PipelineFlow")
+                .description("test")
+                .concurrencyPolicy("PIPELINE_2")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("p-1", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         mockMvc.perform(get("/line/builder?id=" + defId))

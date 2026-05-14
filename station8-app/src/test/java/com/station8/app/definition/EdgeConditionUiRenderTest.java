@@ -83,15 +83,15 @@ class EdgeConditionUiRenderTest {
     @Test
     void builder_editMode_preloadsConditionExpr() throws Exception {
         // 조건식이 있는 정의를 만들고, 편집 모드로 열었을 때 conditionExpr이 임베드되는지
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "ConditionalFlow", null,
-                List.of(
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("ConditionalFlow")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("c-a", "A", "MIGRATION_WRITE", null, 0, 0, null),
                         new DagDefinitionRequest.NodeDef("c-b", "B", "MIGRATION_WRITE", null, 100, 0, null)
-                ),
-                List.of(new DagDefinitionRequest.EdgeDef(
-                        "ce-1", "c-a", "c-b", "#result['success'] == true"))
-        );
+                ))
+                .edges(List.of(new DagDefinitionRequest.EdgeDef(
+                        "ce-1", "c-a", "c-b", "#result['success'] == true")))
+                .build();
         String defId = service.createDefinition(req);
 
         mockMvc.perform(get("/line/builder?id=" + defId))
@@ -104,15 +104,15 @@ class EdgeConditionUiRenderTest {
     @Test
     void api_acceptsAndPersistsConditionExpr() throws Exception {
         // 정의 저장 → 조회 → conditionExpr 라운드트립
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "RoundTripFlow", null,
-                List.of(
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("RoundTripFlow")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("r-a", "A", "MIGRATION_WRITE", null, 0, 0, null),
                         new DagDefinitionRequest.NodeDef("r-b", "B", "MIGRATION_WRITE", null, 0, 0, null)
-                ),
-                List.of(new DagDefinitionRequest.EdgeDef(
-                        "re-1", "r-a", "r-b", "#result['count'] > 10"))
-        );
+                ))
+                .edges(List.of(new DagDefinitionRequest.EdgeDef(
+                        "re-1", "r-a", "r-b", "#result['count'] > 10")))
+                .build();
         String defId = service.createDefinition(req);
 
         DagDefinitionResponse fetched = service.getDefinition(defId);
@@ -121,15 +121,15 @@ class EdgeConditionUiRenderTest {
 
     @Test
     void api_rejectsInvalidSpelExpr() throws Exception {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "InvalidSpelFlow", null,
-                List.of(
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("InvalidSpelFlow")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("i-a", "A", "MIGRATION_WRITE", null, 0, 0, null),
                         new DagDefinitionRequest.NodeDef("i-b", "B", "MIGRATION_WRITE", null, 0, 0, null)
-                ),
-                List.of(new DagDefinitionRequest.EdgeDef(
-                        "ie-1", "i-a", "i-b", "#result[ == "))  // 잘못된 SpEL
-        );
+                ))
+                .edges(List.of(new DagDefinitionRequest.EdgeDef(
+                        "ie-1", "i-a", "i-b", "#result[ == ")))  // 잘못된 SpEL
+                .build();
         Exception ex = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
                 () -> service.createDefinition(req));
         org.junit.jupiter.api.Assertions.assertTrue(

@@ -47,12 +47,12 @@ class ScheduleApiTest {
         jdbcTemplate.execute("DELETE FROM U_LINE_DEFINITION");
 
         // 단일 역 정의 — 검증 통과
-        defId = definitionService.createDefinition(new DagDefinitionRequest(
-                "ScheduleTestFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef(
-                        "n-only", "Only", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        ));
+        defId = definitionService.createDefinition(DagDefinitionRequest.builder()
+                .definitionNm("ScheduleTestFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef(
+                        "n-only", "Only", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build());
     }
 
     @Test

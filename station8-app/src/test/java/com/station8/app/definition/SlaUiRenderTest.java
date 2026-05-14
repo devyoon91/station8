@@ -60,11 +60,13 @@ class SlaUiRenderTest {
 
     @Test
     void builder_editMode_preloadsSla() throws Exception {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "SlaFlow", null, 3600L, "AUTO_TERMINATE",
-                List.of(new DagDefinitionRequest.NodeDef("s-1", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("SlaFlow")
+                .slaSeconds(3600L)
+                .slaAction("AUTO_TERMINATE")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("s-1", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         mockMvc.perform(get("/line/builder?id=" + defId))
@@ -76,11 +78,11 @@ class SlaUiRenderTest {
 
     @Test
     void runModal_includesSlaOverrideFields() throws Exception {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "RunModalFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("r-1", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("RunModalFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("r-1", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         mockMvc.perform(get("/line/definitions/" + defId))
@@ -96,11 +98,14 @@ class SlaUiRenderTest {
 
     @Test
     void api_acceptsAndPersistsSla() {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "ApiSlaFlow", "test", 1800L, "ALERT_ONLY",
-                List.of(new DagDefinitionRequest.NodeDef("a-1", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("ApiSlaFlow")
+                .description("test")
+                .slaSeconds(1800L)
+                .slaAction("ALERT_ONLY")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("a-1", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         DagDefinitionResponse fetched = service.getDefinition(defId);
@@ -110,19 +115,23 @@ class SlaUiRenderTest {
 
     @Test
     void api_replaceSla_updatesValue() {
-        DagDefinitionRequest v1 = new DagDefinitionRequest(
-                "ReplaceSlaFlow", null, 3600L, "ALERT_ONLY",
-                List.of(new DagDefinitionRequest.NodeDef("rsla-v1-a", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest v1 = DagDefinitionRequest.builder()
+                .definitionNm("ReplaceSlaFlow")
+                .slaSeconds(3600L)
+                .slaAction("ALERT_ONLY")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("rsla-v1-a", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(v1);
 
         // SLA 변경 + auto-terminate로 전환. replace는 새 노드 ID 사용 (replace는 soft-delete + insert 패턴)
-        DagDefinitionRequest v2 = new DagDefinitionRequest(
-                "ReplaceSlaFlow", null, 60L, "AUTO_TERMINATE",
-                List.of(new DagDefinitionRequest.NodeDef("rsla-v2-a", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest v2 = DagDefinitionRequest.builder()
+                .definitionNm("ReplaceSlaFlow")
+                .slaSeconds(60L)
+                .slaAction("AUTO_TERMINATE")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("rsla-v2-a", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         service.replaceDefinition(defId, v2);
 
         DagDefinitionResponse fetched = service.getDefinition(defId);

@@ -250,18 +250,18 @@ class BuilderEditModeTest {
     @Test
     void editMode_embedsDefinitionPayloadAsJson() throws Exception {
         // 정의 등록
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "EditableFlow",
-                "to be edited",
-                List.of(
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("EditableFlow")
+                .description("to be edited")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("e-1", "First", "MIGRATION_WRITE",
                                 "{\"k\":\"v\"}", 100, 200,
                                 Map.of("source", "ops-x")),
                         new DagDefinitionRequest.NodeDef("e-2", "Second", "MIGRATION_WRITE",
                                 null, 300, 200, null)
-                ),
-                List.of(new DagDefinitionRequest.EdgeDef("e-edge-1", "e-1", "e-2", null))
-        );
+                ))
+                .edges(List.of(new DagDefinitionRequest.EdgeDef("e-edge-1", "e-1", "e-2", null)))
+                .build();
         String defId = service.createDefinition(req);
 
         // 빌더 편집 모드 진입
@@ -291,21 +291,23 @@ class BuilderEditModeTest {
 
     @Test
     void putReplace_afterCreate_persistsNewBindings() {
-        DagDefinitionRequest v1 = new DagDefinitionRequest(
-                "RebindFlow", "v1",
-                List.of(new DagDefinitionRequest.NodeDef("rb-1", "S1", "MIGRATION_WRITE",
-                        null, 0, 0, Map.of("main", "primary"))),
-                List.of()
-        );
+        DagDefinitionRequest v1 = DagDefinitionRequest.builder()
+                .definitionNm("RebindFlow")
+                .description("v1")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("rb-1", "S1", "MIGRATION_WRITE",
+                        null, 0, 0, Map.of("main", "primary"))))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(v1);
 
         // 편집 → bindings 변경
-        DagDefinitionRequest v2 = new DagDefinitionRequest(
-                "RebindFlow", "v2-edited",
-                List.of(new DagDefinitionRequest.NodeDef("rb-1-new", "S1", "MIGRATION_WRITE",
-                        null, 0, 0, Map.of("source", "oracle-prod", "target", "mart"))),
-                List.of()
-        );
+        DagDefinitionRequest v2 = DagDefinitionRequest.builder()
+                .definitionNm("RebindFlow")
+                .description("v2-edited")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("rb-1-new", "S1", "MIGRATION_WRITE",
+                        null, 0, 0, Map.of("source", "oracle-prod", "target", "mart"))))
+                .edges(List.of())
+                .build();
         service.replaceDefinition(defId, v2);
 
         DagDefinitionResponse fetched = service.getDefinition(defId);
