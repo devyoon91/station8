@@ -60,25 +60,195 @@ public record DagDefinitionRequest(
         @Valid
         List<EdgeDef> edges
 ) {
-    /** 후방 호환 — SLA/concurrency/tags 없이 기존 4-arg 생성. */
+    /**
+     * 후방 호환 — SLA/concurrency/tags 없이 기존 4-arg 생성.
+     *
+     * @deprecated #178 — 신규 코드는 {@link #builder()}를 사용. 본 생성자는 이후 마일스톤에서 제거 예정.
+     */
+    @Deprecated(since = "0.0.1", forRemoval = true)
     public DagDefinitionRequest(String definitionNm, String description,
                                 List<NodeDef> nodes, List<EdgeDef> edges) {
         this(definitionNm, description, null, null, null, null, nodes, edges);
     }
 
-    /** 후방 호환 — SLA만 받고 concurrency/tags 없이 (#138 시그니처). */
+    /**
+     * 후방 호환 — SLA만 받고 concurrency/tags 없이 (#138 시그니처).
+     *
+     * @deprecated #178 — 신규 코드는 {@link #builder()}를 사용. 본 생성자는 이후 마일스톤에서 제거 예정.
+     */
+    @Deprecated(since = "0.0.1", forRemoval = true)
     public DagDefinitionRequest(String definitionNm, String description,
                                 Long slaSeconds, String slaAction,
                                 List<NodeDef> nodes, List<EdgeDef> edges) {
         this(definitionNm, description, slaSeconds, slaAction, null, null, nodes, edges);
     }
 
-    /** 후방 호환 — SLA + concurrency 받고 tags 없이 (#141 시그니처). */
+    /**
+     * 후방 호환 — SLA + concurrency 받고 tags 없이 (#141 시그니처).
+     *
+     * @deprecated #178 — 신규 코드는 {@link #builder()}를 사용. 본 생성자는 이후 마일스톤에서 제거 예정.
+     */
+    @Deprecated(since = "0.0.1", forRemoval = true)
     public DagDefinitionRequest(String definitionNm, String description,
                                 Long slaSeconds, String slaAction,
                                 String concurrencyPolicy,
                                 List<NodeDef> nodes, List<EdgeDef> edges) {
         this(definitionNm, description, slaSeconds, slaAction, concurrencyPolicy, null, nodes, edges);
+    }
+
+    /**
+     * #178 — 신규 빌더 진입점. 누적 추가되던 후방 호환 생성자(4/6/7-arg) 대신 사용.
+     *
+     * <p>OCP 충족 — 미래 설정 항목({@code workspaceId} #168, {@code folderPath} #169 등) 추가 시
+     * {@link LineSettings} record와 본 Builder만 확장하면 되고, {@link DagDefinitionRequest}
+     * canonical 8-arg 생성자는 손대지 않는다 (Builder.build()가 unpack해 호출).</p>
+     *
+     * @return 빈 빌더
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * #178 — 라인 정의의 설정값 묶음 (SLA / Concurrency / Tags).
+     *
+     * <p>{@link Builder}의 {@link Builder#settings(LineSettings)}로 일괄 주입하거나, 호출자가
+     * 직접 만들어 다른 자리(예: import payload)에서 운반할 때 사용한다.</p>
+     *
+     * <p>미래 확장 후보 ({@code workspaceId}, {@code folderPath}, tag-prefix 규칙 등)는 본
+     * record component에 추가하면 되며, 그때마다 {@link DagDefinitionRequest}의 canonical
+     * 8-arg 생성자에 새 인자가 누적되는 것을 회피한다.</p>
+     *
+     * @param slaSeconds        SLA 시간 임계치(초). {@code null}이면 SLA 비활성.
+     * @param slaAction         SLA 위반 시 액션 ({@code ALERT_ONLY} / {@code AUTO_TERMINATE}).
+     * @param concurrencyPolicy 동시 실행 정책 ({@code CONCURRENT} / {@code SKIP_IF_RUNNING} / {@code PIPELINE_*}).
+     * @param tags              free-form 태그 ({@code null}/빈 목록 허용).
+     */
+    public record LineSettings(
+            Long slaSeconds,
+            String slaAction,
+            String concurrencyPolicy,
+            List<String> tags
+    ) {
+        /** 모든 설정값을 {@code null}로 둔 default 인스턴스 — 정의의 default 동작을 의미. */
+        public static LineSettings empty() {
+            return new LineSettings(null, null, null, null);
+        }
+    }
+
+    /**
+     * #178 — {@link DagDefinitionRequest} 빌더. 누적되던 후방 호환 생성자를 대체한다.
+     *
+     * <p>사용 예:</p>
+     * <pre>{@code
+     * DagDefinitionRequest req = DagDefinitionRequest.builder()
+     *     .definitionNm("OrderFlow")
+     *     .description("주문 처리")
+     *     .slaSeconds(3600L)
+     *     .slaAction("ALERT_ONLY")
+     *     .concurrencyPolicy("SKIP_IF_RUNNING")
+     *     .tags(List.of("prod", "core"))
+     *     .nodes(List.of(node))
+     *     .edges(List.of())
+     *     .build();
+     * }</pre>
+     *
+     * <p>설정값을 묶음으로 주입하려면 {@link #settings(LineSettings)}를 사용. 설정값과 개별 setter
+     * (예: {@link #slaSeconds(Long)})를 혼용한 경우 <b>가장 마지막에 호출된 값</b>이 이긴다.</p>
+     */
+    public static final class Builder {
+        private String definitionNm;
+        private String description;
+        private Long slaSeconds;
+        private String slaAction;
+        private String concurrencyPolicy;
+        private List<String> tags;
+        private List<NodeDef> nodes;
+        private List<EdgeDef> edges;
+
+        /** 패키지 외부에서는 {@link DagDefinitionRequest#builder()}로 진입. */
+        private Builder() {
+        }
+
+        /** @param v 라인 정의 이름. 필수, 1~100자. */
+        public Builder definitionNm(String v) {
+            this.definitionNm = v;
+            return this;
+        }
+
+        /** @param v 설명. 선택, 자유 텍스트. */
+        public Builder description(String v) {
+            this.description = v;
+            return this;
+        }
+
+        /**
+         * SLA + Concurrency + Tags를 묶음으로 일괄 설정. {@code null} 입력은 no-op.
+         *
+         * @param s 설정값 묶음 ({@code null} 허용 → 아무것도 안 함)
+         */
+        public Builder settings(LineSettings s) {
+            if (s == null) {
+                return this;
+            }
+            this.slaSeconds = s.slaSeconds();
+            this.slaAction = s.slaAction();
+            this.concurrencyPolicy = s.concurrencyPolicy();
+            this.tags = s.tags();
+            return this;
+        }
+
+        /** @param v SLA 시간 임계치(초). {@code null}이면 SLA 비활성. */
+        public Builder slaSeconds(Long v) {
+            this.slaSeconds = v;
+            return this;
+        }
+
+        /** @param v SLA 액션 ({@code ALERT_ONLY} / {@code AUTO_TERMINATE}). */
+        public Builder slaAction(String v) {
+            this.slaAction = v;
+            return this;
+        }
+
+        /** @param v 동시 실행 정책 enum 이름. */
+        public Builder concurrencyPolicy(String v) {
+            this.concurrencyPolicy = v;
+            return this;
+        }
+
+        /** @param v 태그 목록 ({@code null}/빈 목록 허용). */
+        public Builder tags(List<String> v) {
+            this.tags = v;
+            return this;
+        }
+
+        /** @param v 노드 목록. 빌드 시점에 비어있으면 호출 측의 {@code @Valid} 또는 서비스 레이어가 검증. */
+        public Builder nodes(List<NodeDef> v) {
+            this.nodes = v;
+            return this;
+        }
+
+        /** @param v 엣지 목록 ({@code null}/빈 목록 허용 — 단일 노드 정의). */
+        public Builder edges(List<EdgeDef> v) {
+            this.edges = v;
+            return this;
+        }
+
+        /**
+         * 누적된 값으로 {@link DagDefinitionRequest} 인스턴스를 생성. canonical 8-arg 생성자에 unpack.
+         *
+         * <p>Bean Validation은 컨트롤러의 {@code @Valid}에서 수행 — 빌더 자체는 검증하지 않는다
+         * (테스트가 일부러 부분 객체를 만드는 케이스를 허용).</p>
+         *
+         * @return 새 요청 인스턴스
+         */
+        public DagDefinitionRequest build() {
+            return new DagDefinitionRequest(
+                    definitionNm, description,
+                    slaSeconds, slaAction, concurrencyPolicy, tags,
+                    nodes, edges
+            );
+        }
     }
 
     /**
