@@ -88,7 +88,8 @@ public class RunOptionsCodec {
                 && (opt.runtimeParams() == null || opt.runtimeParams().isEmpty())
                 && (opt.notificationWebhookUrl() == null || opt.notificationWebhookUrl().isBlank())
                 && opt.slaSeconds() == null
-                && opt.slaAction() == null;
+                && opt.slaAction() == null
+                && opt.concurrencyPolicy() == null;
         if (isDefault) {
             return null;
         }
@@ -106,6 +107,9 @@ public class RunOptionsCodec {
         }
         if (opt.slaAction() != null) {
             map.put("slaAction", opt.slaAction().name());
+        }
+        if (opt.concurrencyPolicy() != null) {
+            map.put("concurrencyPolicy", opt.concurrencyPolicy().name());
         }
         return jsonUtil.toJson(map);
     }
@@ -149,7 +153,14 @@ public class RunOptionsCodec {
             slaAction = SlaAction.parse(slaActStr);
         }
 
-        return new RunOptions(onFailure, params, webhook, slaSeconds, slaAction);
+        // #165 — concurrency policy override (정의 default와 다를 때만 비-null)
+        ConcurrencyPolicy concurrencyPolicy = null;
+        String cpStr = asString(raw.get("concurrencyPolicy"));
+        if (cpStr != null && !cpStr.isBlank()) {
+            concurrencyPolicy = ConcurrencyPolicy.parse(cpStr);
+        }
+
+        return new RunOptions(onFailure, params, webhook, slaSeconds, slaAction, concurrencyPolicy);
     }
 
     /** Object → Map 안전 캐스팅 (Map 아니면 null). raw cast 경고 한곳에 격리. */

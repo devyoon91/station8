@@ -171,4 +171,44 @@ class RunOptionsCodecTest {
         assertThat(parsed.slaSeconds()).isEqualTo(original.slaSeconds());
         assertThat(parsed.slaAction()).isEqualTo(original.slaAction());
     }
+
+    // ===== #165 concurrencyPolicy override =====
+
+    @Test
+    void parseFromClob_concurrencyPolicy_parsed() {
+        RunOptions opts = codec.parseFromClob("{\"concurrencyPolicy\":\"SKIP_IF_RUNNING\"}");
+        assertThat(opts.concurrencyPolicy()).isEqualTo(ConcurrencyPolicy.SKIP_IF_RUNNING);
+    }
+
+    @Test
+    void parseFromOptionsMap_concurrencyPolicy_parsed() {
+        RunOptions opts = codec.parseFromOptionsMap(Map.of("concurrencyPolicy", "PIPELINE_2"));
+        assertThat(opts.concurrencyPolicy()).isEqualTo(ConcurrencyPolicy.PIPELINE_2);
+    }
+
+    @Test
+    void parseFromClob_concurrencyPolicyBlank_isNull() {
+        // blank/missing은 null — 정의 default 사용 의미
+        assertThat(codec.parseFromClob("{\"concurrencyPolicy\":\"\"}").concurrencyPolicy()).isNull();
+        assertThat(codec.parseFromClob("{}").concurrencyPolicy()).isNull();
+    }
+
+    @Test
+    void serializeToClob_onlyConcurrencyPolicySet_includedInJson() {
+        // concurrencyPolicy만 비-default여도 옵션 직렬화됨 (default 검사 통과)
+        RunOptions opts = new RunOptions(
+                RunOptions.OnFailure.CONTINUE, Map.of(), null, null, null,
+                ConcurrencyPolicy.CONCURRENT);
+        String json = codec.serializeToClob(opts);
+        assertThat(json).isNotNull().contains("\"concurrencyPolicy\":\"CONCURRENT\"");
+    }
+
+    @Test
+    void roundTrip_concurrencyPolicy_preserved() {
+        RunOptions original = new RunOptions(
+                RunOptions.OnFailure.CONTINUE, Map.of(), null, null, null,
+                ConcurrencyPolicy.PIPELINE_3);
+        RunOptions parsed = codec.parseFromClob(codec.serializeToClob(original));
+        assertThat(parsed.concurrencyPolicy()).isEqualTo(ConcurrencyPolicy.PIPELINE_3);
+    }
 }

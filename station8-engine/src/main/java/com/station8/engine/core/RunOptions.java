@@ -22,28 +22,39 @@ import java.util.Map;
  *                               null이면 정의의 default ({@code U_LINE_DEFINITION.SLA_SECONDS}) 사용.
  * @param slaAction              #138 — SLA 위반 시 액션 override.
  *                               null이면 정의의 default 사용.
+ * @param concurrencyPolicy      #165 — 인스턴스 단위 동시 실행 정책 override.
+ *                               null이면 정의의 default ({@code U_LINE_DEFINITION.CONCURRENCY_POLICY}) 사용.
+ *                               비-null이면 정의 default를 무조건 무시 (D1=A). 시작 시점 게이트에만 적용.
+ *                               PIPELINE_* 정의의 dispatch 게이트(PipelineGate)는 영향 받지 않음.
  */
 public record RunOptions(
         OnFailure onFailure,
         Map<String, String> runtimeParams,
         String notificationWebhookUrl,
         Long slaSeconds,
-        SlaAction slaAction
+        SlaAction slaAction,
+        ConcurrencyPolicy concurrencyPolicy
 ) {
     public RunOptions {
         if (onFailure == null) onFailure = OnFailure.CONTINUE;
         if (runtimeParams == null) runtimeParams = Collections.emptyMap();
     }
 
-    /** 후방 호환 — 3-arg 생성자 (SLA 없음). */
+    /** 후방 호환 — 5-arg 생성자 (#165 concurrency override 없음). */
     public RunOptions(OnFailure onFailure, Map<String, String> runtimeParams,
-                      String notificationWebhookUrl) {
-        this(onFailure, runtimeParams, notificationWebhookUrl, null, null);
+                      String notificationWebhookUrl, Long slaSeconds, SlaAction slaAction) {
+        this(onFailure, runtimeParams, notificationWebhookUrl, slaSeconds, slaAction, null);
     }
 
-    /** 옵션 미설정 시 default 객체. continue + 빈 params + 전역 webhook + SLA 비활성. */
+    /** 후방 호환 — 3-arg 생성자 (SLA + concurrency 없음). */
+    public RunOptions(OnFailure onFailure, Map<String, String> runtimeParams,
+                      String notificationWebhookUrl) {
+        this(onFailure, runtimeParams, notificationWebhookUrl, null, null, null);
+    }
+
+    /** 옵션 미설정 시 default 객체. continue + 빈 params + 전역 webhook + SLA 비활성 + 정의 default 정책. */
     public static RunOptions defaults() {
-        return new RunOptions(OnFailure.CONTINUE, new LinkedHashMap<>(), null, null, null);
+        return new RunOptions(OnFailure.CONTINUE, new LinkedHashMap<>(), null, null, null, null);
     }
 
     /**
@@ -82,7 +93,14 @@ public record RunOptions(
             slaAction = SlaAction.parse(sas);
         }
 
-        return new RunOptions(onFailure, params, webhook, slaSeconds, slaAction);
+        // #165 — concurrency policy override
+        ConcurrencyPolicy concurrencyPolicy = null;
+        Object cpRaw = raw.get("concurrencyPolicy");
+        if (cpRaw instanceof String cps && !cps.isBlank()) {
+            concurrencyPolicy = ConcurrencyPolicy.parse(cps);
+        }
+
+        return new RunOptions(onFailure, params, webhook, slaSeconds, slaAction, concurrencyPolicy);
     }
 
     public enum OnFailure {
