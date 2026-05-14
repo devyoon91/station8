@@ -1,6 +1,8 @@
-# Plugins Guide
+# Plugins — Operator Guide
 
-외부 jar로 제공되는 액티비티를 동적으로 등록하기 위한 가이드. M5에서 도입된 `PluginLoader` 운영 매뉴얼.
+외부 jar로 제공되는 액티비티의 **업로드 / 활성화 / 디버깅 운영 매뉴얼** (#105 D1=b로 분리). 본 문서는 호스트를 운영하는 사람 대상.
+
+> **플러그인 코드를 작성하는 분이라면** → [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) 참조 (`@Activity` 스펙 + 스타터 + 단위 테스트 패턴).
 
 ## 1. 빠른 시작
 
@@ -37,51 +39,18 @@ Plugin scan complete: 2 loaded, 0 failed
 
 `/line/activities`에서 등록된 액티비티를 확인할 수 있다.
 
-## 2. 플러그인 jar 작성 규칙
+## 2. 플러그인 jar 작성
 
-### 필수
+플러그인 코드를 직접 작성하실 경우 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md)로 이동.
 
-- `@Activity("NAME")` 어노테이션이 붙은 메서드 1개 이상.
-- 해당 메서드를 가진 클래스는 **public 기본 생성자(no-arg)**를 가져야 함.
+본 문서는 **이미 빌드된 jar를 받았다**는 가정 하에 호스트 적용 절차만 다룹니다.
 
-```java
-package com.example.plugin;
-
-import com.station8.engine.annotation.Activity;
-
-public class NotificationPlugin {
-
-    public NotificationPlugin() {}  // 필수
-
-    @Activity("SEND_SLACK")
-    public String sendSlack(String channel, String message) {
-        // ... HTTP POST to Slack webhook
-        return "{\"ok\":true,\"channel\":\"" + channel + "\"}";
-    }
-}
-```
-
-### 권장
-
-- 의존 라이브러리는 jar 내부에 포함하거나, 코어/Spring과 호환되는 버전만 사용.
-- 플러그인 클래스명은 코어와 충돌하지 않도록 고유 패키지 사용 (`com.example.*`, 회사 도메인 등).
-
-### 빌드 예시 (Gradle)
-
-```groovy
-plugins {
-    id 'java'
-}
-
-dependencies {
-    // 코어 의존성은 compileOnly — 런타임은 호스트가 제공
-    compileOnly 'com.station8:station8-engine:0.0.1-SNAPSHOT'
-}
-
-tasks.jar {
-    archiveBaseName = 'notification-plugin'
-}
-```
+요약 — jar가 만족해야 하는 최소 요건 (받은 jar를 검증할 때):
+- `@Activity("NAME")` 메서드가 있는 public 클래스 1개 이상
+- 해당 클래스의 **public no-arg 생성자**
+- 매직 바이트 `PK\x03\x04`로 시작 (정상 zip/jar)
+- 크기 ≤ 50MB (어드민 업로드 한도)
+- 코어/Spring 의존성 미포함 (호스트가 제공 — 포함되면 충돌 가능)
 
 ## 3. ClassLoader 정책
 
@@ -182,5 +151,7 @@ engine.plugins.enabled=false
 
 ## 8. 관련 문서
 
+- [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) — **플러그인 개발자**용 (`@Activity` 스펙 + 스타터)
 - [HOWTO.md](HOWTO.md) — 액티비티 작성 일반 가이드
 - [line-engine-spec.md](line-engine-spec.md) — `PluginLoader` 아키텍처
+- [`examples/plugin-starter/`](../examples/plugin-starter/) — 컴파일 가능한 최소 스켈레톤
