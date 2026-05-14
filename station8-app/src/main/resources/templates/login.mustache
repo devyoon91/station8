@@ -16,40 +16,94 @@
             } catch (e) {}
         })();
     </script>
-    <style>
-        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .login-box { width: 360px; padding: var(--space-section); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius-lg); }
-        .login-box h1 { margin: 0 0 var(--space-md); }
-        .login-box label { display: block; font-weight: 600; margin: var(--space-md) 0 var(--space-xs); }
-        .login-box input[type=text], .login-box input[type=password] {
-            width: 100%; padding: var(--space-sm) var(--space-md);
-            background: var(--surface-elevated); border: 1px solid var(--hairline);
-            color: var(--ink); border-radius: var(--radius-sm); font-family: inherit;
-            box-sizing: border-box;
-        }
-        .login-box button { width: 100%; margin-top: var(--space-lg); padding: var(--space-md); }
-        .alert-error { color: var(--accent-red); margin-top: var(--space-sm); font-size: 13px; }
-        .alert-info { color: var(--accent-green); margin-top: var(--space-sm); font-size: 13px; }
-    </style>
 </head>
-<body>
-<div class="login-box">
-    <h1 class="swe-display-md">Station8</h1>
-    <p class="swe-mute" style="font-size: 13px; margin: 0;">로그인</p>
-    {{#loginError}}<div class="alert-error">사용자명 또는 비밀번호가 올바르지 않습니다.</div>{{/loginError}}
-    {{#loggedOut}}<div class="alert-info">로그아웃되었습니다.</div>{{/loggedOut}}
-    <form method="post" action="/login">
-        <input type="hidden" name="{{_csrf.parameterName}}" value="{{_csrf.token}}">
-        <div>
-            <label for="username">사용자명</label>
-            <input type="text" id="username" name="username" required autofocus>
+<body class="swe-login-page">
+<div class="swe-login-shell">
+
+    <!-- Hero — 브랜드 정체성 (#231) -->
+    <aside class="swe-login-hero">
+        <img src="/img/station8-glyph-dark.svg" alt="" class="swe-logo-dark swe-login-logo" aria-hidden="true">
+        <img src="/img/station8-glyph-light.svg" alt="" class="swe-logo-light swe-login-logo" aria-hidden="true">
+        <h1 class="swe-login-title">Station8</h1>
+        <p class="swe-login-tagline">Durable Workflow Engine</p>
+        <p class="swe-login-sub">Java · Spring Boot · Oracle / MariaDB · SKIP LOCKED</p>
+    </aside>
+
+    <!-- Form card -->
+    <main class="swe-login-card">
+        <h2 class="swe-login-card-title">로그인</h2>
+
+        {{#loginError}}
+        <div class="swe-alert swe-alert-error" role="alert" aria-live="assertive">
+            사용자명 또는 비밀번호가 올바르지 않습니다.
         </div>
-        <div>
-            <label for="password">비밀번호</label>
-            <input type="password" id="password" name="password" required>
+        {{/loginError}}
+        {{#loggedOut}}
+        <div class="swe-alert swe-alert-info" role="status" aria-live="polite">
+            로그아웃되었습니다.
         </div>
-        <button type="submit" class="swe-btn-primary">로그인</button>
-    </form>
+        {{/loggedOut}}
+
+        <form method="post" action="/login" novalidate>
+            <input type="hidden" name="{{_csrf.parameterName}}" value="{{_csrf.token}}">
+
+            <div class="swe-login-field">
+                <label for="username">사용자명</label>
+                <input type="text" id="username" name="username" class="swe-input"
+                       autocomplete="username" required autofocus>
+            </div>
+
+            <div class="swe-login-field">
+                <label for="password">비밀번호</label>
+                <div class="swe-login-pw">
+                    <input type="password" id="password" name="password" class="swe-input"
+                           autocomplete="current-password" required>
+                    <button type="button" class="swe-pw-toggle" aria-label="비밀번호 표시 토글"
+                            aria-pressed="false" onclick="station8TogglePassword(this)">
+                        <svg class="icon-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.8"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                        </svg>
+                        <svg class="icon-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="display:none;">
+                            <path d="M3 3l18 18M10.5 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7-.7 1.4-1.6 2.7-2.7 3.8M14 14a3 3 0 0 1-4.2-4.2M2 12s3.5-7 10-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="swe-caps-warning" id="capsWarning" role="status" aria-live="polite" hidden>
+                    ⚠ Caps Lock이 켜져 있습니다
+                </div>
+            </div>
+
+            <button type="submit" class="swe-btn-primary swe-w-full swe-login-submit">로그인</button>
+        </form>
+    </main>
+
 </div>
+
+<script>
+    // #231 — 비밀번호 표시 토글
+    function station8TogglePassword(btn) {
+        var input = document.getElementById('password');
+        var on = input.type === 'password';
+        input.type = on ? 'text' : 'password';
+        btn.setAttribute('aria-pressed', String(on));
+        btn.querySelector('.icon-eye').style.display = on ? 'none' : '';
+        btn.querySelector('.icon-eye-off').style.display = on ? '' : 'none';
+    }
+
+    // #231 — Caps Lock 감지 (password 입력란 focus 중에만)
+    (function () {
+        var pw = document.getElementById('password');
+        var warn = document.getElementById('capsWarning');
+        if (!pw || !warn) return;
+        function check(e) {
+            var on = e.getModifierState && e.getModifierState('CapsLock');
+            warn.hidden = !on;
+        }
+        pw.addEventListener('keydown', check);
+        pw.addEventListener('keyup', check);
+        pw.addEventListener('blur', function () { warn.hidden = true; });
+    })();
+</script>
 </body>
 </html>
