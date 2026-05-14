@@ -524,7 +524,7 @@
                         <div class="swe-mute" style="font-size: 11px; margin-top: 4px;">
                             CONCURRENT: 같은 정의 인스턴스 동시 실행 허용.<br>
                             SKIP_IF_RUNNING: RUNNING/PAUSED 있으면 새 시작 무시 (cron 적체 방지).<br>
-                            PIPELINE_N: 활동 단위 단계 동기화 (#164).
+                            PIPELINE_N: 활동 단위 단계 동기화.
                         </div>
                     </div>
                     <!-- #142 — 태그 -->
@@ -593,7 +593,7 @@
         <div class="swe-mute" style="font-size: 11px; margin-top: var(--space-xs); line-height: 1.5;">
             활동 결과 JSON은 <code>#result</code>로 접근. 예시:<br>
             <code>#result['success'] == true</code> · <code>#result['count'] &gt; 10</code> · <code>#result['status'] == 'OK' and #result['errors'] == 0</code><br>
-            빈 값으로 두면 조건 없이 진행. 모든 outgoing의 조건이 false면 인스턴스가 FAILED 처리됨 (#152).
+            빈 값으로 두면 조건 없이 진행. 모든 outgoing의 조건이 false면 인스턴스가 FAILED 처리됨.
         </div>
     </div>
     <div id="edge-cond-error" style="display:none; color:var(--accent-pink); font-size:13px; margin-top:var(--space-md);"></div>

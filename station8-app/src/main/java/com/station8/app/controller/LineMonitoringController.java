@@ -2,6 +2,7 @@ package com.station8.app.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.station8.app.util.Dates;
 import com.station8.app.util.PaginationModel;
 import com.station8.engine.core.LineExecutor;
 import com.station8.engine.entity.ActivityExecution;
@@ -125,8 +126,8 @@ public class LineMonitoringController {
             m.put("nodeId", a.nodeId());
             m.put("activityName", a.activityName());
             m.put("statusSt", a.statusSt());
-            m.put("startDt", a.startDt());
-            m.put("endDt", a.endDt());
+            m.put("startDt", Dates.format(a.startDt()));
+            m.put("endDt", Dates.format(a.endDt()));
             m.put("inputData", a.inputData());
             m.put("outputData", a.outputData());
             m.put("errorMessage", a.errorMessage());

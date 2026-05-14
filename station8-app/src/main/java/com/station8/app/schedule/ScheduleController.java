@@ -1,5 +1,6 @@
 package com.station8.app.schedule;
 
+import com.station8.app.util.Dates;
 import com.station8.app.util.PaginationModel;
 import com.station8.engine.entity.LineSchedule;
 import org.springframework.http.HttpStatus;
@@ -78,8 +79,8 @@ public class ScheduleController {
             m.put("id", s.id());
             m.put("definitionId", s.definitionId());
             m.put("cronExpr", s.cronExpr());
-            m.put("nextRunDt", s.nextRunDt());
-            m.put("lastRunDt", s.lastRunDt());
+            m.put("nextRunDt", Dates.format(s.nextRunDt()));
+            m.put("lastRunDt", Dates.format(s.lastRunDt()));
             m.put("pausedFl", s.pausedFl());
             m.put("isPaused", "Y".equals(s.pausedFl()));
             return m;

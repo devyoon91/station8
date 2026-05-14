@@ -1,5 +1,6 @@
 package com.station8.app.security;
 
+import com.station8.app.util.Dates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -51,7 +52,7 @@ public class AdminUserController {
             row.put("enabled", "Y".equals(u.enabledFl()));
             row.put("isAdmin", u.roles().contains("ADMIN"));
             row.put("rolesText", String.join(", ", u.roles()));
-            row.put("regDt", u.regDt());
+            row.put("regDt", Dates.format(u.regDt()));
             row.put("isSelf", authentication != null && authentication.getName().equals(u.username()));
             rows.add(row);
         }
