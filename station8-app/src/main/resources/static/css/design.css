@@ -846,6 +846,147 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
 }
 
 /* ============================================================================
+   #231 — 로그인 페이지
+   2-column on desktop (hero | card), 모바일 < 768px에서는 세로 스택.
+   브랜드 정체성(좌측) + 폼(우측) 분리해 첫 인상 + 기능을 둘 다 살림.
+   ============================================================================ */
+.swe-login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: var(--space-xl);
+  background: var(--canvas);
+}
+.swe-login-shell {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: var(--space-section);
+  max-width: 980px;
+  width: 100%;
+  align-items: center;
+}
+.swe-login-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.swe-login-logo {
+  width: 72px;
+  height: 72px;
+  margin-bottom: var(--space-sm);
+}
+.swe-login-title {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.swe-login-tagline {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--accent-green);
+}
+.swe-login-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--mute);
+}
+.swe-login-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xxl);
+}
+.swe-login-card-title {
+  margin: 0 0 var(--space-md);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.swe-login-field {
+  margin-top: var(--space-lg);
+}
+.swe-login-field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--space-xs);
+  font-size: 13px;
+  color: var(--body);
+}
+.swe-login-pw {
+  position: relative;
+}
+.swe-login-pw .swe-input {
+  padding-right: 40px;
+}
+.swe-pw-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--mute);
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+.swe-pw-toggle:hover { color: var(--ink); background: var(--surface-elevated); }
+.swe-pw-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.swe-caps-warning {
+  margin-top: var(--space-xs);
+  font-size: 12px;
+  color: var(--accent-yellow);
+}
+.swe-login-submit {
+  margin-top: var(--space-xl);
+  height: 40px;
+}
+
+/* Alert 배너 (error/info) — Spring 인증 결과 + 로그아웃 안내 */
+.swe-alert {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+.swe-alert-error {
+  background: var(--accent-red-soft);
+  color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+.swe-alert-info {
+  background: var(--accent-green-soft);
+  color: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+/* 모바일 — 세로 스택, 폭 줄임 */
+@media (max-width: 768px) {
+  .swe-login-page { padding: var(--space-lg); }
+  .swe-login-shell {
+    grid-template-columns: 1fr;
+    gap: var(--space-xl);
+    max-width: 420px;
+  }
+  .swe-login-hero {
+    text-align: center;
+    align-items: center;
+  }
+  .swe-login-title { font-size: 36px; }
+  .swe-login-card { padding: var(--space-xl); }
+}
+
+/* ============================================================================
    #235 — 인라인 복사 버튼 (URL 등 좁은 셀에 부착해 사용)
    ============================================================================ */
 .swe-copy-btn {
