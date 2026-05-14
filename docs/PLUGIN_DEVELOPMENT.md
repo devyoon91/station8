@@ -1,200 +1,156 @@
-# Plugin Development Guide
+# 플러그인 개발 가이드
 
-외부 jar로 제공되는 액티비티(`@Activity`)를 작성·검증·배포하는 **플러그인 개발자**용 가이드 (#105).
+외부 jar에 `@Activity` 메서드를 담아 Station8 호스트에 끼워넣는 방법.
 
-> 운영자(ops) 입장의 업로드/활성화/디버깅 절차는 [PLUGINS.md](PLUGINS.md). 본 문서는 **플러그인 코드 작성자** 시점.
+운영자 입장의 업로드/디버깅은 [PLUGINS.md](PLUGINS.md). 이쪽은 코드를 직접 쓰는 사람용이다.
 
-## 1. 전체 흐름
+## 시작하기 전에
 
-```
-┌────────────┐   ┌─────────────┐   ┌──────────┐   ┌──────────────┐
-│ 1. 스펙 숙지 │ → │ 2. 코드 작성  │ → │ 3. jar    │ → │ 4. 자가 검증  │
-└────────────┘   └─────────────┘   │  빌드     │   └──────┬───────┘
-                                   └──────────┘          │
-                                                          ▼
-                                                  ┌──────────────┐
-                                                  │ 5. 호스트 업로드 │
-                                                  │   + 활성화 확인 │
-                                                  └──────────────┘
-```
+Java 21 이상, Gradle 8.x. 호스트(엔진) 버전과 어떻게 맞춰야 하는지는 마지막 섹션에 정리.
 
-전 사이클을 따라가는 최소 예제는 [`examples/plugin-starter/`](../examples/plugin-starter/) 참조.
+가장 빠른 길은 [`examples/plugin-starter/`](../examples/plugin-starter/)를 그대로 복사해서 패키지명과 액티비티 이름만 바꾸는 것. 아래 설명은 그 starter가 왜 그렇게 생겼는지를 풀어 쓴 거다.
 
-## 2. 사전 요구사항
+## 플러그인 하나의 골격
 
-| 도구 | 버전 |
-|---|---|
-| **Java** | 21+ |
-| **Gradle** | 8.x+ (wrapper 권장) |
-| **호스트(엔진)** | 본 저장소 main 기준 — 호환성은 §9 참조 |
+플러그인은 그냥 Java 클래스다. Spring 컨텍스트 안 거치고, 호스트가 `URLClassLoader`로 jar를 열어 `Class.newInstance()`로 객체를 만들고 `@Activity` 메서드를 호출한다. 그래서 두 가지가 필요하다.
 
-## 3. `@Activity` 계약 (descriptive)
-
-본 절은 **현재 코드 동작을 그대로 기술**합니다 — 향후 안정 계약(SemVer)으로 격상될 수 있으나, v0.x 동안은 release note에서 변경 사항 안내.
-
-### 3.1 어노테이션
+1. **public no-arg 생성자** — `newInstance()`가 호출할 수 있어야 한다
+2. **`@Activity`가 붙은 public 메서드 하나 이상**
 
 ```java
-@Target(ElementType.METHOD)
-@Retention(RetentionPolicy.RUNTIME)
-public @interface Activity {
-    String value() default "";       // 액티비티 이름 (빈 값이면 메서드명 사용)
-    int retryCount() default 3;      // 실패 시 최대 재시도 횟수
-    long backoffSeconds() default 5; // 첫 재시도까지 대기 (이후 5/10/20/40/80... 지수)
-    String description() default ""; // Builder 팔레트/카탈로그 UI 노출용 한 줄 설명 (#192)
+package com.example.station8plugin;
+
+import com.station8.engine.annotation.Activity;
+
+public class HelloPlugin {
+
+    public HelloPlugin() {}
+
+    @Activity("HELLO")
+    public String hello(String input) {
+        return "{\"greeting\":\"hello, " + input + "\"}";
+    }
 }
 ```
 
-### 3.2 클래스 요구
+이게 전부다. 빌드해서 jar 만들고 `/admin/plugins`로 올리면 `/line/activities`에 `HELLO`가 잡힌다.
 
-- **public no-arg 생성자** 필수 — `PluginLoader`가 `Class.getDeclaredConstructor().newInstance()`로 인스턴스화.
-- 클래스명은 **고유 패키지** 사용 권장 (`com.example.station8plugin.*` 등) — 코어/타 플러그인과 충돌 회피.
-- Spring `@Component` 어노테이션은 **불필요** — 플러그인은 Spring 컨텍스트 밖에서 인스턴스화됨.
-
-### 3.3 메서드 파라미터 — 허용 타입
-
-[`ActivityArgumentResolver`](../station8-engine/src/main/java/com/station8/engine/core/ActivityArgumentResolver.java) 가 다음 4종을 지원:
-
-| 타입 | 의미 | 비고 |
-|---|---|---|
-| `String` | 액티비티 입력 페이로드 (raw JSON 또는 텍스트) | **첫 번째 등장한** `String` 파라미터에만 바인딩. 메서드 내부에서 직접 파싱. |
-| `@BoundDataSource("role") JdbcTemplate` | DataSource 바인딩 — station의 `datasourceBindings` 맵에서 `role` 키로 매핑된 DS의 `JdbcTemplate` | role 누락 시 `primary` fallback + WARN 로그 |
-| `LineContext` | 인스턴스 메타 (id/name/attempt/runtimeParams 등) + state 저장/조회 | §4 참조 |
-| `DataSourceRegistry` | 멀티 DS 직접 액세스 (deprecated) | 신규 코드는 `@BoundDataSource` 권장 |
-
-지원하지 않는 타입이 선언되면 **호출 단계에서** `IllegalStateException`이 발생 (등록은 통과). 다음 메서드는 등록되지만 실행 시 실패:
+## `@Activity` 어노테이션
 
 ```java
-@Activity("BAD")
-public String bad(Map<String, Object> input) {  // ❌ Map은 미지원
-    return null;
-}
+@Activity(
+    value = "MY_NAME",         // 비워두면 메서드 이름이 액티비티 이름이 됨
+    retryCount = 3,            // 예외 던지면 backoff 후 다시 호출, 최대 3회
+    backoffSeconds = 5,        // 첫 재시도까지 5초. 이후 5→10→20→40 식으로 지수 증가
+    description = "한 줄 설명"   // Builder 팔레트 카드에 노출되는 텍스트
+)
 ```
 
-#### 파라미터 패턴 — 자주 쓰는 조합
+`retryCount=0`으로 두면 실패 즉시 FAILED로 가고 DLQ에 떨어진다. 외부 API 호출처럼 일시적 실패가 흔한 액티비티는 3~5 정도, 결정론적 처리(검증·변환 등)는 0이 자연스럽다.
+
+## 메서드 시그니처 — 무엇을 받고 무엇을 돌려주나
+
+호스트는 메서드의 파라미터 타입을 보고 알아서 인자를 채워준다. 네 가지를 지원하고, 그 외 타입을 선언하면 호출 단계에서 `IllegalStateException`이 뜬다 (등록 자체는 통과한다).
+
+### `String` — 액티비티 입력
+
+가장 흔하다. 라인을 짤 때 노드 Properties 패널에서 입력한 JSON 문자열이 그대로 전달된다. 메서드 안에서 직접 파싱해서 쓰면 된다.
 
 ```java
-// (a) 가장 흔한 — 입력만 받음
 @Activity("VALIDATE_ORDER")
-public String validate(String input) { ... }
+public String validate(String input) {
+    // input은 예: {"orderId":"123","amount":50000}
+    // Jackson이든 뭐든 자유롭게 파싱
+}
+```
 
-// (b) DataSource 바인딩 1개 + 입력
-@Activity("WRITE_AUDIT")
-public String write(String input, @BoundDataSource("target") JdbcTemplate jdbc) { ... }
+여러 `String` 파라미터를 선언해도 입력은 **첫 번째**에만 바인딩된다. 나머지 `String`은 호출 시 에러가 난다.
 
-// (c) DataSource 2개 (src → dst 마이그레이션 패턴)
+### `@BoundDataSource("role") JdbcTemplate` — DB 접근
+
+라인 정의에서 station(노드)별로 DataSource 바인딩을 매핑해두면, 해당 role이 `JdbcTemplate`으로 주입된다. 같은 액티비티를 다른 DB에 대고 재사용할 때 쓴다.
+
+```java
 @Activity("MIGRATE")
 public String migrate(String input,
                       @BoundDataSource("source") JdbcTemplate src,
-                      @BoundDataSource("target") JdbcTemplate dst) { ... }
-
-// (d) LineContext (runtime params / instance meta 활용)
-@Activity("REPORT")
-public String report(String input, LineContext ctx) {
-    String date = ctx.runtimeParams().getOrDefault("date", "today");
-    int attempt = ctx.attempt();
-    ...
-}
-
-// (e) 입력이 필요 없을 때
-@Activity("NOOP")
-public String noop() {
-    return "{\"ok\":true}";
+                      @BoundDataSource("target") JdbcTemplate dst) {
+    var rows = src.queryForList("SELECT * FROM ...");
+    dst.batchUpdate("INSERT INTO ... VALUES (?, ?)", ...);
+    return "{\"migrated\":" + rows.size() + "}";
 }
 ```
 
-### 3.4 반환 타입
+빌더에서 노드에 `{"source":"oracle-prod","target":"mart"}` 같은 매핑을 적어두면 그대로 들어간다. 매핑이 없거나 DataSource 이름이 등록되지 않은 경우 `primary`로 fallback되고 WARN 로그가 찍힌다.
 
-- **`String`** — 그대로 `OUTPUT_DATA`에 JSON으로 저장 (가장 흔한 패턴; 직접 `\"{\\\"ok\\\":true}\"` 형태 반환)
-- **`Object` / POJO / `Map`** — Jackson으로 자동 직렬화 후 저장
-- **`void`** — 반환값 없음 (저장은 `null`)
-- **`null`** 반환 — 허용; OUTPUT_DATA는 비어있음
+### `LineContext` — 인스턴스 메타
 
-### 3.5 예외 의미
-
-> 본 절은 v0.x 동안 **descriptive** — 향후 prescriptive로 격상될 수 있음.
-
-| Throw | 동작 |
-|---|---|
-| `RuntimeException` (모든 unchecked) | 재시도 큐로 → backoff 후 재호출 (최대 `retryCount`) |
-| `Error` (`OutOfMemoryError` 등) | 재시도되지만 JVM이 위험 상태 — 가급적 캐치하지 말 것 |
-| Checked exception | Java가 메서드 시그니처에 `throws` 강제 — 가능하면 `RuntimeException`으로 wrap 후 throw |
-| **정상 반환 (예외 없음)** | COMPLETED — 더 이상 재시도 안 함 |
-
-**영구 실패 표현** — 현재 별도 마커 없음. 재시도가 의미 없는 비즈니스 실패(예: 잘못된 입력)는:
-1. 메서드 내부에서 입력 검증 후 정상 반환 (`{"ok":false,"reason":"..."}` 같은 페이로드)
-2. 후속 액티비티가 이 결과를 보고 분기 처리 (Builder의 **edge 조건**)
-
-`retryCount` 모두 소진 시 → `FAILED` + DLQ로 이동.
-
-## 4. `LineContext` API
-
-`@Activity` 메서드에 `LineContext` 파라미터를 선언하면 인스턴스 메타에 접근 가능.
-
-```java
-public interface LineContext {
-    String instanceId();          // 라인 인스턴스 UUID
-    String workflowName();         // 라인 이름 (@LineDefinition value)
-    String currentActivityName();  // 현재 액티비티 이름
-    int attempt();                 // 시도 횟수 (최초 = 1, 재시도 = 2, 3, ...)
-    Object input();                // 입력 객체 (Jackson 역직렬화된 POJO)
-    Optional<Object> previousOutput();        // 이전 액티비티 출력
-    Map<String, Object> attributes();         // 컨텍스트 부가 속성 (직렬화 보존)
-    Map<String, String> runtimeParams();      // 즉시 실행 모달에서 입력한 옵션 맵 (#134)
-    Instant now();                            // 현재 시간 (테스트 시 Clock 대체 가능)
-    void setNext(String activityName, Object input); // 다음 액티비티 동적 지정
-    void saveState(Object snapshot);          // 체크포인트 저장 (Object → JSON)
-    Optional<Object> loadState();             // 체크포인트 조회
-}
-```
-
-### 사용 예 — runtime params로 날짜 override
+진행 중인 라인 인스턴스의 정보(현재 시도 횟수, runtime params, 이전 출력 등)가 필요할 때.
 
 ```java
 @Activity("DAILY_REPORT")
 public String run(String input, LineContext ctx) {
-    LocalDate date = LocalDate.parse(
-            ctx.runtimeParams().getOrDefault("date", LocalDate.now().toString()));
-    // ... date 기준 처리
-    return "{\"date\":\"" + date + "\",\"rows\":42}";
+    var date = ctx.runtimeParams().getOrDefault("date", LocalDate.now().toString());
+    // ctx.attempt() == 2 라면 첫 시도가 실패한 재시도 호출
+    // ctx.instanceId() 로 인스턴스 UUID 확인
 }
 ```
 
-운영자가 Builder의 **Run now** 모달에서 `{"date":"2026-05-01"}`을 입력하면 그 값을 받음. 미입력 시 오늘 날짜.
+쓸 만한 메서드 정리:
 
-## 5. 빌드
+- `runtimeParams()` — Builder의 "Run now" 모달에서 입력한 옵션 맵. 같은 라인을 날짜만 바꿔 돌리는 식의 패턴에 핵심.
+- `attempt()` — 1부터 시작. 재시도 횟수에 따라 동작을 바꾸고 싶을 때.
+- `instanceId()`, `workflowName()`, `currentActivityName()` — 로깅/추적용.
+- `setNext(name, input)` — 다음 액티비티를 코드에서 동적으로 지정. 보통은 빌더의 엣지 조건으로 처리하지만 필요할 때 사용.
+- `saveState(obj)` / `loadState()` — 체크포인트. 긴 처리 중간에 진행 상태를 JSON으로 저장.
 
-### 5.1 Gradle (권장)
+### `DataSourceRegistry`
+
+레거시 경로. `@BoundDataSource`가 들어오기 전(#113 이전)에 직접 레지스트리에서 DS를 꺼내 쓰던 방식. 신규 코드는 `@BoundDataSource`를 쓴다.
+
+## 반환값
+
+뭘 돌려주든 호스트가 알아서 처리한다.
+
+- `String`이면 그대로 `OUTPUT_DATA`에 저장된다. 가장 깔끔하다. 직접 만든 JSON 문자열을 던지면 된다.
+- 객체/`Map`/POJO면 Jackson이 직렬화해서 저장한다.
+- `void`나 `null`도 허용 — 출력이 비어있는 상태로 기록된다.
+
+후속 액티비티는 빌더에서 엣지 조건식(`#result['ok'] == true` 식)으로 이 출력을 보고 분기한다.
+
+## 예외 — 무엇이 재시도를 부르나
+
+`@Activity` 메서드에서 던지는 모든 unchecked exception은 재시도를 유발한다. `RuntimeException` 한 번 던지면 `backoffSeconds` 만큼 기다린 후 다시 호출되고, `retryCount`만큼 반복한 뒤에도 실패하면 인스턴스가 FAILED로 들어가고 DLQ에 적재된다.
+
+Checked exception은 Java가 시그니처에 `throws`를 강제한다. 보통은 `RuntimeException`으로 wrap해서 throw하는 게 편하다.
+
+"재시도해도 어차피 실패할 비즈니스 오류" — 예를 들어 입력이 잘못된 경우 — 는 예외를 던지지 말고 그냥 결과 페이로드에 `{"ok":false,"reason":"..."}`처럼 적어 반환해라. 후속 노드가 엣지 조건으로 받아 분기 처리하면 된다. 별도의 "영구 실패" 마커는 아직 없다.
+
+## 빌드
+
+핵심은 `compileOnly`로 코어를 참조하는 것. 호스트가 런타임에 코어를 이미 갖고 있으므로 jar에 같이 묶으면 ClassLoader 충돌이 난다.
 
 ```groovy
-// build.gradle
-plugins {
-    id 'java'
-}
+plugins { id 'java' }
 
 group = 'com.example'
 version = '0.1.0'
 
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
 }
 
 repositories {
+    mavenLocal()       // 본 저장소를 publishToMavenLocal 해두고 쓸 때
     mavenCentral()
-    // Station8 엔진은 본 저장소를 직접 빌드해서 jar를 publishToMavenLocal 하거나
-    // CI artifact를 fetch. 자세한 절차는 §9 호환성 매트릭스 참조.
 }
 
 dependencies {
-    // 코어는 compileOnly — 런타임은 호스트가 제공 (jar에 포함하지 말 것)
     compileOnly 'com.station8:station8-engine:0.0.1-SNAPSHOT'
 
-    // 본인 비즈니스 의존성만 포함 (예: HTTP 클라이언트)
+    // 본인 비즈니스 의존성만 포함
     // implementation 'org.apache.httpcomponents.client5:httpclient5:5.4'
 
-    // 테스트
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'com.station8:station8-engine:0.0.1-SNAPSHOT'
 }
@@ -203,162 +159,122 @@ tasks.jar {
     archiveBaseName = 'my-plugin'
 }
 
-test {
-    useJUnitPlatform()
-}
+test { useJUnitPlatform() }
 ```
 
-### 5.2 출력
+엔진을 어디서 가져오느냐가 살짝 까다롭다. 현재 본 저장소는 정식 Maven 좌표를 publish하지 않으므로, 먼저 루트에서 `./gradlew :station8-engine:publishToMavenLocal`을 한 번 돌려두면 위 설정이 그대로 동작한다. 일회성이라면 그냥 jar 파일을 직접 참조해도 된다 — `compileOnly files('../station8-engine/build/libs/station8-engine-0.0.1-SNAPSHOT.jar')`.
 
-`./gradlew build` → `build/libs/my-plugin-0.1.0.jar`
+### 의존성을 어디까지 jar에 포함할지
 
-### 5.3 의존성 정책
+작은 라이브러리는 `implementation`으로 평범하게 묶으면 된다. 호스트가 부모 ClassLoader라서 충돌이 거의 없다.
 
-- **코어/Spring 의존성은 절대 포함 금지** — 호스트가 제공 (`compileOnly` 사용)
-- **본인 비즈니스 의존성**만 jar에 포함:
-  - 작은 라이브러리: `implementation`으로 일반 jar 빌드 (호스트가 부모 ClassLoader로 부담)
-  - **충돌 가능성이 큰 라이브러리** (예: Guava, Jackson 변형판): `shadow` plugin으로 패키지 relocation 권장 (e.g. `com.example.shaded.guava`)
+문제가 생기는 건 호스트도 가진 라이브러리의 다른 버전을 쓰려고 할 때다. Jackson, Guava, SLF4J 같은 것들이 대표적이다. 이때는 `shadow` 플러그인으로 패키지 자체를 relocate해버린다.
 
 ```groovy
-// shadow 사용 시 (충돌 회피)
 plugins {
     id 'java'
     id 'com.gradleup.shadow' version '8.3.5'
 }
 tasks.shadowJar {
-    archiveClassifier = ''  // shadow가 -all 접미사 추가하므로 비움
+    archiveClassifier = ''
     relocate 'com.google.common', 'com.example.shaded.guava'
 }
 ```
 
-## 6. 단위 테스트
+평소엔 신경 쓸 필요 없고, `NoClassDefFoundError`가 뜨거나 동작이 이상하면 그때 의심하면 된다.
 
-플러그인은 평범한 Java 클래스 — `new ExamplePlugin().method(...)` 직접 호출로 테스트 가능. Spring 컨텍스트 불필요.
+## 테스트
+
+플러그인이 평범한 Java 클래스니까 그냥 `new`해서 호출하면 된다. Spring 띄울 필요 없다.
 
 ```java
-class ExamplePluginTest {
+class HelloPluginTest {
 
     @Test
-    void echo_returnsInputUppercase() {
-        ExamplePlugin plugin = new ExamplePlugin();
-        String result = plugin.echo("hello");
-        assertThat(result).contains("\"value\":\"HELLO\"");
-    }
-
-    @Test
-    void echo_emptyInput_returnsEmptyValue() {
-        ExamplePlugin plugin = new ExamplePlugin();
-        assertThat(plugin.echo("")).contains("\"value\":\"\"");
+    void hello_includesInput() {
+        String out = new HelloPlugin().hello("world");
+        assertEquals("{\"greeting\":\"hello, world\"}", out);
     }
 }
 ```
 
-### `LineContext`가 필요한 액티비티 — 간단한 mock
+`LineContext`를 받는 메서드는 Mockito로 한 줄짜리 mock을 만들면 된다.
 
 ```java
-class ReportPluginTest {
+@Test
+void run_usesDateFromRuntimeParams() {
+    LineContext ctx = mock(LineContext.class);
+    when(ctx.runtimeParams()).thenReturn(Map.of("date", "2026-05-01"));
 
-    @Test
-    void run_usesRuntimeParamsDate() {
-        LineContext ctx = mock(LineContext.class);
-        when(ctx.runtimeParams()).thenReturn(Map.of("date", "2026-05-01"));
-        when(ctx.attempt()).thenReturn(1);
+    String out = new ReportPlugin().run("{}", ctx);
 
-        String out = new ReportPlugin().run("{}", ctx);
-
-        assertThat(out).contains("\"date\":\"2026-05-01\"");
-    }
+    assertTrue(out.contains("\"date\":\"2026-05-01\""));
 }
 ```
 
-(Mockito 사용 시 `testImplementation 'org.mockito:mockito-core:5.x'` 추가)
+`@BoundDataSource JdbcTemplate`을 받는 메서드는 in-memory H2를 띄워 진짜 DB로 테스트하는 게 가장 확실하다. mock 대체는 SQL 검증을 못 하니까.
 
-## 7. 자가 검증 (업로드 전 체크리스트)
+## 업로드 전 체크
 
-업로드 전에 다음을 확인:
+jar를 호스트에 올리기 전에 다섯 가지만 확인한다.
 
-- [ ] `./gradlew test` 통과
-- [ ] jar 안에 `@Activity` 메서드가 있는 public 클래스 존재 — 확인 명령:
-  ```bash
-  unzip -p build/libs/my-plugin-0.1.0.jar META-INF/MANIFEST.MF
-  jar tf build/libs/my-plugin-0.1.0.jar | grep '\.class$' | head
-  ```
-- [ ] 클래스에 **public no-arg 생성자** 존재 (`javap -p` 확인)
-- [ ] **코어/Spring 의존성 미포함** — `unzip -l` 결과에 `org/springframework/`, `com/station8/` 클래스 없어야 함
-- [ ] jar 크기 < **50MB** (`AdminPluginController` 업로드 한도)
-- [ ] 매직 바이트 `PK\x03\x04`로 시작 (정상 zip/jar는 자동 OK)
+```bash
+./gradlew test                                        # 1. 테스트 통과
+jar tf build/libs/my-plugin-0.1.0.jar | head          # 2. .class 파일이 보이는지
+unzip -l build/libs/my-plugin-0.1.0.jar | grep station8   # 3. com/station8/ 안 들어갔는지
+unzip -l build/libs/my-plugin-0.1.0.jar | grep springframework   # 4. spring도 안 들어갔는지
+ls -lh build/libs/my-plugin-0.1.0.jar                 # 5. 50MB 이하인지
+```
 
-## 8. 업로드 + 활성화
+3·4번은 비어 있어야 한다 — 거기 뭐가 잡히면 `compileOnly` 대신 `implementation`을 쓴 것. 잡힌 채로 올리면 호스트의 같은 클래스와 충돌해서 부팅이 깨질 수 있다.
 
-### 옵션 A — 어드민 웹 (권장, #102)
+## 호스트에 올리기
 
-1. http://localhost:8080/admin/plugins → **Upload jar** 폼 → 파일 선택 → Upload
-2. 검증 통과 시 `engine.plugins.dir`에 저장. 같은 이름이 있으면 기존은 `.bak`로 백업
-3. **Hot reload (#103)**: 같은 페이지의 **↻ Reload now** 버튼 → 앱 재시작 없이 등록 완료
-4. http://localhost:8080/line/activities 에서 등록 확인 + Builder의 Activities 팔레트에 노출
+가장 편한 건 어드민 웹이다. http://localhost:8080/admin/plugins에 ADMIN으로 로그인한 후 jar 파일을 올리고 같은 페이지의 "↻ Reload now" 버튼을 누른다. 앱 재시작 없이 등록된다.
 
-### 옵션 B — 호스트 파일시스템 직접
+올라간 뒤에는 http://localhost:8080/line/activities에서 액티비티 이름이 보여야 한다. Builder의 좌측 팔레트에도 카드로 나타난다.
 
-1. `scp my-plugin-0.1.0.jar host:/opt/station8/plugins/` (또는 `docker cp`)
-2. `POST /admin/plugins/reload` (또는 앱 재시작)
-3. `/line/activities`에서 확인
-
-### 부팅/리로드 로그 확인
+로그에서 확인할 메시지:
 
 ```
-Registered plugin activity: ECHO -> ExamplePlugin.echo
+Registered plugin activity: HELLO -> HelloPlugin.hello
 Plugin reload jar my-plugin-0.1.0.jar: added=1, conflicts=0
 ```
 
-오류 패턴:
-- `Plugin class ... has @Activity but cannot be instantiated` → public no-arg 생성자 누락
-- `Activity name conflict: ECHO already registered` → 같은 이름 충돌 (§8.4 참조)
-- `Failed to load plugin: ...` → 의존 누락/jar 손상
+`added=0, conflicts=1`이라면 같은 이름의 액티비티가 이미 등록되어 있어서 추가가 무시된 것. 플러그인 jar에서 `@Activity` 이름을 바꾸거나, 기존 등록을 비활성화한 후 재시도한다.
 
-### 충돌 시 (같은 `@Activity` 이름이 이미 있음)
+`Failed to load plugin: ...`은 jar가 깨졌거나, 코어/Spring 클래스를 포함했거나, no-arg 생성자가 없을 때 뜬다.
 
-- **Add only 정책** (#103) — 새 등록 skip + WARN 로그
-- 해결: 플러그인 jar에서 이름을 변경하거나, 충돌하는 쪽을 비활성화
+## 호환성과 버전
 
-## 9. 호환성 (best-effort)
+지금 본 저장소는 v0.0.1이라 안정 commitment 없이 가고 있다. `@Activity`의 시그니처나 `LineContext` 인터페이스가 마이너 릴리스에서 바뀔 수 있고, 그 경우 release note에 적힌다. 1.0이 나오면 그때 SemVer 정식 적용 예정.
 
-| 엔진 버전 | 플러그인 호환 | 비고 |
-|---|---|---|
-| 0.0.x | 0.0.x | `@Activity` 시그니처 변경은 release note 명시 |
-| 1.x (예정) | 별도 매트릭스 | 1.0 출시 시 SemVer 정식 commit 예정 |
+지금 시점에서는 엔진 0.0.x ↔ 플러그인 0.0.x 매트릭스만 신경 쓰면 된다. 엔진을 올릴 때 본인 플러그인도 같이 다시 빌드한다고 생각하는 게 가장 안전하다.
 
-v0.x 동안 breaking change 정책:
-- `@Activity` 파라미터 타입 추가는 **호환** (기존 플러그인 영향 없음)
-- 파라미터 타입 제거/이름 변경은 **non-backward** — release note에 안내
-- `LineContext` 메서드 추가는 **호환** (기본 메서드 사용), 제거는 **non-backward**
+## 보안
 
-## 10. 보안 (호스트 운영자가 인지해야 할 점 — 개발자에게도 영향)
+플러그인은 호스트 JVM과 같은 권한으로 돈다. Java 17부터 `SecurityManager`가 deprecated라서 코드 레벨 샌드박싱은 사실상 불가능하고, 본 엔진도 시도하지 않는다.
 
-- 플러그인은 **호스트 JVM과 같은 권한**으로 실행됨
-- `SecurityManager` 기반 샌드박싱은 Java 17+에서 deprecated → 본 엔진은 미지원
-- 따라서 **신뢰 가능한 출처의 jar만** 호스트에 업로드되는 것을 전제
-- 플러그인 개발자 책임:
-  - 외부 입력(`String input`)을 신뢰하지 말고 검증
-  - 파일/네트워크/DB 접근을 최소 권한으로 제한 (호스트가 OS 레벨로 강제하기 어려우므로 자율 준수)
-  - 비밀번호/API 키는 환경변수 또는 외부 시크릿 매니저(#112) 사용 — jar 안에 절대 hardcode 금지
+운영자 입장에서는 "신뢰 가능한 소스의 jar만 올린다"가 유일한 방어선이다. 그래서 플러그인 코드를 쓰는 입장에서도 호스트를 잠재적으로 죽일 수 있는 짓은 피해야 한다 — 무한 루프, 거대한 파일을 메모리에 통째로 올리기, OS 명령 직접 호출 등. 비밀번호나 API 키는 jar에 hardcode하지 말고 환경변수나 외부 시크릿 매니저(#112)를 거쳐 받는다.
 
-## 11. 비범위 (현재 미지원)
+## 아직 안 되는 것들
 
-- 플러그인 라이프사이클 hook (`@PostConstruct` 같은 초기화 콜백)
+- 라이프사이클 hook (`@PostConstruct` 같은 초기화 콜백)
 - 플러그인 간 의존성 격리 (한 jar의 라이브러리 v2 + 다른 jar v3 동시 사용)
-- 자동 정적 분석 / 보안 스캔
+- v2 → v3 hot replace — 현재는 add-only라 새 jar의 이름이 같으면 무시된다. 교체하려면 일단 호스트에서 이름 충돌을 풀어야 함
 - 원격 jar URL 자동 fetch / 마켓플레이스
-- 플러그인 v2 → v3 hot replace (현재는 add-only)
+- 자동 정적 분석 / 보안 스캔
 
-## 12. 참고
+## 참고
 
-- [PLUGINS.md](PLUGINS.md) — 운영자 시점의 업로드/디버깅
-- [HOWTO.md](HOWTO.md) — `@Activity` 일반 가이드 (코어 액티비티 포함)
-- [line-engine-spec.md](line-engine-spec.md) — 엔진 아키텍처
-- [`examples/plugin-starter/`](../examples/plugin-starter/) — 컴파일 가능한 최소 스켈레톤
-- 핵심 코드:
-  - [`station8-engine/.../annotation/Activity.java`](../station8-engine/src/main/java/com/station8/engine/annotation/Activity.java)
-  - [`station8-engine/.../annotation/BoundDataSource.java`](../station8-engine/src/main/java/com/station8/engine/annotation/BoundDataSource.java)
-  - [`station8-engine/.../core/ActivityArgumentResolver.java`](../station8-engine/src/main/java/com/station8/engine/core/ActivityArgumentResolver.java)
-  - [`station8-engine/.../core/LineContext.java`](../station8-engine/src/main/java/com/station8/engine/core/LineContext.java)
-  - [`station8-engine/.../plugin/PluginLoader.java`](../station8-engine/src/main/java/com/station8/engine/plugin/PluginLoader.java)
+- [PLUGINS.md](PLUGINS.md) — 호스트 운영자 시점
+- [HOWTO.md](HOWTO.md) — 코어 액티비티 작성 일반 가이드 (플러그인 외)
+- [line-engine-spec.md](line-engine-spec.md) — 엔진 전체 아키텍처
+- [`examples/plugin-starter/`](../examples/plugin-starter/) — 컴파일·테스트·업로드 사이클이 통째로 들어있는 최소 예제
+
+코드에서 자세히 보고 싶으면:
+- [`Activity.java`](../station8-engine/src/main/java/com/station8/engine/annotation/Activity.java)
+- [`BoundDataSource.java`](../station8-engine/src/main/java/com/station8/engine/annotation/BoundDataSource.java)
+- [`ActivityArgumentResolver.java`](../station8-engine/src/main/java/com/station8/engine/core/ActivityArgumentResolver.java) — 파라미터를 어떻게 채우는지 한 파일에 다 있다
+- [`LineContext.java`](../station8-engine/src/main/java/com/station8/engine/core/LineContext.java)
+- [`PluginLoader.java`](../station8-engine/src/main/java/com/station8/engine/plugin/PluginLoader.java) — jar 스캔과 등록 흐름
