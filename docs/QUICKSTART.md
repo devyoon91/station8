@@ -123,15 +123,66 @@ public class OrderLine {
 | **DLQ가 비어있음** | 'Second Data' 액티비티가 5회 재시도 + backoff 누적 ~155초 후에 적재. 기다리거나 직접 정의 등록 |
 | **`docker compose` 실행 시 mariadb만 뜸** | `./gradlew composeUp` (DB only)을 실행한 경우. **`composeUpApp`** (전체) 사용 |
 | **시나리오 5/5가 4/5로 떨어짐** | 시간 누적된 mariadb data. `docker compose down -v` 후 재기동 |
+| **코드/CSS/템플릿 변경 머지 후에도 옛 화면이 보임** | `docker compose ... up`이 옛 이미지를 재사용. `-v`는 컨테이너·볼륨만 날리고 **이미지는 유지**. 반드시 `up --build` 또는 `build --no-cache` 필요 (§8 참조). 추가로 브라우저 강력 새로고침 `Ctrl+Shift+R` |
 
-## 8. 정리
+## 8. 재기동 / 정리 / 캐시 무효화
 
+### compose 라이프사이클 매트릭스
+
+각 명령이 무엇을 건드리는지 한눈에:
+
+| 명령 | 컨테이너 | 네트워크 | 볼륨 (`-v`) | 이미지 |
+|---|:---:|:---:|:---:|:---:|
+| `docker compose down` | 삭제 | 삭제 | 유지 | 유지 |
+| `docker compose down -v` | 삭제 | 삭제 | **삭제** | 유지 |
+| `docker compose up` | 생성 | 생성 | 생성 | 재사용 |
+| `docker compose up --build` | 생성 | 생성 | 생성 | **재빌드** (변경 감지 시) |
+| `docker compose build --no-cache <svc>` | — | — | — | **클린 재빌드** (모든 레이어 재실행) |
+
+> ⚠️ **`down -v`는 이미지를 건드리지 않는다.** 그 뒤 `up`만 하면 옛 코드로 빌드된 이미지를 그대로 쓴다. 코드/리소스 변경을 반영하려면 항상 `--build` 또는 `build --no-cache` 필요.
+
+### 상황별 명령
+
+**A) 코드만 바뀜 — 새 이미지로 반영** (가장 흔한 경우)
 ```bash
-./gradlew composeDown
-# 또는: docker compose -f docker/docker-compose.yml down -v
+docker compose -f docker/docker-compose.yml up --build -d
 ```
 
-`-v` 플래그로 mariadb volume까지 wipe (다음 기동 시 fresh schema).
+**B) DB 스키마/시드까지 깨끗하게** (admin 시드 재실행, 마이그레이션 처음부터 등)
+```bash
+docker compose -f docker/docker-compose.yml down -v
+docker compose -f docker/docker-compose.yml up --build -d
+```
+
+**C) 빌드 캐시까지 무효화** (의존성 변경 / Dockerfile 변경 / 이미 빌드된 레이어가 의심될 때)
+```bash
+docker compose -f docker/docker-compose.yml build --no-cache app
+docker compose -f docker/docker-compose.yml up -d
+```
+
+**D) 단순 정리** (다시 안 띄울 거고 디스크만 정리)
+```bash
+docker compose -f docker/docker-compose.yml down -v
+docker image rm station8-app   # 이미지까지 삭제하고 싶으면
+```
+
+### Gradle 헬퍼 (동등)
+
+| 헬퍼 | 등가 docker 명령 |
+|---|---|
+| `./gradlew composeUpApp` | `up --build -d` (app + DB) |
+| `./gradlew composeLogsApp` | `logs -f app` |
+| `./gradlew composeDown` | `down` (볼륨 **유지**) |
+
+> Gradle 헬퍼 `composeUpApp`은 항상 `--build` 포함이라 코드 변경 반영이 자동. 캐시까지 무효화하려면 `docker compose build --no-cache app` 직접 호출.
+
+### 브라우저 캐시
+
+서버를 새로 띄웠는데도 화면이 그대로면 거의 항상 브라우저 캐시:
+
+- **강력 새로고침**: `Ctrl + Shift + R` (Windows/Linux) · `Cmd + Shift + R` (macOS)
+- **개발 중**: DevTools(F12) → Network 탭 → "Disable cache" 체크 후 새로고침
+- **확인**: 페이지 소스 보기(`Ctrl + U`)에서 변경한 마크업이 실제로 보이는지 검증
 
 ---
 
