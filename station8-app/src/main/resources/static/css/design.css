@@ -77,9 +77,9 @@
   --space-section: 96px;
 
   /* Line palette — 사용자가 지정한 노선 색이 있으면 그것을, 아니면 라인 이름 해시로 선택.
-     Station8 시그니처 핑크(--line-pink)가 기본이며, 한 화면에 여러 Line이 모일 때 색을
+     Station8 시그니처 브랜드 컬러(--line-brand)가 기본이며, 한 화면에 여러 Line이 모일 때 색을
      골고루 분산시키기 위해 6색을 사용한다. */
-  --line-pink:   #e6197f;  /* Station8 시그니처 — ∞ 루프의 핵심색 */
+  --line-brand:  #59d499;  /* Station8 시그니처 — 8+S 글리프 (구 핑크 #e6197f에서 #109에서 교체) */
   --line-cyan:   #00a5de;  /* 보조 — cyan */
   --line-yellow: #f5a200;  /* 보조 — yellow */
   --line-green:  #00a84d;  /* 보조 — green */
@@ -534,6 +534,17 @@ code, pre {
   gap: var(--space-md);
 }
 
+/* #109 — 로고 글리프 (8+S) 테마별 자산 스위칭.
+   dark 자산은 어두운 배경 위에 흰 S, light 자산은 밝은 배경 위에 검정 S.
+   기본은 다크 자산만 보이고, [data-theme="light"]나 OS 선호 light일 때 light 자산이 보임. */
+.swe-logo-light { display: none; }
+:root[data-theme="light"] .swe-logo-dark { display: none; }
+:root[data-theme="light"] .swe-logo-light { display: inline-block; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .swe-logo-dark { display: none; }
+  :root:not([data-theme]) .swe-logo-light { display: inline-block; }
+}
+
 /* #223 — 테마 토글 버튼 (dark/light) */
 .swe-theme-toggle {
   display: inline-flex;
@@ -735,14 +746,14 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
 }
 .swe-subway-track {
   fill: none;
-  stroke: var(--line-pink);
+  stroke: var(--line-brand);
   stroke-width: var(--track-width);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .swe-subway-station-circle {
   fill: var(--station-fill);
-  stroke: var(--line-pink);
+  stroke: var(--line-brand);
   stroke-width: var(--station-stroke-width);
 }
 /* 상태별 스타일 (#87 M2) — running은 별도 halo 노드가 SMIL로 점멸 */
@@ -764,7 +775,7 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
 }
 .swe-subway-station-circle.untouched {
   fill: var(--station-fill);
-  stroke: var(--line-pink);
+  stroke: var(--line-brand);
   opacity: 0.55;
 }
 .swe-subway-station-halo {
@@ -785,16 +796,16 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
 
 .swe-subway-frame svg .swe-subway-station-circle.hover {
   stroke-width: 6px;
-  filter: drop-shadow(0 0 6px var(--line-pink));
+  filter: drop-shadow(0 0 6px var(--line-brand));
 }
 .swe-subway-frame svg .swe-subway-station-circle.untouched.hover {
   opacity: 1;
 }
 .swe-subway-frame svg .swe-subway-track.hover {
   stroke-width: calc(var(--track-width) + 4px);
-  filter: drop-shadow(0 0 8px var(--line-pink));
+  filter: drop-shadow(0 0 8px var(--line-brand));
 }
-.swe-subway-frame svg .swe-subway-station-label.hover { fill: var(--line-pink); font-weight: 600; }
+.swe-subway-frame svg .swe-subway-station-label.hover { fill: var(--line-brand); font-weight: 600; }
 
 /* #135 — focusStation()으로 외부에서 강조 (좌측 stations list 클릭 등). hover와 다르게 지속. */
 .swe-subway-frame svg .swe-subway-station-circle.focused {
