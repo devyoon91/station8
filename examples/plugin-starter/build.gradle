@@ -1,0 +1,35 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.example'
+version = '0.1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenLocal()       // ../../gradlew :station8-engine:publishToMavenLocal로 미리 publish
+    mavenCentral()
+}
+
+dependencies {
+    // 코어는 compileOnly — 호스트 런타임이 제공. jar에 포함하지 말 것.
+    compileOnly 'com.station8:station8-engine:0.0.1-SNAPSHOT'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    testImplementation 'org.mockito:mockito-core:5.10.0'
+    testImplementation 'com.station8:station8-engine:0.0.1-SNAPSHOT'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.0'
+}
+
+tasks.jar {
+    archiveBaseName = 'plugin-starter'
+}
+
+test {
+    useJUnitPlatform()
+}

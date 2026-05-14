@@ -83,7 +83,8 @@ docker compose -f docker/docker-compose.yml up --build -d
 - [docs/QUICKSTART.md](docs/QUICKSTART.md) — 5분 설명
 - [docs/line-engine-spec.md](docs/line-engine-spec.md) — 엔진 명세
 - [docs/HOWTO.md](docs/HOWTO.md) — 사용자 가이드 (라인 작성)
-- [docs/PLUGINS.md](docs/PLUGINS.md) — 플러그인 가이드
+- [docs/PLUGINS.md](docs/PLUGINS.md) — 플러그인 가이드 (운영자)
+- [docs/PLUGIN_DEVELOPMENT.md](docs/PLUGIN_DEVELOPMENT.md) — 플러그인 개발자 가이드 (`@Activity` 스펙 + 스타터)
 - [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md) — DB 규칙
 - [docs/ERROR_CODES.md](docs/ERROR_CODES.md) — 에러 코드
 - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — 협업 규정
