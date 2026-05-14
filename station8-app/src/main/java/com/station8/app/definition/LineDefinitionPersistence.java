@@ -86,12 +86,14 @@ public class LineDefinitionPersistence {
         List<LineTrack> edges = toTracks(definitionId, req);
         dagValidator.validate(nodes, edges, workflowRegistry.getActivityNames());
 
-        // 정의 row 저장 — #138 SLA / #141 동시 실행 정책은 req에서 받아 그대로 저장
+        // 정의 row 저장 — #138 SLA / #141 동시 실행 정책은 req에서 받아 그대로 저장.
+        // #168 — Phase 1에서는 projectId 미지정 → default project 할당 (Phase 2에서 UI/API로 명시 선택).
         LineDefinition def = new LineDefinition(
                 definitionId, req.definitionNm(), req.description(),
                 nextVersion, "Y",
                 req.slaSeconds(), req.slaAction(),
                 req.concurrencyPolicy(),
+                com.station8.engine.entity.LineProject.DEFAULT_PROJECT_ID,
                 "Y", "Y", "N",
                 null, "api", null, null
         );
@@ -182,6 +184,7 @@ public class LineDefinitionPersistence {
                 def.versionNo(), def.activeFl(),
                 def.slaSeconds(), def.slaAction(),
                 def.concurrencyPolicy(),
+                def.projectId(),  // #168
                 tags,
                 nodes.stream().map(n -> new DagDefinitionRequest.NodeDef(
                         n.id(), n.nodeNm(), n.activityNm(), n.inputParams(),

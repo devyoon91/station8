@@ -163,7 +163,8 @@ class PauseRetryTest {
         // Unpause 후 fan-out 재평가 → B를 PENDING으로 promote
         String defId = "def-" + UUID.randomUUID();
         defRepo.insertDefinition(new LineDefinition(defId, "FlowFanout", null, 1, "Y",
-                null, null, null, "Y", "Y", "N", null, "test", null, null));
+                null, null, null, null,  // #168 projectId
+                "Y", "Y", "N", null, "test", null, null));
         defRepo.insertNode(new LineStation("n-a", defId, "A", "A", null, null, 0, 0,
                 "Y", "Y", "N", null, null, null, null));
         defRepo.insertNode(new LineStation("n-b", defId, "B", "B", null, null, 0, 0,
