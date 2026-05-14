@@ -1,3 +1,23 @@
+<script>
+    // #223 — 테마 부트스트랩. localStorage 값이 있으면 즉시 적용 (FOUC 최소화).
+    // 저장값 없으면 CSS의 @media (prefers-color-scheme)이 자동 처리.
+    (function () {
+        try {
+            var saved = localStorage.getItem('station8-theme');
+            if (saved === 'light' || saved === 'dark') {
+                document.documentElement.dataset.theme = saved;
+            }
+        } catch (e) { /* localStorage 비활성: 무시 */ }
+    })();
+    function station8ToggleTheme() {
+        var root = document.documentElement;
+        var current = root.dataset.theme
+            || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        var next = current === 'light' ? 'dark' : 'light';
+        root.dataset.theme = next;
+        try { localStorage.setItem('station8-theme', next); } catch (e) {}
+    }
+</script>
 <nav class="swe-nav">
     <div class="swe-nav-inner">
         <a href="/" class="swe-nav-brand">
@@ -27,6 +47,15 @@
             {{/currentUser.admin}}
         </div>
         <div class="swe-nav-cta">
+            <button type="button" class="swe-theme-toggle" aria-label="Toggle theme" title="테마 전환 (다크/라이트)" onclick="station8ToggleTheme()">
+                <svg class="theme-icon theme-icon-moon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M13.5 10.5 A6 6 0 1 1 5.5 2.5 A5 5 0 0 0 13.5 10.5 Z" fill="currentColor"/>
+                </svg>
+                <svg class="theme-icon theme-icon-sun" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="3" fill="currentColor"/>
+                    <path d="M8 1 V3 M8 13 V15 M1 8 H3 M13 8 H15 M3 3 L4.5 4.5 M11.5 11.5 L13 13 M3 13 L4.5 11.5 M11.5 4.5 L13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </button>
             {{#currentUser.authenticated}}
                 <a href="/me/password" class="swe-mute" style="text-decoration:none;font-size:13px;" title="비밀번호 변경">{{currentUser.username}}{{#currentUser.admin}} (ADMIN){{/currentUser.admin}}</a>
                 <form action="/logout" method="post" style="display:inline;margin:0;">

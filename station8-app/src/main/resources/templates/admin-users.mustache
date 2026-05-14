@@ -35,18 +35,18 @@
                 <div>
                     <label style="display:block;font-weight:600;margin-bottom:var(--space-xs);">Username *</label>
                     <input type="text" name="username" required pattern="[A-Za-z][A-Za-z0-9_.-]{1,63}"
-                           style="width:100%;padding:var(--space-sm);background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:var(--radius-sm);">
+                           style="width:100%;padding:var(--space-sm);background:var(--surface-elevated);border:1px solid var(--hairline);color:var(--ink);border-radius:var(--radius-sm);">
                     <div class="swe-mute" style="font-size:11px;margin-top:var(--space-xs);">영문자로 시작 + 영숫자/_/-/. (2~64자)</div>
                 </div>
                 <div>
                     <label style="display:block;font-weight:600;margin-bottom:var(--space-xs);">Display Name</label>
                     <input type="text" name="displayNm"
-                           style="width:100%;padding:var(--space-sm);background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:var(--radius-sm);">
+                           style="width:100%;padding:var(--space-sm);background:var(--surface-elevated);border:1px solid var(--hairline);color:var(--ink);border-radius:var(--radius-sm);">
                 </div>
                 <div>
                     <label style="display:block;font-weight:600;margin-bottom:var(--space-xs);">Password *</label>
                     <input type="password" name="password" required minlength="8"
-                           style="width:100%;padding:var(--space-sm);background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:var(--radius-sm);">
+                           style="width:100%;padding:var(--space-sm);background:var(--surface-elevated);border:1px solid var(--hairline);color:var(--ink);border-radius:var(--radius-sm);">
                     <div class="swe-mute" style="font-size:11px;margin-top:var(--space-xs);">8자+ 숫자+ 특수문자+</div>
                 </div>
                 <div style="display:flex;align-items:flex-end;">
@@ -79,7 +79,7 @@
                 <td><strong>{{username}}</strong>{{#isSelf}} <span class="swe-mute" style="font-size:11px;">(you)</span>{{/isSelf}}</td>
                 <td class="swe-mute">{{displayNm}}</td>
                 <td>
-                    {{#isAdmin}}<span class="swe-badge" style="background:var(--accent-pink);color:#0d0d0d;">ADMIN</span>{{/isAdmin}}
+                    {{#isAdmin}}<span class="swe-badge" style="background:var(--accent-pink);color:var(--on-accent);">ADMIN</span>{{/isAdmin}}
                     <span class="swe-badge swe-badge-secondary">{{rolesText}}</span>
                 </td>
                 <td>
@@ -92,7 +92,7 @@
                         <summary class="swe-btn-tertiary swe-btn-sm" style="cursor:pointer;list-style:none;">Reset PW</summary>
                         <form action="/admin/users/{{id}}/reset-password" method="post" style="display:flex;gap:var(--space-xs);margin-top:var(--space-xs);">
                             <input type="hidden" name="{{_csrf.parameterName}}" value="{{_csrf.token}}">
-                            <input type="password" name="newPassword" required minlength="8" placeholder="new password" style="padding:var(--space-xs);background:var(--surface-2);border:1px solid var(--line);color:var(--ink);">
+                            <input type="password" name="newPassword" required minlength="8" placeholder="new password" style="padding:var(--space-xs);background:var(--surface-elevated);border:1px solid var(--hairline);color:var(--ink);">
                             <button type="submit" class="swe-btn-tertiary swe-btn-sm">Apply</button>
                         </form>
                     </details>

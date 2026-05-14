@@ -234,7 +234,7 @@
     <div>
         <label for="run-input-data" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">Input data (JSON, optional)</label>
         <textarea id="run-input-data" rows="6" placeholder='{"date": "2026-05-10"}'
-                  style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                  style="width:100%; padding:var(--space-sm); background:var(--surface-elevated); border:1px solid var(--hairline);
                          color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"></textarea>
         <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
             빈 값 OK — 입력 없이 실행. 본문은 자유 텍스트(액티비티가 직접 파싱). JSON 강제 X.
@@ -248,7 +248,7 @@
             <div>
                 <label for="run-on-failure" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">On failure</label>
                 <select id="run-on-failure"
-                        style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                        style="width:100%; padding:var(--space-sm); background:var(--surface-elevated); border:1px solid var(--hairline);
                                color:var(--ink); border-radius:var(--radius-sm); font-size:0.9em;">
                     <option value="CONTINUE" selected>CONTINUE — 활동 실패 시 다른 활동은 계속 (기본)</option>
                     <option value="ABORT">ABORT — 활동 최종 실패 시 인스턴스 즉시 종료</option>
@@ -258,7 +258,7 @@
             <div>
                 <label for="run-runtime-params" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">Runtime params (JSON object, optional)</label>
                 <textarea id="run-runtime-params" rows="4" placeholder='{"region": "KR", "tier": "premium"}'
-                          style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                          style="width:100%; padding:var(--space-sm); background:var(--surface-elevated); border:1px solid var(--hairline);
                                  color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"></textarea>
                 <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
                     LineContext.runtimeParams()로 활동에 전달되는 string→string 맵. 비워두면 빈 맵.
@@ -267,7 +267,7 @@
             <div>
                 <label for="run-webhook" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">Notification webhook URL (optional)</label>
                 <input type="text" id="run-webhook" placeholder="https://hooks.example.com/dlq"
-                       style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                       style="width:100%; padding:var(--space-sm); background:var(--surface-elevated); border:1px solid var(--hairline);
                               color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"/>
                 <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
                     DLQ 및 SLA 알림 시 전역 webhook 대신 이 URL로 발송. 비워두면 전역(engine.dlq.webhook-url / engine.sla.webhook-url) 사용.
@@ -278,7 +278,7 @@
                 <div>
                     <label for="run-sla-seconds" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">SLA (seconds)</label>
                     <input type="number" id="run-sla-seconds" min="1" step="1" placeholder="예: 3600"
-                           style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                           style="width:100%; padding:var(--space-sm); background:var(--surface-elevated); border:1px solid var(--hairline);
                                   color:var(--ink); border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.9em;"/>
                     <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
                         비워두면 정의의 default SLA 사용. 0/빈값 = SLA override 없음.
@@ -287,7 +287,7 @@
                 <div>
                     <label for="run-sla-action" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">SLA action</label>
                     <select id="run-sla-action"
-                            style="width:100%; padding:var(--space-sm); background:var(--surface-2); border:1px solid var(--line);
+                            style="width:100%; padding:var(--space-sm); background:var(--surface-elevated); border:1px solid var(--hairline);
                                    color:var(--ink); border-radius:var(--radius-sm); font-size:0.9em;">
                         <option value="">— inherit —</option>
                         <option value="ALERT_ONLY">ALERT_ONLY</option>
