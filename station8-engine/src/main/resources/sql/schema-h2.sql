@@ -86,7 +86,28 @@ CREATE INDEX IF NOT EXISTS H_LINE_DLQ_IDX02 ON H_LINE_DLQ (INSTANCE_ID);
 -- DAG Definition Tables (M1-1: 라인을 데이터로 정의)
 -- ============================================================================
 
+-- Line Project Table (Master) - H2  #168
+-- 라인 정의의 1차 컨테이너 (Azkaban Project 패턴 벤치마킹). 모든 정의는 정확히 1개의 Project에 소속.
+-- 'default' project가 시드되어 projectId 미지정 정의의 fallback 컨테이너 역할.
+CREATE TABLE IF NOT EXISTS U_LINE_PROJECT (
+    ID VARCHAR(50),
+    PROJECT_NM VARCHAR(100) NOT NULL,
+    DESCRIPTION VARCHAR(500),
+    USE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
+    VIEW_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
+    DEL_FL VARCHAR(1) DEFAULT 'N' NOT NULL,
+    REG_DT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    REG_ID VARCHAR(32),
+    EDIT_DT TIMESTAMP,
+    EDIT_ID VARCHAR(32),
+    CONSTRAINT U_LINE_PROJECT_PK PRIMARY KEY (ID),
+    CONSTRAINT U_LINE_PROJECT_U01 UNIQUE (PROJECT_NM)
+);
+
+CREATE INDEX IF NOT EXISTS U_LINE_PROJECT_IDX01 ON U_LINE_PROJECT (DEL_FL);
+
 -- Line Definition Table (Master) - H2
+-- PROJECT_ID (#168): 소속 프로젝트 FK. 기존 정의는 LineProjectSeeder가 'default' project로 backfill.
 CREATE TABLE IF NOT EXISTS U_LINE_DEFINITION (
     ID VARCHAR(50),
     DEFINITION_NM VARCHAR(100) NOT NULL,
@@ -96,6 +117,7 @@ CREATE TABLE IF NOT EXISTS U_LINE_DEFINITION (
     SLA_SECONDS BIGINT,                                  -- #138: SLA 시간 임계치 (NULL=비활성)
     SLA_ACTION VARCHAR(20),                              -- #138: ALERT_ONLY / AUTO_TERMINATE
     CONCURRENCY_POLICY VARCHAR(20),                      -- #141: CONCURRENT(default) / SKIP_IF_RUNNING
+    PROJECT_ID VARCHAR(50),                              -- #168: 소속 프로젝트 (Seeder가 backfill)
     USE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
     VIEW_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
     DEL_FL VARCHAR(1) DEFAULT 'N' NOT NULL,
@@ -108,6 +130,10 @@ CREATE TABLE IF NOT EXISTS U_LINE_DEFINITION (
 );
 
 CREATE INDEX IF NOT EXISTS U_LINE_DEFINITION_IDX01 ON U_LINE_DEFINITION (ACTIVE_FL, DEL_FL);
+CREATE INDEX IF NOT EXISTS U_LINE_DEFINITION_IDX02 ON U_LINE_DEFINITION (PROJECT_ID);
+
+-- #168: 기존 prod DB 호환 — 컬럼 누락 시 ALTER로 추가. continueOnError로 swallow.
+ALTER TABLE U_LINE_DEFINITION ADD COLUMN IF NOT EXISTS PROJECT_ID VARCHAR(50);
 
 -- Line Station Table (Master) - H2
 -- DATASOURCE_BINDINGS (#113): JSON map<role,name> — 액티비티가 ``@BoundDataSource("role")``로 참조.

@@ -86,7 +86,29 @@ CREATE INDEX H_LINE_DLQ_IDX02 ON H_LINE_DLQ (INSTANCE_ID);
 -- DAG Definition Tables (M1-1: 라인을 데이터로 정의)
 -- ============================================================================
 
+-- Line Project Table (Master) - 라인 정의 컨테이너 #168
+-- 'default' project가 시드되어 backfill 기본값으로 사용.
+CREATE TABLE U_LINE_PROJECT (
+    ID VARCHAR2(50),
+    PROJECT_NM VARCHAR2(100) NOT NULL,
+    DESCRIPTION VARCHAR2(500),
+    USE_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,
+    VIEW_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,
+    DEL_FL VARCHAR2(1) DEFAULT 'N' NOT NULL,
+    REG_DT DATE DEFAULT CURRENT_TIMESTAMP,
+    REG_ID VARCHAR2(32),
+    EDIT_DT DATE,
+    EDIT_ID VARCHAR2(32),
+    CONSTRAINT U_LINE_PROJECT_PK PRIMARY KEY (ID),
+    CONSTRAINT U_LINE_PROJECT_U01 UNIQUE (PROJECT_NM)
+);
+
+CREATE INDEX U_LINE_PROJECT_IDX01 ON U_LINE_PROJECT (DEL_FL);
+
 -- Line Definition Table (Master) - 사용자가 정의한 DAG의 본체
+-- PROJECT_ID (#168): 소속 프로젝트 FK. Seeder가 backfill.
+-- 참고: 기존 prod Oracle DB에서 컬럼 추가는 별도 ALTER 필요:
+--   ALTER TABLE U_LINE_DEFINITION ADD PROJECT_ID VARCHAR2(50);
 CREATE TABLE U_LINE_DEFINITION (
     ID VARCHAR2(50),
     DEFINITION_NM VARCHAR2(100) NOT NULL,
@@ -96,6 +118,7 @@ CREATE TABLE U_LINE_DEFINITION (
     SLA_SECONDS NUMBER,                                  -- #138: SLA 시간 임계치 (NULL=비활성)
     SLA_ACTION VARCHAR2(20),                             -- #138: ALERT_ONLY / AUTO_TERMINATE
     CONCURRENCY_POLICY VARCHAR2(20),                     -- #141: CONCURRENT(default) / SKIP_IF_RUNNING
+    PROJECT_ID VARCHAR2(50),                             -- #168: 소속 프로젝트 (Seeder가 backfill)
     USE_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,
     VIEW_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,
     DEL_FL VARCHAR2(1) DEFAULT 'N' NOT NULL,
@@ -108,6 +131,7 @@ CREATE TABLE U_LINE_DEFINITION (
 );
 
 CREATE INDEX U_LINE_DEFINITION_IDX01 ON U_LINE_DEFINITION (ACTIVE_FL, DEL_FL);
+CREATE INDEX U_LINE_DEFINITION_IDX02 ON U_LINE_DEFINITION (PROJECT_ID);
 
 -- Line Station Table (Master) - DAG 정의 내 역(=액티비티 호출 단위)
 -- DATASOURCE_BINDINGS (#113): JSON map<role,name> — 액티비티가 ``@BoundDataSource("role")``로 참조.

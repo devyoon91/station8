@@ -132,13 +132,14 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_DEFINITION
                   (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL,
-                   SLA_SECONDS, SLA_ACTION, CONCURRENCY_POLICY,
+                   SLA_SECONDS, SLA_ACTION, CONCURRENCY_POLICY, PROJECT_ID,
                    USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
                 """,
                 definition.id(), definition.definitionNm(), definition.description(),
                 definition.versionNo(), definition.activeFl() != null ? definition.activeFl() : "Y",
                 definition.slaSeconds(), definition.slaAction(), definition.concurrencyPolicy(),
+                definition.projectId(),
                 definition.regId());
     }
 
@@ -336,6 +337,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 slaSeconds,
                 rs.getString("SLA_ACTION"),
                 rs.getString("CONCURRENCY_POLICY"),  // #141
+                rs.getString("PROJECT_ID"),           // #168
                 rs.getString("USE_FL"),
                 rs.getString("VIEW_FL"),
                 rs.getString("DEL_FL"),
