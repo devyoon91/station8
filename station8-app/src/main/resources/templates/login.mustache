@@ -5,6 +5,17 @@
     <title>Login — Station8</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="/css/design.css">
+    <script>
+        // #223 — 테마 부트스트랩. 저장된 사용자 토글값을 즉시 반영해 FOUC 최소화.
+        (function () {
+            try {
+                var saved = localStorage.getItem('station8-theme');
+                if (saved === 'light' || saved === 'dark') {
+                    document.documentElement.dataset.theme = saved;
+                }
+            } catch (e) {}
+        })();
+    </script>
     <style>
         body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         .login-box { width: 360px; padding: var(--space-section); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius-lg); }
@@ -12,12 +23,12 @@
         .login-box label { display: block; font-weight: 600; margin: var(--space-md) 0 var(--space-xs); }
         .login-box input[type=text], .login-box input[type=password] {
             width: 100%; padding: var(--space-sm) var(--space-md);
-            background: var(--surface-2); border: 1px solid var(--line);
+            background: var(--surface-elevated); border: 1px solid var(--hairline);
             color: var(--ink); border-radius: var(--radius-sm); font-family: inherit;
             box-sizing: border-box;
         }
         .login-box button { width: 100%; margin-top: var(--space-lg); padding: var(--space-md); }
-        .alert-error { color: var(--accent-pink); margin-top: var(--space-sm); font-size: 13px; }
+        .alert-error { color: var(--accent-red); margin-top: var(--space-sm); font-size: 13px; }
         .alert-info { color: var(--accent-green); margin-top: var(--space-sm); font-size: 13px; }
     </style>
 </head>

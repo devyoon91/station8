@@ -1,10 +1,15 @@
 /* ============================================================================
-   Station8 — Design System (Raycast 스타일 다크 모드)
+   Station8 — Design System (Raycast 스타일)
+   다크 + 라이트 듀얼 테마. 기본은 다크. 사용자 토글(localStorage) > prefers-color-scheme > 기본 다크.
    DESIGN.md 토큰 기반. 모든 페이지가 본 파일을 import.
+   #223 — 다크/라이트 테마 분리 + 토큰 정합성 리팩토링.
    ============================================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
+/* ----------------------------------------------------------------------------
+   기본 토큰 (다크) — :root 디폴트
+   ---------------------------------------------------------------------------- */
 :root {
   /* Surface ladder */
   --canvas: #07080a;
@@ -39,6 +44,11 @@
   --accent-green-soft: rgba(89, 212, 153, 0.15);
   --accent-yellow: #ffc533;
   --accent-yellow-soft: rgba(255, 197, 51, 0.15);
+  --accent-pink: #e6197f;
+  --accent-pink-soft: rgba(230, 25, 127, 0.15);
+
+  /* 강조 위 텍스트 (--accent-* 배경에 얹는 텍스트) — 어느 테마에서나 가독성 유지 위해 다크 픽스 */
+  --on-accent: #0d0d0d;
 
   /* Hero stripe (M8-6에서만 사용) */
   --hero-stripe-start: #ff5757;
@@ -79,6 +89,99 @@
   --station-fill: #07080a;
   --station-stroke-width: 4px;
   --track-width: 8px;
+
+  /* Modal backdrop (테마별로 강도 다르게) */
+  --backdrop: rgba(0, 0, 0, 0.7);
+
+  /* Font stacks (전역 토큰 — 인라인 style에서 var() 참조용) */
+  --font-sans: 'Inter', 'Inter Fallback', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, Monaco, 'Courier New', monospace;
+}
+
+/* ----------------------------------------------------------------------------
+   라이트 테마 — 명시적 토글
+   data-theme="light"가 <html>에 있으면 :root 토큰을 오버라이드.
+   ---------------------------------------------------------------------------- */
+:root[data-theme="light"] {
+  --canvas: #f7f7f8;
+  --surface: #ffffff;
+  --surface-elevated: #f4f4f6;
+  --surface-card: #fafafa;
+
+  --hairline: #e2e2e5;
+  --hairline-strong: rgba(0, 0, 0, 0.16);
+  --hairline-soft: rgba(0, 0, 0, 0.08);
+
+  --primary: #0d0d0d;
+  --primary-pressed: #2a2a2a;
+  --on-primary: #ffffff;
+
+  --ink: #0d0d0d;
+  --body: #3a3a3c;
+  --charcoal: #4a4a4c;
+  --mute: #76767a;
+  --ash: #a0a0a4;
+  --stone: #c6c6c9;
+
+  /* 라이트 모드용 채도 보정 — 흰 배경에서 가독성 + 콘트라스트 */
+  --accent-blue: #0a84ff;
+  --accent-blue-soft: rgba(10, 132, 255, 0.12);
+  --accent-red: #dc2626;
+  --accent-red-soft: rgba(220, 38, 38, 0.12);
+  --accent-green: #15803d;
+  --accent-green-soft: rgba(21, 128, 61, 0.12);
+  --accent-yellow: #b45309;
+  --accent-yellow-soft: rgba(180, 83, 9, 0.12);
+  --accent-pink: #be185d;
+  --accent-pink-soft: rgba(190, 24, 93, 0.12);
+
+  --on-accent: #ffffff;
+
+  --key-bg-start: #f4f4f6;
+  --key-bg-end: #fafafa;
+
+  --station-fill: #ffffff;
+
+  --backdrop: rgba(0, 0, 0, 0.35);
+}
+
+/* ----------------------------------------------------------------------------
+   OS 선호도 자동 적용 — 사용자가 명시적으로 토글하지 않은 경우만
+   ---------------------------------------------------------------------------- */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --canvas: #f7f7f8;
+    --surface: #ffffff;
+    --surface-elevated: #f4f4f6;
+    --surface-card: #fafafa;
+    --hairline: #e2e2e5;
+    --hairline-strong: rgba(0, 0, 0, 0.16);
+    --hairline-soft: rgba(0, 0, 0, 0.08);
+    --primary: #0d0d0d;
+    --primary-pressed: #2a2a2a;
+    --on-primary: #ffffff;
+    --ink: #0d0d0d;
+    --body: #3a3a3c;
+    --charcoal: #4a4a4c;
+    --mute: #76767a;
+    --ash: #a0a0a4;
+    --stone: #c6c6c9;
+    --accent-blue: #0a84ff;
+    --accent-blue-soft: rgba(10, 132, 255, 0.12);
+    --accent-red: #dc2626;
+    --accent-red-soft: rgba(220, 38, 38, 0.12);
+    --accent-green: #15803d;
+    --accent-green-soft: rgba(21, 128, 61, 0.12);
+    --accent-yellow: #b45309;
+    --accent-yellow-soft: rgba(180, 83, 9, 0.12);
+    --accent-pink: #be185d;
+    --accent-pink-soft: rgba(190, 24, 93, 0.12);
+    --on-accent: #ffffff;
+    --key-bg-start: #f4f4f6;
+    --key-bg-end: #fafafa;
+    --station-fill: #ffffff;
+    --backdrop: rgba(0, 0, 0, 0.35);
+  }
 }
 
 /* ============================================================================
@@ -431,6 +534,35 @@ code, pre {
   gap: var(--space-md);
 }
 
+/* #223 — 테마 토글 버튼 (dark/light) */
+.swe-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.swe-theme-toggle:hover { border-color: var(--hairline-strong); background: var(--surface-elevated); }
+.swe-theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.swe-theme-toggle .theme-icon { display: none; }
+/* 기본(다크) — moon 표시 */
+.swe-theme-toggle .theme-icon-moon { display: inline-block; }
+/* data-theme="light" — sun 표시 */
+:root[data-theme="light"] .swe-theme-toggle .theme-icon-moon { display: none; }
+:root[data-theme="light"] .swe-theme-toggle .theme-icon-sun  { display: inline-block; }
+/* OS 선호도 light + 명시 토글 없음 — sun 표시 */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .swe-theme-toggle .theme-icon-moon { display: none; }
+  :root:not([data-theme]) .swe-theme-toggle .theme-icon-sun  { display: inline-block; }
+}
+
 /* #208 — 햄버거 버튼: 데스크톱에선 숨김 */
 .swe-nav-hamburger {
   display: none;
@@ -487,7 +619,7 @@ code, pre {
 .swe-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--backdrop);
   display: none;
   align-items: center;
   justify-content: center;
@@ -888,7 +1020,7 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
 }
 .swe-ctx-menu-item.danger:hover,
 .swe-ctx-menu-item.danger:focus {
-  background: rgba(255, 90, 100, 0.1);
+  background: var(--accent-red-soft);
 }
 .swe-ctx-menu-divider {
   height: 1px;
