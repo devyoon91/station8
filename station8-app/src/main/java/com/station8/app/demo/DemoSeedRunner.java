@@ -64,16 +64,16 @@ public class DemoSeedRunner implements ApplicationRunner {
         }
 
         try {
-            String defId = definitionService.createDefinition(new DagDefinitionRequest(
-                    DEMO_DEFINITION_NM,
-                    "데모: MigrationInitializer가 시드한 SRC_DATA에서 한 건씩 마이그레이션 (5분마다)",
-                    List.of(new DagDefinitionRequest.NodeDef(
+            String defId = definitionService.createDefinition(DagDefinitionRequest.builder()
+                    .definitionNm(DEMO_DEFINITION_NM)
+                    .description("데모: MigrationInitializer가 시드한 SRC_DATA에서 한 건씩 마이그레이션 (5분마다)")
+                    .nodes(List.of(new DagDefinitionRequest.NodeDef(
                             "demo-node-1", "Migrate", "MIGRATION_WRITE",
                             // 정적 입력 (실제 폴러는 SRC_DATA에서 PENDING을 끌고 가서 처리)
                             "{\"id\":\"demo-1\",\"content\":\"Auto seeded data\"}",
-                            150, 100, null)),
-                    List.of()
-            ));
+                            150, 100, null)))
+                    .edges(List.of())
+                    .build());
             log.info("[DemoSeed] DAG 정의 등록: id={}, nm={}", defId, DEMO_DEFINITION_NM);
 
             // 같은 정의가 다른 스케줄로 이미 등록돼 있는지도 확인

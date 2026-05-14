@@ -207,11 +207,11 @@ class LineAclTest {
         // 사용자 'creator'를 DB에 시드 (LineUserRepository.findByUsername이 검색)
         seedUser("creator");
 
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "AutoGrantFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("ag-1", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("AutoGrantFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("ag-1", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = definitionService.createDefinition(req);
 
         // 'creator'에게 ADMIN 자동 부여됨

@@ -252,18 +252,18 @@ class InstanceTerminateTest {
      */
     private String createRunningInstanceWithActivities() {
         // 정의: A → B → C
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "TerminateFlow", null,
-                List.of(
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("TerminateFlow")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("t-a", "A", "MIGRATION_WRITE", null, 0, 0, null),
                         new DagDefinitionRequest.NodeDef("t-b", "B", "MIGRATION_WRITE", null, 0, 0, null),
                         new DagDefinitionRequest.NodeDef("t-c", "C", "MIGRATION_WRITE", null, 0, 0, null)
-                ),
-                List.of(
+                ))
+                .edges(List.of(
                         new DagDefinitionRequest.EdgeDef("t-e1", "t-a", "t-b", null),
                         new DagDefinitionRequest.EdgeDef("t-e2", "t-b", "t-c", null)
-                )
-        );
+                ))
+                .build();
         String defId = service.createDefinition(req);
 
         // 인스턴스 + 액티비티 — A는 RUNNING(워커가 잡았다고 가정), B는 PENDING(promoted), C는 WAITING

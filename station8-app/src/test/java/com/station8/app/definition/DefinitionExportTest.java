@@ -117,12 +117,12 @@ class DefinitionExportTest {
     @Test
     void export_minimalDefinition_emptyOptionalFields() throws Exception {
         // SLA / concurrency / tags 없는 미니멀 정의
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "MinimalFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("only", "Only", "MIGRATION_WRITE",
-                        null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("MinimalFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("only", "Only", "MIGRATION_WRITE",
+                        null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         String body = mockMvc.perform(get("/api/line/definitions/" + defId + "/export"))
@@ -141,12 +141,12 @@ class DefinitionExportTest {
     @Test
     void export_filenameSanitizesUnsafeChars() throws Exception {
         // 정의 이름에 영숫자/하이픈 외 문자 포함 — 파일명은 ``_``로 sanitize
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "주문/처리 + 결제!", null,
-                List.of(new DagDefinitionRequest.NodeDef("only", "Only", "MIGRATION_WRITE",
-                        null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("주문/처리 + 결제!")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("only", "Only", "MIGRATION_WRITE",
+                        null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         // "주문/처리 + 결제!" = 11자 (한글 6 + 특수문자 5) — 모두 ``_``로 치환

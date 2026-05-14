@@ -54,19 +54,19 @@ class LineDefinitionApiTest {
     @Test
     void create_get_run_E2E() {
         // 정의: ValidateOrder → RunBatch (RUN_BATCH_JOB은 SpringBatchActivityAdapter가 등록)
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "E2EFlow",
-                "정의 등록 → 즉시 실행까지 검증",
-                List.of(
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("E2EFlow")
+                .description("정의 등록 → 즉시 실행까지 검증")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("n-1", "FirstStep", "MIGRATION_WRITE",
                                 jsonUtil.toJson(Map.of("id", "9", "content", "noop")), 100, 100, null),
                         new DagDefinitionRequest.NodeDef("n-2", "BatchStep", "RUN_BATCH_JOB",
                                 jsonUtil.toJson(Map.of("jobName", "sampleBatchJob",
                                         "params", Map.of("fileDate", "2026-05-07"))),
                                 300, 100, null)
-                ),
-                List.of(new DagDefinitionRequest.EdgeDef("e-1", "n-1", "n-2", null))
-        );
+                ))
+                .edges(List.of(new DagDefinitionRequest.EdgeDef("e-1", "n-1", "n-2", null)))
+                .build();
 
         String defId = service.createDefinition(req);
         assertNotNull(defId);
@@ -92,17 +92,17 @@ class LineDefinitionApiTest {
     @Test
     void create_with_cycle_throws() {
         // A → B → A 사이클
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "CycleFlow", null,
-                List.of(
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("CycleFlow")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("c-a", "A", "MIGRATION_WRITE", null, 0, 0, null),
                         new DagDefinitionRequest.NodeDef("c-b", "B", "MIGRATION_WRITE", null, 0, 0, null)
-                ),
-                List.of(
+                ))
+                .edges(List.of(
                         new DagDefinitionRequest.EdgeDef("c-e1", "c-a", "c-b", null),
                         new DagDefinitionRequest.EdgeDef("c-e2", "c-b", "c-a", null)
-                )
-        );
+                ))
+                .build();
         Exception ex = assertThrows(Exception.class, () -> service.createDefinition(req));
         assertTrue(ex.getMessage().contains("WF-E305") || ex.getMessage().contains("CYCLE"),
                 "사이클 에러코드(WF-E305) 포함 기대: " + ex.getMessage());
@@ -110,11 +110,11 @@ class LineDefinitionApiTest {
 
     @Test
     void create_with_unknown_activity_throws() {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "UnknownActFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("u-1", "X", "NO_SUCH_ACTIVITY", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("UnknownActFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("u-1", "X", "NO_SUCH_ACTIVITY", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         Exception ex = assertThrows(Exception.class, () -> service.createDefinition(req));
         assertTrue(ex.getMessage().contains("WF-E307") || ex.getMessage().contains("UNKNOWN_ACTIVITY"),
                 "미등록 액티비티 에러코드(WF-E307) 포함 기대: " + ex.getMessage());
@@ -122,28 +122,30 @@ class LineDefinitionApiTest {
 
     @Test
     void replace_swaps_nodes_and_edges() {
-        DagDefinitionRequest v1 = new DagDefinitionRequest(
-                "ReplaceFlow", "v1",
-                List.of(
+        DagDefinitionRequest v1 = DagDefinitionRequest.builder()
+                .definitionNm("ReplaceFlow")
+                .description("v1")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("r-a", "A", "MIGRATION_WRITE", null, 0, 0, null),
                         new DagDefinitionRequest.NodeDef("r-b", "B", "MIGRATION_WRITE", null, 0, 0, null)
-                ),
-                List.of(new DagDefinitionRequest.EdgeDef("r-e1", "r-a", "r-b", null))
-        );
+                ))
+                .edges(List.of(new DagDefinitionRequest.EdgeDef("r-e1", "r-a", "r-b", null)))
+                .build();
         String defId = service.createDefinition(v1);
 
-        DagDefinitionRequest v2 = new DagDefinitionRequest(
-                "ReplaceFlow", "v2-replaced",
-                List.of(
+        DagDefinitionRequest v2 = DagDefinitionRequest.builder()
+                .definitionNm("ReplaceFlow")
+                .description("v2-replaced")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("r2-a", "A2", "MIGRATION_WRITE", null, 0, 0, null),
                         new DagDefinitionRequest.NodeDef("r2-b", "B2", "MIGRATION_WRITE", null, 0, 0, null),
                         new DagDefinitionRequest.NodeDef("r2-c", "C2", "MIGRATION_WRITE", null, 0, 0, null)
-                ),
-                List.of(
+                ))
+                .edges(List.of(
                         new DagDefinitionRequest.EdgeDef("r2-e1", "r2-a", "r2-b", null),
                         new DagDefinitionRequest.EdgeDef("r2-e2", "r2-b", "r2-c", null)
-                )
-        );
+                ))
+                .build();
         service.replaceDefinition(defId, v2);
 
         DagDefinitionResponse fetched = service.getDefinition(defId);
@@ -154,11 +156,11 @@ class LineDefinitionApiTest {
 
     @Test
     void delete_then_get_throws() {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "DeleteFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("d-a", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("DeleteFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("d-a", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         service.deleteDefinition(defId);
@@ -168,17 +170,17 @@ class LineDefinitionApiTest {
 
     @Test
     void duplicate_name_creates_new_version() {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "VersionedFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("v1-a", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("VersionedFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("v1-a", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String id1 = service.createDefinition(req);
-        String id2 = service.createDefinition(new DagDefinitionRequest(
-                "VersionedFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("v2-a", "A", "MIGRATION_WRITE", null, 0, 0, null)),
-                List.of()
-        ));
+        String id2 = service.createDefinition(DagDefinitionRequest.builder()
+                .definitionNm("VersionedFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("v2-a", "A", "MIGRATION_WRITE", null, 0, 0, null)))
+                .edges(List.of())
+                .build());
         assertNotEquals(id1, id2);
         assertEquals(1, service.getDefinition(id1).versionNo());
         assertEquals(2, service.getDefinition(id2).versionNo());

@@ -46,12 +46,12 @@ class DefinitionPreviewRecentRunsTest {
 
     @Test
     void preview_emptyRuns_showsEmptyStateWithRunCta() throws Exception {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "EmptyRunsFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("n-1", "Step", "MIGRATION_WRITE",
-                        null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("EmptyRunsFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("n-1", "Step", "MIGRATION_WRITE",
+                        null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         mockMvc.perform(get("/line/definitions/" + defId))
@@ -69,12 +69,12 @@ class DefinitionPreviewRecentRunsTest {
 
     @Test
     void preview_withInstances_showsRecentRunsTable() throws Exception {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "BusyFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("b-1", "Step", "MIGRATION_WRITE",
-                        null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("BusyFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("b-1", "Step", "MIGRATION_WRITE",
+                        null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         // 인스턴스 3개 시드 — 다양한 상태
@@ -100,12 +100,12 @@ class DefinitionPreviewRecentRunsTest {
 
     @Test
     void preview_runModal_isPresentWithDefinitionIdAndEndpoint() throws Exception {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "ModalFlow", null,
-                List.of(new DagDefinitionRequest.NodeDef("m-1", "Step", "MIGRATION_WRITE",
-                        null, 0, 0, null)),
-                List.of()
-        );
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("ModalFlow")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef("m-1", "Step", "MIGRATION_WRITE",
+                        null, 0, 0, null)))
+                .edges(List.of())
+                .build();
         String defId = service.createDefinition(req);
 
         mockMvc.perform(get("/line/definitions/" + defId))

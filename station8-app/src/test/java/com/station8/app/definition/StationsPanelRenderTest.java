@@ -79,16 +79,17 @@ class StationsPanelRenderTest {
 
     @Test
     void preview_rendersStationsPanelWithSearchAndList() throws Exception {
-        DagDefinitionRequest req = new DagDefinitionRequest(
-                "PanelFlow", "stations panel test",
-                List.of(
+        DagDefinitionRequest req = DagDefinitionRequest.builder()
+                .definitionNm("PanelFlow")
+                .description("stations panel test")
+                .nodes(List.of(
                         new DagDefinitionRequest.NodeDef("p-a", "FirstStep", "MIGRATION_WRITE",
                                 null, 100, 100, null),
                         new DagDefinitionRequest.NodeDef("p-b", "SecondStep", "MIGRATION_WRITE",
                                 null, 300, 100, null)
-                ),
-                List.of(new DagDefinitionRequest.EdgeDef("p-e", "p-a", "p-b", null))
-        );
+                ))
+                .edges(List.of(new DagDefinitionRequest.EdgeDef("p-e", "p-a", "p-b", null)))
+                .build();
         String defId = service.createDefinition(req);
 
         mockMvc.perform(get("/line/definitions/" + defId))
