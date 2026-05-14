@@ -287,9 +287,15 @@ public class LineDefinitionService {
             throw new IllegalArgumentException("정의를 찾을 수 없습니다: " + definitionId);
         }
 
+        RunOptions opt = options != null ? options : RunOptions.defaults();
+
         // #141, #177 — Concurrency strategy 평가 (시작 시점 게이트)
+        // #165 — instance override가 있으면 정의 default를 무조건 무시 (D1=A)
+        String effectivePolicyName = opt.concurrencyPolicy() != null
+                ? opt.concurrencyPolicy().name()
+                : def.concurrencyPolicy();
         com.station8.engine.core.ConcurrencyStrategy strategy =
-                com.station8.engine.core.ConcurrencyStrategy.parse(def.concurrencyPolicy());
+                com.station8.engine.core.ConcurrencyStrategy.parse(effectivePolicyName);
         com.station8.engine.core.ConcurrencyStrategy.StartContext startCtx =
                 new com.station8.engine.core.ConcurrencyStrategy.StartContext(
                         def.definitionNm(),
@@ -301,8 +307,6 @@ public class LineDefinitionService {
                     definitionId, strategy.policyName(), startResult.conflictingInstanceId());
             return RunResult.skipped(startResult.reason(), startResult.conflictingInstanceId());
         }
-
-        RunOptions opt = options != null ? options : RunOptions.defaults();
         // RunOptionsCodec — 모두 default면 null 반환 → DB 컬럼 비움 (저장 공간/노이즈 절감)
         String optionsJson = runOptionsCodec.serializeToClob(opt);
         String instanceId = UUID.randomUUID().toString();

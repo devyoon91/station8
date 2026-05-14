@@ -1,6 +1,8 @@
 package com.station8.app.definition;
 
 import com.station8.app.Application;
+import com.station8.engine.core.ConcurrencyPolicy;
+import com.station8.engine.core.RunOptions;
 import com.station8.engine.entity.LineInstance;
 import com.station8.engine.repository.ActivityRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -125,6 +128,55 @@ class ConcurrencyPolicyTest {
         assertThatThrownBy(() -> service.runDefinition(defId, null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("SKIP");
+    }
+
+    @Test
+    void skipIfRunning_overriddenToConcurrent_atInstanceLevel_allowsSecondStart() {
+        // #165 — def=SKIP_IF_RUNNING + instance override=CONCURRENT → 두 번째도 시작 (D1=A)
+        String defId = createDefinition("SkipOverrideToConcurrent", "SKIP_IF_RUNNING");
+
+        RunResult first = service.runDefinitionWithResult(defId, null, null);
+        assertThat(first.skipped()).isFalse();
+
+        RunOptions override = new RunOptions(
+                RunOptions.OnFailure.CONTINUE, Map.of(), null, null, null,
+                ConcurrencyPolicy.CONCURRENT);
+        RunResult second = service.runDefinitionWithResult(defId, null, override);
+
+        assertThat(second.skipped()).as("override=CONCURRENT는 def=SKIP_IF_RUNNING 무시").isFalse();
+        assertThat(second.instanceId()).isNotNull().isNotEqualTo(first.instanceId());
+    }
+
+    @Test
+    void concurrent_overriddenToSkipIfRunning_atInstanceLevel_blocksSecondStart() {
+        // #165 — def=CONCURRENT + instance override=SKIP_IF_RUNNING → 두 번째 SKIP (역방향 override)
+        String defId = createDefinition("ConcurrentOverrideToSkip", null);
+
+        RunResult first = service.runDefinitionWithResult(defId, null, null);
+        assertThat(first.skipped()).isFalse();
+
+        RunOptions override = new RunOptions(
+                RunOptions.OnFailure.CONTINUE, Map.of(), null, null, null,
+                ConcurrencyPolicy.SKIP_IF_RUNNING);
+        RunResult second = service.runDefinitionWithResult(defId, null, override);
+
+        assertThat(second.skipped()).as("override=SKIP_IF_RUNNING은 def=CONCURRENT 무시").isTrue();
+        assertThat(second.conflictingInstanceId()).isEqualTo(first.instanceId());
+    }
+
+    @Test
+    void overriddenPolicy_persistedInRunOptionsClob() {
+        // override 정책이 U_LINE_INSTANCE.RUN_OPTIONS에 직렬화되는지 확인
+        String defId = createDefinition("OverridePersisted", null);
+
+        RunOptions override = new RunOptions(
+                RunOptions.OnFailure.CONTINUE, Map.of(), null, null, null,
+                ConcurrencyPolicy.SKIP_IF_RUNNING);
+        RunResult result = service.runDefinitionWithResult(defId, null, override);
+        assertThat(result.skipped()).isFalse();
+
+        LineInstance inst = activityRepository.findInstanceById(result.instanceId());
+        assertThat(inst.runOptions()).isNotNull().contains("SKIP_IF_RUNNING");
     }
 
     private String createDefinition(String name, String concurrencyPolicy) {

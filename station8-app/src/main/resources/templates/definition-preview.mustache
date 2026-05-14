@@ -295,6 +295,23 @@
                     </select>
                 </div>
             </div>
+            <!-- #165 — Concurrency policy override (시작 시점 게이트에만 적용) -->
+            <div>
+                <label for="run-concurrency" style="display:block; font-weight:600; margin-bottom:var(--space-xs);">Concurrency policy override</label>
+                <select id="run-concurrency"
+                        style="width:100%; padding:var(--space-sm); background:var(--surface-elevated); border:1px solid var(--hairline);
+                               color:var(--ink); border-radius:var(--radius-sm); font-size:0.9em;">
+                    <option value="" selected>— inherit (정의 default 사용) —</option>
+                    <option value="CONCURRENT">CONCURRENT — 동시 실행 허용 (SKIP 우회용)</option>
+                    <option value="SKIP_IF_RUNNING">SKIP_IF_RUNNING — 활성 인스턴스 있으면 거부</option>
+                    <option value="PIPELINE_1">PIPELINE_1 — 같은 노드 완료 후 진행</option>
+                    <option value="PIPELINE_2">PIPELINE_2 — 다음 단계 시작 후 진행</option>
+                    <option value="PIPELINE_3">PIPELINE_3 — 두 단계 앞 시작 후 진행</option>
+                </select>
+                <div class="swe-mute" style="font-size:11px; margin-top:var(--space-xs);">
+                    비워두면 정의의 default 정책 사용. 비-default 선택 시 정의 정책을 무조건 무시 — 시작 게이트(SKIP_IF_RUNNING)에만 적용되며, PIPELINE_* 정의의 dispatch 게이트는 영향 없음.
+                </div>
+            </div>
         </div>
     </details>
 
@@ -432,6 +449,9 @@ window.submitRun = async function () {
         const slaAction = document.getElementById('run-sla-action').value;
         const slaSeconds = slaSecondsRaw ? parseInt(slaSecondsRaw, 10) : null;
 
+        // #165 — Concurrency policy override
+        const concurrencyPolicy = document.getElementById('run-concurrency').value;
+
         // options는 default와 다를 때만 포함 (서버측 default 동작 유지)
         const options = {};
         if (onFailure && onFailure !== 'CONTINUE') options.onFailure = onFailure;
@@ -439,6 +459,7 @@ window.submitRun = async function () {
         if (webhook) options.notificationWebhookUrl = webhook;
         if (slaSeconds && slaSeconds > 0) options.slaSeconds = slaSeconds;
         if (slaAction) options.slaAction = slaAction;
+        if (concurrencyPolicy) options.concurrencyPolicy = concurrencyPolicy;
 
         const body = {};
         if (inputData) body.input = inputData;

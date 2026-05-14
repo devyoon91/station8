@@ -1,6 +1,7 @@
 package com.station8.app.definition;
 
 import com.station8.app.Application;
+import com.station8.engine.core.ConcurrencyPolicy;
 import com.station8.engine.core.RunOptions;
 import com.station8.engine.entity.LineInstance;
 import com.station8.engine.repository.ActivityRepository;
@@ -139,6 +140,23 @@ class RunOptionsApiTest {
 
         RunOptions roundTrip = RunOptions.parse(inst.runOptions(), jsonUtil);
         assertThat(roundTrip.notificationWebhookUrl()).isEqualTo("https://hooks.example.com/instance-dlq");
+    }
+
+    @Test
+    void runDefinition_withConcurrencyOverride_serializedAndRoundTrips() {
+        // #165 — concurrencyPolicy override가 CLOB에 직렬화되고 라운드트립 가능
+        String defId = createSimpleDefinition("ConcurrencyOverrideOptsFlow");
+
+        RunOptions opts = new RunOptions(
+                RunOptions.OnFailure.CONTINUE, Map.of(), null, null, null,
+                ConcurrencyPolicy.SKIP_IF_RUNNING);
+        String instanceId = service.runDefinition(defId, null, opts);
+
+        LineInstance inst = activityRepository.findInstanceById(instanceId);
+        assertThat(inst.runOptions()).isNotNull().contains("concurrencyPolicy", "SKIP_IF_RUNNING");
+
+        RunOptions roundTrip = RunOptions.parse(inst.runOptions(), jsonUtil);
+        assertThat(roundTrip.concurrencyPolicy()).isEqualTo(ConcurrencyPolicy.SKIP_IF_RUNNING);
     }
 
     @Test
