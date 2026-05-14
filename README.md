@@ -11,6 +11,20 @@
 
 Oracle/MariaDB 환경에서 동작하는 경량 Java 워크플로우 오케스트레이션 엔진. Temporal의 Durable Execution을 벤치마킹하되 외부 메시지 큐 없이 DB의 `SKIP LOCKED` 만으로 분산 작업 처리를 보장한다.
 
+## 프리뷰
+
+<p align="center">
+  <img src="assets/screenshots/landing.png" alt="Station8 — Landing" width="900">
+  <br>
+  <sub>랜딩 — 글리프 + Hero stripe + 기능 카드.</sub>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/builder.png" alt="Station8 — DAG Builder" width="900">
+  <br>
+  <sub>DAG Builder — 좌측 액티비티 팔레트를 캔버스로 드래그해 노드를 만들고, 클릭으로 연결. 우측 Properties 패널에서 입력 파라미터/DataSource 바인딩 편집.</sub>
+</p>
+
 ## 이름의 유래
 
 한 번의 액티비티 실행이 하나의 **Station**, 그 역들을 잇는 노선이 하나의 **Line**. 로고의 숫자 **8**은 끊임없이 순환하는 기차 트랙이고, 그 위에 얹힌 **S**는 그 위를 달리는 기차 — Line은 cron으로 무한히 반복되고, 실패한 Station은 DLQ → 자동 재시도로 끝까지 완주한다. 멈추지 않는 자동화 루프, 그게 Station8이다.
