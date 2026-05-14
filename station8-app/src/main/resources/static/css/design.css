@@ -501,6 +501,9 @@ code, pre {
   gap: var(--space-xl);
 }
 .swe-nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 16px;
   font-weight: 600;
   color: var(--ink);
@@ -509,6 +512,8 @@ code, pre {
   flex-shrink: 0;
   white-space: nowrap;
 }
+/* 전역 a:hover의 underline이 logo↔text gap 사이에 _처럼 그려지는 회귀 차단 */
+.swe-nav-brand:hover { text-decoration: none; }
 .swe-nav-menu {
   display: contents;  /* 데스크톱에선 wrapper가 없는 것처럼 동작 → 기존 flex layout 그대로 */
 }
