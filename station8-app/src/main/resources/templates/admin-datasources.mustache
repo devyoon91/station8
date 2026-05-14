@@ -67,7 +67,17 @@
                     {{#isStatic}}<span class="swe-badge swe-badge-secondary">STATIC</span>{{/isStatic}}
                     {{#isDynamic}}<span class="swe-badge swe-badge-info">DYNAMIC</span>{{/isDynamic}}
                 </td>
-                <td class="swe-id-cell" title="{{url}}">{{url}}</td>
+                <td class="swe-id-cell" title="{{url}}">
+                    <span style="display:inline-flex;align-items:center;gap:var(--space-xs);width:100%;">
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">{{url}}</span>
+                        <button type="button" class="swe-copy-btn" data-copy="{{url}}" title="URL 복사" aria-label="Copy URL">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+                                <path d="M3 11 L3 3 C3 2.4 3.4 2 4 2 L11 2" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </span>
+                </td>
                 <td class="swe-mute">{{username}}</td>
                 <td><span class="swe-keycap">{{dialect}}</span></td>
                 <td>
@@ -81,7 +91,7 @@
                     {{#hasPoolStats}}{{activeConn}} / {{idleConn}} / {{totalConn}}{{/hasPoolStats}}
                     {{^hasPoolStats}}—{{/hasPoolStats}}
                 </td>
-                <td class="swe-text-right" style="white-space: nowrap;">
+                <td class="swe-actions">
                     {{#enabled}}
                     <form action="/admin/datasources/{{name}}/test" method="post" style="display:inline;">
                         {{> _csrf}}
@@ -115,5 +125,35 @@
     </div>
 
 </div>
+<script>
+    // #235 — URL 복사 버튼 (data-copy 위임)
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.swe-copy-btn');
+        if (!btn) return;
+        var text = btn.dataset.copy;
+        if (!text) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () { flashCopied(btn); });
+        } else {
+            // 옛 브라우저 fallback — textarea + execCommand
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); flashCopied(btn); } finally { document.body.removeChild(ta); }
+        }
+    });
+    function flashCopied(btn) {
+        var prev = btn.getAttribute('title');
+        btn.setAttribute('title', 'Copied!');
+        btn.classList.add('copied');
+        setTimeout(function () {
+            btn.setAttribute('title', prev || 'URL 복사');
+            btn.classList.remove('copied');
+        }, 1200);
+    }
+</script>
 </body>
 </html>

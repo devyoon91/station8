@@ -61,7 +61,7 @@
                     {{#isPaused}}<span class="swe-badge swe-badge-warning">Paused</span>{{/isPaused}}
                     {{^isPaused}}<span class="swe-badge swe-badge-success">Active</span>{{/isPaused}}
                 </td>
-                <td class="swe-text-right">
+                <td class="swe-actions">
                     <button class="swe-btn-tertiary swe-btn-sm" onclick="runNow('{{id}}')">Run now</button>
                     {{#isPaused}}
                     <button class="swe-btn-tertiary swe-btn-sm" onclick="resume('{{id}}')">Resume</button>

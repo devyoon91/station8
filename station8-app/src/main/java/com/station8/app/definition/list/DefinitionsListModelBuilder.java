@@ -1,6 +1,7 @@
 package com.station8.app.definition.list;
 
 import com.station8.app.security.LineAclService;
+import com.station8.app.util.Dates;
 import com.station8.app.util.PaginationModel;
 import com.station8.engine.entity.LineDefinition;
 import com.station8.engine.repository.LineDefinitionRepository;
@@ -130,7 +131,7 @@ public class DefinitionsListModelBuilder {
             m.put("definitionNm", d.definitionNm());
             m.put("description", d.description());
             m.put("versionNo", d.versionNo());
-            m.put("regDt", d.regDt());
+            m.put("regDt", Dates.format(d.regDt()));
             // 행별 태그 + stable 색상 (태그 문자열 hash → 6색 팔레트)
             List<String> tags = tagsByDef.getOrDefault(d.id(), List.of());
             m.put("tagViews", tags.stream().map(t -> Map.of(

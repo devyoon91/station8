@@ -133,7 +133,7 @@
                 </td>
                 <td class="swe-mute">{{retryCnt}} / {{maxRetryCnt}}</td>
                 <td class="swe-mute">{{failedAtDt}}</td>
-                <td class="swe-text-right">
+                <td class="swe-actions">
                     <a href="/line/dlq/{{id}}" class="swe-btn-tertiary swe-btn-sm">Detail</a>
                     {{#isNew}}
                     <form action="/line/dlq/{{id}}/requeue" method="post" style="display:inline;">

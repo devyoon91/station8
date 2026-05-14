@@ -109,7 +109,7 @@ function populateProps(id) {
         '<div><label>Node ID</label><input class="swe-input" value="' + id + '" disabled></div>' +
         '<div><label>Activity</label><input class="swe-input" value="' + node.data.activityNm + '" disabled></div>' +
         '<div><label>Input params (JSON)</label><textarea class="swe-input" rows="6" id="paramsInput" style="height: auto; padding: 8px;" placeholder="{}">' + (node.data.inputParams || '') + '</textarea></div>' +
-        '<div><label>DataSource bindings (JSON)</label><textarea class="swe-input" rows="3" id="bindingsInput" style="height: auto; padding: 8px;" placeholder=\'{"source":"oracle-prod","target":"mart"}\'>' + (node.data.datasourceBindings || '') + '</textarea><div class="swe-mute" style="font-size: 11px; margin-top: 4px;">role → DataSource 이름. 액티비티가 <code>@BoundDataSource("role") JdbcTemplate</code>로 받아씀. 비우면 모두 primary fallback (#113).</div></div>' +
+        '<div><label>DataSource bindings (JSON)</label><textarea class="swe-input" rows="3" id="bindingsInput" style="height: auto; padding: 8px;" placeholder=\'{"source":"oracle-prod","target":"mart"}\'>' + (node.data.datasourceBindings || '') + '</textarea><div class="swe-mute" style="font-size: 11px; margin-top: 4px;">role → DataSource 이름. 액티비티가 <code>@BoundDataSource("role") JdbcTemplate</code>로 받아씀. 비우면 모두 primary fallback.</div></div>' +
         '<button class="swe-btn-tertiary" onclick="updateParams(' + id + ')">Update params + bindings</button>' +
         '<button class="swe-btn-tertiary swe-btn-danger" onclick="deleteNode(' + id + ')">Delete node</button>' +
         '<hr style="border: none; border-top: 1px solid var(--hairline); margin: var(--space-md) 0;">' +

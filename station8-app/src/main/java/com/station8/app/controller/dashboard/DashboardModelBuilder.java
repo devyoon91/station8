@@ -1,6 +1,7 @@
 package com.station8.app.controller.dashboard;
 
 import com.station8.app.security.LineAclService;
+import com.station8.app.util.Dates;
 import com.station8.app.util.PaginationModel;
 import com.station8.engine.entity.LineDefinition;
 import com.station8.engine.entity.LineInstance;
@@ -211,8 +212,8 @@ public class DashboardModelBuilder {
             m.put("id", i.id());
             m.put("workflowName", i.workflowName());
             m.put("statusSt", i.statusSt());
-            m.put("startDt", i.startDt());
-            m.put("endDt", i.endDt());
+            m.put("startDt", Dates.format(i.startDt()));
+            m.put("endDt", Dates.format(i.endDt()));
             m.put("badgeClass", badge);
             return m;
         }).collect(Collectors.toList());

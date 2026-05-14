@@ -846,6 +846,47 @@ label { display: block; color: var(--body); font-size: 13px; margin-bottom: var(
 }
 
 /* ============================================================================
+   #235 — 인라인 복사 버튼 (URL 등 좁은 셀에 부착해 사용)
+   ============================================================================ */
+.swe-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--mute);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.swe-copy-btn:hover { color: var(--ink); border-color: var(--hairline); background: var(--surface-elevated); }
+.swe-copy-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.swe-copy-btn.copied { color: var(--accent-green); border-color: var(--accent-green); }
+
+/* ============================================================================
+   #235 — 리스트 테이블의 ACTION 컬럼 — 버튼 한 줄 정렬 + 줄바꿈 차단
+   각 list 페이지의 <td class="swe-actions">로 사용. 셀이 좁아도 버튼이
+   세로로 쌓이지 않고 한 줄을 유지 — 셀 폭이 자동 확장됨.
+   ============================================================================ */
+.swe-actions {
+  display: flex;
+  gap: var(--space-xs);
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.swe-actions > * { flex-shrink: 0; }
+@media (max-width: 768px) {
+  /* 모바일에서는 너비 부족 시 자연 줄바꿈 허용 */
+  .swe-actions { flex-wrap: wrap; }
+}
+
+/* ============================================================================
    Pagination (#97) — 리스트 페이지 공통 네비
    ============================================================================ */
 .swe-pagination {
