@@ -13,12 +13,12 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 부팅 시 초기 ADMIN 사용자 시드 (#121).
+ * 부팅 시 초기 ADMIN 사용자 시드 (#121, env-binding 결함 수정 #232).
  *
  * <h3>시드 시점 (멱등)</h3>
  * <ol>
  *   <li>같은 username이 이미 존재 → skip</li>
- *   <li>{@code station8.security.initial-admin.password} 명시 → 그 비밀번호로 시드</li>
+ *   <li>{@code station8.initial-admin.password} 명시 → 그 비밀번호로 시드</li>
  *   <li>비밀번호 미설정 + DB에 사용자가 0명 → <strong>랜덤 비밀번호 자동 생성 + 콘솔에 1회 출력</strong>
  *       (chicken-and-egg 방지). 운영자는 로그에서 비밀번호를 복사해 첫 로그인 후
  *       {@code /me/password}에서 변경 권장.</li>
@@ -26,6 +26,17 @@ import java.util.UUID;
  * </ol>
  *
  * <p>랜덤 비밀번호는 {@link SecureRandom} + 정책(8자+ 숫자+ 특수)을 만족하는 16자.</p>
+ *
+ * <h3>운영자 가시성 (#232 / 옵션 C)</h3>
+ * 매 부팅마다 INFO 한 줄로 admin 상태를 출력한다 — 비밀번호 출처/존재 여부 즉시 확인 가능:
+ * <pre>InitialAdmin: username=admin, status=seeded, source=configured (env or properties)</pre>
+ *
+ * <h3>env 변수 ↔ property 매핑 (#232)</h3>
+ * <ul>
+ *   <li>{@code STATION8_INITIAL_ADMIN_USERNAME} ↔ {@code station8.initial-admin.username}</li>
+ *   <li>{@code STATION8_INITIAL_ADMIN_PASSWORD} ↔ {@code station8.initial-admin.password}</li>
+ * </ul>
+ * 이전 경로 {@code station8.security.initial-admin.*}는 env 이름과 어긋나 바인딩 실패 — #232에서 단축.
  */
 @Component
 public class InitialAdminSeeder {
@@ -41,10 +52,10 @@ public class InitialAdminSeeder {
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom random = new SecureRandom();
 
-    @Value("${station8.security.initial-admin.username:admin}")
+    @Value("${station8.initial-admin.username:admin}")
     private String initialAdminUsername;
 
-    @Value("${station8.security.initial-admin.password:}")
+    @Value("${station8.initial-admin.password:}")
     private String initialAdminPassword;
 
     public InitialAdminSeeder(LineUserRepository repository, PasswordEncoder passwordEncoder) {
@@ -54,37 +65,39 @@ public class InitialAdminSeeder {
 
     @EventListener(ApplicationReadyEvent.class)
     public void seedIfNeeded() {
+        boolean configured = initialAdminPassword != null && !initialAdminPassword.isBlank();
+
         if (repository.findByUsername(initialAdminUsername) != null) {
-            // env에 비밀번호 명시했는데 이미 admin이 있으면 운영자가 혼동할 수 있음 — WARN
-            // (이전에 부팅된 시점의 비밀번호가 우선, env 변경은 적용 안 됨 — 멱등 정책)
-            if (initialAdminPassword != null && !initialAdminPassword.isBlank()) {
+            // 이미 존재 — 멱등 skip. env에 비밀번호 줬는데 기존 admin 있으면 운영자 혼동 가능 → WARN
+            if (configured) {
                 log.warn("Initial admin '{}' already exists in DB — STATION8_INITIAL_ADMIN_PASSWORD" +
                         " is IGNORED. To apply a new password: (1) login + change at /me/password," +
                         " or (2) reset via DB and restart, or (3) 'docker compose down -v' to wipe.",
                         initialAdminUsername);
-            } else {
-                log.debug("Initial admin '{}' already exists — seed skipped (idempotent)",
-                        initialAdminUsername);
             }
+            // #232 옵션 C — 매 부팅 INFO 한 줄로 운영자 가시성 확보
+            logStatus("pre-existing", configured ? "ignored (admin already in DB)" : "n/a");
             return;
         }
 
         String passwordToUse;
-        boolean generated = false;
-        if (initialAdminPassword != null && !initialAdminPassword.isBlank()) {
+        String source;
+        if (configured) {
             String policyError = PasswordPolicy.validate(initialAdminPassword);
             if (policyError != null) {
                 log.warn("Configured initial admin password violates policy — seed skipped: {}",
                         policyError);
+                logStatus("skip", "configured-but-policy-violation");
                 return;
             }
             passwordToUse = initialAdminPassword;
+            source = "configured (env STATION8_INITIAL_ADMIN_PASSWORD or properties)";
         } else if (repository.count() == 0) {
             // env 미설정 + DB에 사용자 0명 — 첫 부팅 chicken-and-egg 방지
             passwordToUse = generateSafePassword();
-            generated = true;
+            source = "auto-generated";
         } else {
-            log.debug("Initial admin not configured and other users exist — skip auto-seed");
+            logStatus("skip", "no password configured and other users exist");
             return;
         }
 
@@ -97,7 +110,7 @@ public class InitialAdminSeeder {
                 "Y", "Y", "N", null, "system", null, null);
         repository.insert(admin);
 
-        if (generated) {
+        if ("auto-generated".equals(source)) {
             // 콘솔에 1회만 — DB에는 해시만, raw는 절대 저장 안 함
             log.warn("============================================================");
             log.warn("  Auto-generated initial ADMIN account");
@@ -105,12 +118,23 @@ public class InitialAdminSeeder {
             log.warn("    password: {}", passwordToUse);
             log.warn("  This password is shown ONCE. Save it now.");
             log.warn("  After login, change it via /me/password or set");
-            log.warn("  station8.security.initial-admin.password to skip auto-gen.");
+            log.warn("  station8.initial-admin.password (env STATION8_INITIAL_ADMIN_PASSWORD)");
+            log.warn("  to skip auto-gen on first boot.");
             log.warn("============================================================");
         } else {
             log.info("Seeded initial ADMIN user: {} (from configured password)",
                     initialAdminUsername);
         }
+        logStatus("seeded", source);
+    }
+
+    /**
+     * #232 옵션 C — 매 부팅 INFO 한 줄로 admin 상태/출처를 출력.
+     * 운영자가 컨테이너 로그만으로 "비밀번호가 어디서 왔는지/적용됐는지" 즉시 판단 가능.
+     */
+    private void logStatus(String status, String source) {
+        log.info("InitialAdmin: username={}, status={}, source={}",
+                initialAdminUsername, status, source);
     }
 
     /**
