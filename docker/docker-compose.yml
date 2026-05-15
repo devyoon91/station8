@@ -7,6 +7,8 @@ services:
       MARIADB_DATABASE: workflow
       MARIADB_USER: wfuser
       MARIADB_PASSWORD: wfpw
+      # 서버의 CURRENT_TIMESTAMP / NOW()가 KST 반환하도록 컨테이너 TZ 일치.
+      TZ: ${TZ:-Asia/Seoul}
     ports:
       - "3307:3306"
     # 스키마는 station8-app이 부팅 시 schema-mariadb.sql로 적용 (single source of truth)
@@ -41,10 +43,13 @@ services:
       # docker: 컨테이너 네트워크용 datasource 설정 (mariadb 호스트)
       # demo: 부팅 직후 샘플 DAG + 스케줄 자동 시드 (DemoSeedRunner)
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker,demo}
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mariadb://mariadb:3306/workflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+      # TZ: JVM system timezone (LocalDateTime.now() / DATETIME 컬럼이 wall clock으로 저장되므로
+      # 미설정 시 UTC default라 대시보드 시간이 KST와 9h 차이남.
+      TZ: ${TZ:-Asia/Seoul}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mariadb://mariadb:3306/workflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-wfuser}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-wfpw}
-      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m -Duser.timezone=Asia/Seoul}
       # 초기 ADMIN 시드 (#121) / DLQ 웹훅은 위 env_file로만 주입 — environment에 두면
       # default 빈 값이 env_file 값을 override해서 .env가 무시됨.
       # 위치: root '.env' 또는 'docker/.env' 둘 다 OK (env_file에 양쪽 등록).
