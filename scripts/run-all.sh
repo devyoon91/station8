@@ -16,6 +16,9 @@ scenarios=(
   "03-cron-flow.sh"
   "04-fail-and-dlq.sh"
   "05-validation-errors.sh"
+  "06-expression-bindings.sh"
+  "07-expression-json-typing.sh"
+  "08-expression-failure.sh"
 )
 
 for s in "${scenarios[@]}"; do
