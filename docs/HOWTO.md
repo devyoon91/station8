@@ -43,6 +43,8 @@ public class OrderFlow {
 
 ### 1.3. 입력 파라미터 규칙
 
+> **노드 입력에 표현식을 쓰고 싶을 때**: `inputData`의 `{{ ... }}`는 활동 메서드에 도달하기 전에 평가된다. 직전 노드 출력 / 라인 컨텍스트 / 시크릿 접근 — [EXPRESSIONS.md](EXPRESSIONS.md)에서 다룬다.
+
 지원 파라미터 타입 (선언된 순서대로 바인딩):
 
 - `String inputJson` — 액티비티 입력 페이로드 (첫 번째 등장 시 inputData 주입). POJO 자동 역직렬화는 미구현 → 메서드 안에서 `JsonUtil.fromJson` 사용.
