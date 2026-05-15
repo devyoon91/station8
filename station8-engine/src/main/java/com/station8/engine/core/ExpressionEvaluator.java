@@ -11,6 +11,7 @@ import org.graalvm.polyglot.io.IOAccess;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -140,7 +141,21 @@ public class ExpressionEvaluator implements AutoCloseable {
             return v.asDouble();
         }
         if (v.isHostObject()) return v.asHostObject();
-        // 객체/배열 등: GraalVM 기본 toString (JSON.stringify 아님 — n8n도 [object Object])
+        // JS 배열 / Proxy array → Java List
+        if (v.hasArrayElements()) {
+            long n = v.getArraySize();
+            List<Object> list = new ArrayList<>((int) n);
+            for (long i = 0; i < n; i++) list.add(toJavaValue(v.getArrayElement(i)));
+            return list;
+        }
+        // JS 객체 / Proxy object → Java Map
+        if (v.hasMembers()) {
+            Map<String, Object> map = new LinkedHashMap<>(v.getMemberKeys().size());
+            for (String key : v.getMemberKeys()) {
+                map.put(key, toJavaValue(v.getMember(key)));
+            }
+            return map;
+        }
         return v.toString();
     }
 

@@ -55,22 +55,24 @@ public class ActivityProcessor {
     private final LineDefinitionRepository definitionRepository;
     private final LineExecutor lineExecutor;
     private final LineContextFactory contextFactory;
+    private final InputParamsEvaluator inputParamsEvaluator;
 
     /**
      * 컴포넌트 의존성 주입.
      *
-     * @param activityRepository   활동 상태 업데이트 (메타 누락 시 FAILED 마킹)
-     * @param taskExecutor         활동 결과 complete/fail 처리
-     * @param workflowRegistry     활동 이름 → 메서드 메타데이터 lookup
-     * @param retryPolicy          재시도 횟수/백오프 계산
-     * @param dlqRepository        최종 실패 활동 DLQ 적재
-     * @param dlqNotifier          DLQ 적재 시 웹훅 알림 발송
-     * @param jsonUtil             station bindings JSON 파싱
-     * @param dagInterpreter       DAG 모드에서 후행 활동 fan-out
-     * @param argumentResolver     활동 메서드 파라미터 바인딩 (String / DataSource / LineContext)
-     * @param definitionRepository station 메타 조회 (datasourceBindings)
-     * @param lineExecutor         onFailure=ABORT/PAUSE 시 인스턴스 전이
-     * @param contextFactory       {@link LineContext} + {@link RunOptions} 조립
+     * @param activityRepository    활동 상태 업데이트 (메타 누락 시 FAILED 마킹)
+     * @param taskExecutor          활동 결과 complete/fail 처리
+     * @param workflowRegistry      활동 이름 → 메서드 메타데이터 lookup
+     * @param retryPolicy           재시도 횟수/백오프 계산
+     * @param dlqRepository         최종 실패 활동 DLQ 적재
+     * @param dlqNotifier           DLQ 적재 시 웹훅 알림 발송
+     * @param jsonUtil              station bindings JSON 파싱
+     * @param dagInterpreter        DAG 모드에서 후행 활동 fan-out
+     * @param argumentResolver      활동 메서드 파라미터 바인딩 (String / DataSource / LineContext)
+     * @param definitionRepository  station 메타 조회 (datasourceBindings)
+     * @param lineExecutor          onFailure=ABORT/PAUSE 시 인스턴스 전이
+     * @param contextFactory        {@link LineContext} + {@link RunOptions} 조립
+     * @param inputParamsEvaluator  M16 (#247) — inputData의 {@code {{ ... }}} 표현식 평가
      */
     public ActivityProcessor(ActivityRepository activityRepository,
                              TaskExecutor taskExecutor,
@@ -83,7 +85,8 @@ public class ActivityProcessor {
                              ActivityArgumentResolver argumentResolver,
                              LineDefinitionRepository definitionRepository,
                              LineExecutor lineExecutor,
-                             LineContextFactory contextFactory) {
+                             LineContextFactory contextFactory,
+                             InputParamsEvaluator inputParamsEvaluator) {
         this.activityRepository = activityRepository;
         this.taskExecutor = taskExecutor;
         this.workflowRegistry = workflowRegistry;
@@ -96,6 +99,7 @@ public class ActivityProcessor {
         this.definitionRepository = definitionRepository;
         this.lineExecutor = lineExecutor;
         this.contextFactory = contextFactory;
+        this.inputParamsEvaluator = inputParamsEvaluator;
     }
 
     /**
@@ -122,17 +126,21 @@ public class ActivityProcessor {
         try {
             log.info("Executing activity: {} (Execution ID: {})", activity.activityName(), activity.id());
 
-            // 3. 파라미터 바인딩은 ActivityArgumentResolver에 위임:
+            // 3. M16 (#247) — inputData의 {{ ... }} 표현식 평가. 실패는 활동 FAILED로 격하.
+            //    표현식 없으면 inputData 그대로 (오버헤드 0).
+            String evaluatedInput = inputParamsEvaluator.evaluate(activity.inputData(), context);
+
+            // 4. 파라미터 바인딩은 ActivityArgumentResolver에 위임:
             //    - #108: String + DataSourceRegistry
             //    - #113: @BoundDataSource JdbcTemplate (station 바인딩 기반)
             //    - #134: LineContext (runtime params 접근용)
-            ActivityArgumentResolver.Context resolveCtx = buildResolveContext(activity, context);
+            ActivityArgumentResolver.Context resolveCtx = buildResolveContext(activity, context, evaluatedInput);
             Object[] args = argumentResolver.resolve(metadata.method(), resolveCtx);
 
-            // 4. 리플렉션 invoke
+            // 5. 리플렉션 invoke
             Object result = metadata.method().invoke(metadata.bean(), args);
 
-            // 5. 성공 처리 + (DAG 모드) 후행 활성화
+            // 6. 성공 처리 + (DAG 모드) 후행 활성화
             taskExecutor.complete(context, result);
             log.info("Activity completed: {} (Execution ID: {})", activity.activityName(), activity.id());
             if (activity.nodeId() != null) {
@@ -184,12 +192,14 @@ public class ActivityProcessor {
      * station을 조회해 datasourceBindings를 파싱. 레거시(선형) 모드 또는 station 미발견이면
      * 빈 bindings — 모든 {@code @BoundDataSource}는 primary fallback.
      *
-     * @param activity    실행 대상 활동
-     * @param lineContext 활동에 주입할 {@link LineContext} (runtime params 접근용 — #134 D7)
+     * @param activity       실행 대상 활동
+     * @param lineContext    활동에 주입할 {@link LineContext} (runtime params 접근용 — #134 D7)
+     * @param evaluatedInput {@link InputParamsEvaluator}가 풀어낸 input — 활동 메서드의 String 파라미터에 전달
      * @return resolver에 넘길 입력 컨텍스트
      */
     private ActivityArgumentResolver.Context buildResolveContext(ActivityExecution activity,
-                                                                 LineContext lineContext) {
+                                                                 LineContext lineContext,
+                                                                 String evaluatedInput) {
         Map<String, String> bindings = Collections.emptyMap();
         if (activity.nodeId() != null) {
             try {
@@ -203,7 +213,7 @@ public class ActivityProcessor {
                         activity.nodeId(), ex.getClass().getSimpleName(), ex.getMessage());
             }
         }
-        return new ActivityArgumentResolver.Context(activity.inputData(), bindings, lineContext);
+        return new ActivityArgumentResolver.Context(evaluatedInput, bindings, lineContext);
     }
 
     /**

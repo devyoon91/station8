@@ -87,6 +87,37 @@ class ExpressionEvaluatorTest {
         assertThat(evaluator.evaluate("{{ undefined }}", Map.of())).isNull();
     }
 
+    // ---- evaluate: 객체/배열 (#259 — InputParamsEvaluator가 사용하는 경로) ----
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void evaluate_singleObjectExpr_returnsMap() throws Exception {
+        Object result = evaluator.evaluate("{{ ({a: 1, b: 'x'}) }}", Map.of());
+        assertThat(result).isInstanceOf(Map.class);
+        Map<String, Object> map = (Map<String, Object>) result;
+        assertThat(map).containsEntry("a", 1L).containsEntry("b", "x");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void evaluate_singleArrayExpr_returnsList() throws Exception {
+        Object result = evaluator.evaluate("{{ [1, 2, 3] }}", Map.of());
+        assertThat(result).isInstanceOf(List.class);
+        assertThat((List<Object>) result).containsExactly(1L, 2L, 3L);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void evaluate_nestedStructure_recursiveExtraction() throws Exception {
+        Object result = evaluator.evaluate("{{ ({items: [{id: 1}, {id: 2}]}) }}", Map.of());
+        assertThat(result).isInstanceOf(Map.class);
+        Map<String, Object> map = (Map<String, Object>) result;
+        List<Object> items = (List<Object>) map.get("items");
+        assertThat(items).hasSize(2);
+        assertThat((Map<String, Object>) items.get(0)).containsEntry("id", 1L);
+        assertThat((Map<String, Object>) items.get(1)).containsEntry("id", 2L);
+    }
+
     // ---- evaluate: 혼재 (string join) ----
 
     @Test
