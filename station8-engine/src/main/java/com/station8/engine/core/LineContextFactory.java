@@ -2,12 +2,16 @@ package com.station8.engine.core;
 
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.entity.LineInstance;
+import com.station8.engine.entity.LineTrack;
 import com.station8.engine.repository.ActivityRepository;
+import com.station8.engine.repository.LineDefinitionRepository;
 import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * #146 — {@link DefaultLineContext} 조립 책임을 담당하는 sub-service.
@@ -35,20 +39,24 @@ public class LineContextFactory {
     private final ActivityRepository activityRepository;
     private final JsonUtil jsonUtil;
     private final RunOptionsCodec runOptionsCodec;
+    private final LineDefinitionRepository definitionRepository;
 
     /**
      * 컴포넌트 의존성 주입.
      *
-     * @param activityRepository 인스턴스 메타 조회
-     * @param jsonUtil           {@link DefaultLineContext}가 내부에 보유하는 JSON 유틸
-     * @param runOptionsCodec    RUN_OPTIONS CLOB ↔ {@link RunOptions} 변환
+     * @param activityRepository   인스턴스 메타 조회 + 직전 활동 output 조회 (#267)
+     * @param jsonUtil             {@link DefaultLineContext}가 내부에 보유하는 JSON 유틸
+     * @param runOptionsCodec      RUN_OPTIONS CLOB ↔ {@link RunOptions} 변환
+     * @param definitionRepository 직전 노드 식별을 위한 incoming edge 조회 (#267 — M16 {@code $prev} 활성화)
      */
     public LineContextFactory(ActivityRepository activityRepository,
                               JsonUtil jsonUtil,
-                              RunOptionsCodec runOptionsCodec) {
+                              RunOptionsCodec runOptionsCodec,
+                              LineDefinitionRepository definitionRepository) {
         this.activityRepository = activityRepository;
         this.jsonUtil = jsonUtil;
         this.runOptionsCodec = runOptionsCodec;
+        this.definitionRepository = definitionRepository;
     }
 
     /**
@@ -77,12 +85,39 @@ public class LineContextFactory {
                 activity.activityName(),
                 activity.retryCnt() + 1,
                 activity.inputData(),
-                null, // previousOutput — 본 워커 경로에서는 직전 활동 출력을 전달하지 않음
+                loadPreviousOutput(activity), // #267 — M16 $prev.json.* 활성
                 jsonUtil
         );
         context.attributes().put("executionId", activity.id());
         context.setRuntimeParams(options.runtimeParams());
         return new Bundle(context, options);
+    }
+
+    /**
+     * #267 — DAG 모드에서 직전 노드의 output을 로딩해 {@code $prev.json.*} 표현식이
+     * 실제 값을 반환하도록 한다.
+     *
+     * <ul>
+     *   <li>{@code activity.nodeId() == null} (linear/legacy): null</li>
+     *   <li>incoming edge 0건 (start 노드): null</li>
+     *   <li>incoming edge 1건 (선형 체인): predecessor의 OUTPUT_DATA</li>
+     *   <li>incoming edge 2건 이상 (fan-in): null — 모호하므로 안전하게 미노출. 사용자는 {@code $ctx.input}의 정의된 {@code inputParams}를 그대로 사용</li>
+     *   <li>조회 예외: null + WARN — 활동 실행 자체는 멈추지 않음</li>
+     * </ul>
+     */
+    private Object loadPreviousOutput(ActivityExecution activity) {
+        if (activity.nodeId() == null) return null;
+        try {
+            List<LineTrack> incoming = definitionRepository.findIncomingEdges(activity.nodeId());
+            if (incoming.size() != 1) return null;
+            String prevNodeId = incoming.get(0).fromNodeId();
+            ActivityExecution prev = activityRepository.findByInstanceAndNode(activity.instanceId(), prevNodeId);
+            return prev == null ? null : prev.outputData();
+        } catch (Exception ex) {
+            log.warn("$prev 직전 활동 output 조회 실패 — activityId={}, nodeId={}: {}",
+                    activity.id(), activity.nodeId(), ex.getMessage());
+            return null;
+        }
     }
 
     /**

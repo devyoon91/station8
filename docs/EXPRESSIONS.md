@@ -59,6 +59,13 @@ $prev = {
 
 직전 출력이 JSON 문자열이면 자동 파싱된다. JSON이 아니면 raw string 그대로 노출.
 
+**적용 범위** (#267): 단일 predecessor (선형 체인) 노드에서만 활성. 다음 경우는 `$prev`가 `null`로 박힌다 — `$prev.json.x` 접근 시 TypeError → 활동 FAILED:
+- **start 노드** — 들어오는 엣지 0건 (라인 시작점)
+- **fan-in 노드** — 들어오는 엣지 2건 이상 (어떤 predecessor를 골라야 할지 모호)
+- **legacy/linear 모드 활동** — `nodeId` 없는 비-DAG 활동
+
+fan-in 노드에선 `$ctx.input`을 사용하거나 `$prev.json?.x ?? defaultVal`로 안전하게 폴백.
+
 ### `$ctx` — 현재 라인 컨텍스트
 
 ```js
