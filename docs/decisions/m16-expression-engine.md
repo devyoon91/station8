@@ -142,17 +142,101 @@ GraalVM JS만 별도 jar plugin 으로 분리하는 옵션도 있음:
 
 본 결정에선 default 통합으로 가되, **이미지 크기 측정 결과가 나쁘면** 위 plugin 분리 옵션을 fallback으로 채택.
 
-## 후속 작업
+## 측정 결과 (#261, 2026-05-15)
 
-본 RFC가 머지되면:
+본 RFC의 "이미지 크기 측정 결과가 나쁘면 plugin 분리 옵션을 fallback으로 채택" 트리거 데이터.
 
-1. M16 epic ([#247](https://github.com/devyoon91/station8/issues/247)) acceptance 갱신 — "표현식 평가기 (SpEL or Jexl)" → "GraalVM JavaScript"
-2. 다음 sub-issue 생성:
-   - `[FEAT] ExpressionEvaluator + GraalVM Context 설정 + sandbox 정책`
-   - `[FEAT] LineContext 확장 — $prev, $ctx, $credentials polyglot binding`
-   - `[FEAT] inputParams 평가 통합 (ActivityProcessor 진입점)`
-   - `[DOCS] 표현식 문법 가이드 (사용자 docs)`
-   - `[PERF] 이미지 크기 / 부팅 시간 / 평가 latency 측정` — 결과 나쁘면 plugin 분리 옵션 발동
+### 환경
+- 호스트: Windows 11, JDK 21 (Eclipse Temurin)
+- 측정: `scripts/perf/m16-measure.sh` 재현 가능 (벤치는 `:station8-engine:perfTest`, 이미지는 docker build)
+- 비교 baseline: commit `612e358` (GraalVM 도입 직전)
+
+### bootJar 크기
+
+| | bootJar | delta |
+|---|---:|---:|
+| baseline (612e358) | **39.5 MB** | — |
+| 현재 (GraalVM 통합) | **99.2 MB** | **+59.7 MB (+151%)** |
+
+### GraalVM 의존성 jar 분해 (총 59.7 MB)
+
+| jar | size |
+|---|---:|
+| `org.graalvm.js:js-language` | 25.0 MB |
+| `org.graalvm.shadowed:icu4j` | 16.9 MB |
+| `org.graalvm.truffle:truffle-api` | 12.3 MB |
+| `org.graalvm.regex:regex` | 3.4 MB |
+| `org.graalvm.truffle:truffle-runtime` | 1.1 MB |
+| 그 외 (sdk + polyglot) | < 1 MB |
+
+`js-language` + `icu4j` 가 70% — JS 표준 라이브러리 + Unicode/locale. 둘 다 ECMAScript 호환을 위해 필수, 자르기 어려움.
+
+### 평가 latency (1000회 평균, JIT 워밍업 후)
+
+| 시나리오 | per-op |
+|---|---:|
+| Static skip (정적 입력, `{{` 없음) | **0.6 µs** |
+| InputParams static JSON (skip 경로) | **0.1 µs** |
+| Single expr `{{ 1 + 1 }}` | 183 µs |
+| Binding access `{{ $ctx.input.x }}` | 259 µs |
+| Nested `{{ $prev.json.items[0].id }}` | 221 µs |
+| String interp `Hello {{ x }}!` | 411 µs |
+| InputParams JSON simple `{"u": "{{ ... }}"}` | 294 µs |
+| **Cold start** (Engine init 후 첫 평가) | **5 ms (1회)** |
+
+### 분석
+
+**latency**: 정적 입력 회귀는 0.1~0.6 µs로 사실상 무료. 표현식 1건당 200~400 µs 범위 — 활동 단위 일반 비용 (DB 쿼리 10ms, HTTP 호출 100ms 수준)에 비하면 noise. Cold start 5ms는 Engine init 1회당 비용으로, 워커 lifetime 내내 amortize됨.
+
+**Context-per-evaluation 설계 검증**: 본 결정의 latency floor가 ~200 µs 수준임이 확인됨. binding 누수 방지가 캐싱 이득보다 우선이라는 #257 판단 유지. 향후 context 풀링은 별도 sub-issue로 검토 가능 (현재 latency가 SLA 위협이 아니라 시급도 낮음).
+
+**이미지 크기**: +59.7 MB는 RFC 예상 (~50 MB)을 약간 상회. 폐쇄망 / on-prem 배포에서 단일 jar가 100MB 근접하는 것은 다음 측면에서 분석 필요:
+
+| 우려 | 실제 영향 |
+|---|---|
+| 이미지 push/pull 시간 | docker layer 캐시로 1회만 영향. CI 첫 빌드 +10~20초 수준 |
+| 컨테이너 부팅 메모리 | Truffle은 lazy load — 실제 표현식 평가 전엔 메모리 영향 미미 |
+| 노드 디스크 | 100MB는 일반 운영 환경에서 무시 가능 (DB 1GB+가 더 큰 비중) |
+| 폐쇄망 air-gap 운반 | jar 1개 운반의 +60MB는 USB / 미러 저장소 모두 부담 0 수준 |
+
+### 결정
+
+**default 통합 유지** — RFC fallback 옵션 (plugin 분리)은 발동하지 않는다.
+
+근거:
+1. latency가 사용 가능 범위 (200~400 µs/expr) — SLA 위협 아님
+2. +59.7 MB는 RFC가 예상한 비용 범위 (~50 MB) 안의 5분 deviation
+3. 현재 station8 사용 시나리오 (관측: 파이프라인 / 자동화)에서 폐쇄망 운반 부담 0 수준
+4. plugin 분리는 사용자 경험 분기 (표현식 안 쓰는 사이트 vs 쓰는 사이트)를 만들어 docs / 운영 부담을 추가
+
+**조건부 재검토 트리거** (미래에 다음이 발생하면 plugin 분리 재검토):
+- 별도 사용자가 표현식 비활성 폐쇄망 옵션을 명시적으로 요구
+- bootJar이 추가 이유로 200MB를 초과
+- 표현식 latency가 활동당 1ms를 안정적으로 넘기 시작 (Context 풀링 후속 검토)
+
+### 회귀 가드 (baseline)
+
+향후 본 의존성이 더 무거워지면 알 수 있는 baseline:
+
+- **bootJar**: 99.2 MB ± 5MB (±5%) 안에서 유지
+- **GraalVM jar 합계**: 59.7 MB ± 5MB
+- **표현식 평가 per-op**: < 1 ms (현재 200~400 µs, 5x 여유)
+
+CI에서 자동 가드는 도입하지 않음 — 측정 노이즈가 작은 변화를 못 잡고, 운영 결정은 분기점 도달 시 수동 평가가 적합. 운영자가 의심 들면 `scripts/perf/m16-measure.sh`로 재측정.
+
+---
+
+## 후속 작업 (이력)
+
+본 RFC가 머지된 직후 진행:
+
+1. ✅ M16 epic ([#247](https://github.com/devyoon91/station8/issues/247)) acceptance 갱신 — GraalVM JavaScript 확정
+2. ✅ 5건 sub-issue 생성 + 모두 머지:
+   - ✅ [#257](https://github.com/devyoon91/station8/issues/257) ExpressionEvaluator + GraalVM Context + sandbox 정책
+   - ✅ [#258](https://github.com/devyoon91/station8/issues/258) LineContext polyglot bindings ($prev/$ctx/$credentials)
+   - ✅ [#259](https://github.com/devyoon91/station8/issues/259) inputParams 평가 통합 (ActivityProcessor)
+   - ✅ [#260](https://github.com/devyoon91/station8/issues/260) 사용자 docs ([EXPRESSIONS.md](../EXPRESSIONS.md))
+   - ✅ [#261](https://github.com/devyoon91/station8/issues/261) 측정 + plugin 분리 트리거 결정 (본 섹션)
 
 ## 참고 자료
 
