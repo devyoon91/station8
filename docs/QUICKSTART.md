@@ -57,14 +57,19 @@ REST API + 핵심 흐름을 한 번에 점검:
 ./scripts/run-all.sh
 ```
 
-5건 시나리오:
+8건 시나리오:
 1. DAG 정의 등록 + 조회
 2. 즉시 실행 → 인스턴스 생성
 3. cron 스케줄 등록 + run-now + 정리
 4. DLQ 페이지 접근성
 5. 검증 거부 (사이클 / 미등록 액티비티)
+6. **M16 — `$ctx.input/run/line` 표현식 치환 검증** (plugin-starter `ECHO_INPUT` 필요)
+7. **M16 — JSON 모드 타입 보존** (`{{ 1+1 }}` → number 2, 객체/배열 보존)
+8. **M16 — 표현식 평가 실패 → 활동 FAILED**
 
-기대 결과: `Passed: 5 / 5`
+기대 결과: `Passed: 8 / 8` (6~8은 `ECHO_INPUT` 미등록 시 SKIP, 7/8은 별도 카운트)
+
+> 6~8 시나리오는 `examples/plugin-starter`의 `ExpressionTestPlugin`이 호스트에 업로드되어 있어야 한다. 미등록이면 시나리오는 SKIP하고 통과 처리된다. 업로드는 `/admin/plugins`에서 jar 업로드 → Reload now.
 
 > Windows에서는 **Git Bash**에서 실행. `jq` 미설치 시 `winget install jqlang.jq` 후 새 셸 열기.
 

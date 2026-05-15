@@ -8,6 +8,15 @@ Station8 플러그인을 처음 만들 때 그대로 복사해서 시작할 수 
 
 `@Activity("ECHO_UPPER")` 메서드 하나가 있는 `ExamplePlugin` 클래스와 그걸 검증하는 단위 테스트 셋. 외부 의존성은 없고 입력 문자열을 대문자로 바꿔 JSON으로 돌려준다 — 사이클 검증용 dummy다.
 
+추가로 M16 (#247) 표현식 평가 통합 시나리오를 위한 `ExpressionTestPlugin`이 들어있다 — `scripts/scenarios/06-08`이 이 플러그인을 사용한다.
+
+| 활동 | 용도 |
+|---|---|
+| `ECHO_UPPER` | 사이클 검증용 dummy (대문자 변환) |
+| `ECHO_INPUT` | M16 평가 후의 INPUT_DATA를 OUTPUT_DATA로 그대로 echo |
+| `REQUIRE_FIELD_ID` | 입력 JSON에 `"id"` 키가 있어야 통과 — fail-fast 검증 |
+| `TRANSFORM_JSON` | 입력 JSON을 `{"echoed": <input>}` 형태로 wrap |
+
 ## 빌드
 
 먼저 본 저장소의 엔진 jar를 로컬 Maven에 publish해둔다. 한 번만 하면 된다.
