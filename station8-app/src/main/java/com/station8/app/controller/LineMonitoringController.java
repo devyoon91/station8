@@ -13,11 +13,14 @@ import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.DlqRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -100,11 +103,24 @@ public class LineMonitoringController {
     }
 
     /**
-     * 특정 인스턴스의 상세 실행 타임라인
+     * 특정 인스턴스의 상세 실행 타임라인.
+     *
+     * <p>인스턴스가 존재하지 않거나 삭제된 경우 404로 응답한다 — 이전엔 NPE/EmptyResultDataAccessException
+     * 으로 500이 떴음. 대시보드 목록은 있는데 클릭 직후 인스턴스가 사라진 race / 잘못된 URL
+     * 직접 입력 / 다른 환경의 ID 복붙 등 모든 not-found 시나리오를 동일하게 처리.</p>
      */
     @GetMapping("/instance/{id}")
     public String timeline(@PathVariable("id") String instanceId, Model model) {
-        LineInstance instance = activityRepository.findInstanceById(instanceId);
+        LineInstance instance;
+        try {
+            instance = activityRepository.findInstanceById(instanceId);
+        } catch (EmptyResultDataAccessException ex) {
+            instance = null;
+        }
+        if (instance == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Instance not found: " + instanceId);
+        }
         List<ActivityExecution> activities = activityRepository.findActivitiesByInstanceId(instanceId);
 
         // Mustache view용 — derived 필드를 미리 계산
