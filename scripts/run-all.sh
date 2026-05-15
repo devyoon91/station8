@@ -19,6 +19,7 @@ scenarios=(
   "06-expression-bindings.sh"
   "07-expression-json-typing.sh"
   "08-expression-failure.sh"
+  "09-expression-prev-chain.sh"
 )
 
 for s in "${scenarios[@]}"; do
