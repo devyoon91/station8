@@ -83,6 +83,7 @@ docker compose -f docker/docker-compose.yml up --build -d
 - [docs/QUICKSTART.md](docs/QUICKSTART.md) — 5분 설명
 - [docs/line-engine-spec.md](docs/line-engine-spec.md) — 엔진 명세
 - [docs/HOWTO.md](docs/HOWTO.md) — 사용자 가이드 (라인 작성)
+- [docs/EXPRESSIONS.md](docs/EXPRESSIONS.md) — 노드 입력 표현식 문법 (`{{ $prev.json.x }}`)
 - [docs/PLUGINS.md](docs/PLUGINS.md) — 플러그인 가이드 (운영자)
 - [docs/PLUGIN_DEVELOPMENT.md](docs/PLUGIN_DEVELOPMENT.md) — 플러그인 개발자 가이드 (`@Activity` 스펙 + 스타터)
 - [docs/DATABASE_RULE.md](docs/DATABASE_RULE.md) — DB 규칙
