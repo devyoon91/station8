@@ -26,15 +26,29 @@ public interface ActivityRepository {
     void updateStatus(ActivityExecution activityExecution);
 
     /**
-     * 다음 단계 또는 재시도 작업을 PENDING 상태로 생성합니다 (레거시 선형 모드).
+     * 다음 단계 또는 재시도 작업을 PENDING 상태로 생성합니다.
+     *
+     * <p>#278 — {@code nodeId} 보존: DAG 모드 활동의 retry가 새 row를 만들 때
+     * 원본 활동의 {@code nodeId}를 그대로 전달해야 한다. 이전엔 항상 {@code NULL}로
+     * 박혀 retry row가 DAG fan-out에서 매칭 안 되고 누적되는 데이터 손상이 발생했음.
+     * legacy/linear 모드는 {@code nodeId = null} 그대로.</p>
      *
      * @param instanceId 라인 인스턴스 ID
+     * @param nodeId DAG 노드 ID (legacy/linear 모드면 {@code null})
      * @param activityName 액티비티 이름
      * @param inputData 입력 JSON 문자열
      * @param nextRetryDt 다음 실행(재시도) 예정 시각 (없으면 즉시 실행 대상으로 간주)
      * @return 생성된 실행 ID
      */
-    String createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt);
+    String createPending(String instanceId, String nodeId, String activityName, String inputData, LocalDateTime nextRetryDt);
+
+    /**
+     * 후방 호환 — {@code nodeId} 없는 호출은 legacy/linear 모드로 간주, NULL nodeId.
+     * 새 코드는 위 5-arg 버전 사용 권장 (#278).
+     */
+    default String createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt) {
+        return createPending(instanceId, null, activityName, inputData, nextRetryDt);
+    }
 
     /**
      * DAG 모드에서 역 단위 액티비티 실행을 생성합니다.

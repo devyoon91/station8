@@ -83,6 +83,7 @@ public class LineContextFactory {
                 activity.instanceId(),
                 workflowName,
                 activity.activityName(),
+                activity.nodeId(),                    // #278 — DAG 모드 retry가 nodeId 보존하도록 컨텍스트에 전달
                 activity.retryCnt() + 1,
                 activity.inputData(),
                 loadPreviousOutput(activity), // #267 — M16 $prev.json.* 활성

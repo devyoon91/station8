@@ -28,6 +28,15 @@ public interface LineContext {
     String currentActivityName();
 
     /**
+     * 현재 활동의 DAG 노드 ID. legacy/linear 모드 (DAG 외부)에서는 null.
+     *
+     * <p>#278 — TaskExecutor의 retry 경로가 새 활동 row를 만들 때 nodeId를 보존하기 위해
+     * 컨텍스트에 노출. 이전엔 retry row가 NODE_ID=NULL로 만들어져 DAG fan-out이 차단되고
+     * row가 누적되는 데이터 손상이 발생했음.</p>
+     */
+    default String nodeId() { return null; }
+
+    /**
      * 현재 액티비티의 시도 횟수 (최초 실행 = 1)
      */
     int attempt();
