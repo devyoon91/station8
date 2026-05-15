@@ -159,8 +159,8 @@ class SlaPollerTest {
         String inst = "inst-" + UUID.randomUUID();
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, END_DT, REG_DT)
-            VALUES (?, ?, 'COMPLETED', 'Y', 'Y', 'N', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, END_DT, REG_DT)
+            VALUES (?, ?, 'COMPLETED', 'N', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, inst, "FlowDone", java.sql.Timestamp.valueOf(LocalDateTime.now().minusSeconds(60)));
 
         poller.pollSlaViolations();
@@ -175,7 +175,7 @@ class SlaPollerTest {
         defRepo.insertDefinition(new LineDefinition(
                 defId, name, null, 1, "Y",
                 slaSeconds, slaAction, null, null,  // #168 projectId
-                "Y", "Y", "N",
+                "N",
                 null, "test", null, null));
         return defId;
     }
@@ -184,8 +184,8 @@ class SlaPollerTest {
         String id = "inst-" + UUID.randomUUID();
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, RUN_OPTIONS, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', ?, CURRENT_TIMESTAMP)
+              (ID, WORKFLOW_NAME, STATUS_ST, RUN_OPTIONS, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, 'RUNNING', ?, 'N', ?, CURRENT_TIMESTAMP)
             """, id, workflowName, runOptions, java.sql.Timestamp.valueOf(startDt));
         return id;
     }

@@ -11,8 +11,6 @@ public record LineTrack(
     String fromNodeId,
     String toNodeId,
     String conditionExpr,
-    String useFl,
-    String viewFl,
     String delFl,
     LocalDateTime regDt,
     String regId,

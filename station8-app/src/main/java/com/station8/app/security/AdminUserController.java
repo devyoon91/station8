@@ -91,7 +91,7 @@ public class AdminUserController {
                     passwordEncoder.encode(password),
                     displayNm,
                     "Y", roles,
-                    "Y", "Y", "N", null,
+                    "N", null,
                     authentication != null ? authentication.getName() : "system",
                     null, null);
             repository.insert(u);

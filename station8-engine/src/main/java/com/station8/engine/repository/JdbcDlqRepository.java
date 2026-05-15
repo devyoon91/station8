@@ -37,8 +37,8 @@ public class JdbcDlqRepository implements DlqRepository {
                 ID, INSTANCE_ID, EXECUTION_ID, WORKFLOW_NAME, ACTIVITY_NAME,
                 DLQ_STATUS_ST, ERROR_MESSAGE, STACK_TRACE,
                 RETRY_CNT, MAX_RETRY_CNT, FAILED_AT_DT,
-                USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, 'engine')
+                DEL_FL, REG_DT, REG_ID
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP, 'engine')
             """;
         jdbcTemplate.update(sql,
             id,
@@ -167,8 +167,6 @@ public class JdbcDlqRepository implements DlqRepository {
                 rs.getInt("RETRY_CNT"),
                 rs.getObject("MAX_RETRY_CNT") != null ? rs.getInt("MAX_RETRY_CNT") : null,
                 rs.getTimestamp("FAILED_AT_DT") != null ? rs.getTimestamp("FAILED_AT_DT").toLocalDateTime() : null,
-                rs.getString("USE_FL"),
-                rs.getString("VIEW_FL"),
                 rs.getString("DEL_FL"),
                 rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                 rs.getString("REG_ID"),

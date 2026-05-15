@@ -66,7 +66,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
             null, // nextRetryDt
             null, // startDt
             LocalDateTime.now(), // endDt
-            null, null, null, // useFl, viewFl, delFl
+            null, // delFl
             null, null, // regDt, regId
             LocalDateTime.now(), "engine" // editDt, editId
         );
@@ -101,7 +101,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
             nextRetry,
             null, // startDt
             LocalDateTime.now(), // endDt
-            null, null, null, // useFl, viewFl, delFl
+            null, // delFl
             null, null, // regDt, regId
             LocalDateTime.now(), "engine" // editDt, editId
         );

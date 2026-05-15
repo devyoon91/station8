@@ -107,8 +107,8 @@ class PauseRetryUiRenderTest {
         String id = "inst-" + UUID.randomUUID();
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, id, workflowName, status);
         return id;
     }
@@ -120,22 +120,22 @@ class PauseRetryUiRenderTest {
         String nodeId = "n-" + UUID.randomUUID();
         jdbcTemplate.update("""
             INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL,
-                USE_FL, VIEW_FL, DEL_FL, REG_DT)
-            VALUES (?, ?, 1, 'Y', 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+                DEL_FL, REG_DT)
+            VALUES (?, ?, 1, 'Y', 'N', CURRENT_TIMESTAMP)
             """, defId, "dummy-" + defId.substring(0, 8));
         jdbcTemplate.update("""
             INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM,
-                USE_FL, VIEW_FL, DEL_FL, REG_DT)
-            VALUES (?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+                DEL_FL, REG_DT)
+            VALUES (?, ?, ?, ?, 'N', CURRENT_TIMESTAMP)
             """, nodeId, defId, activityName, activityName);
 
         String id = "exec-" + UUID.randomUUID();
         jdbcTemplate.update("""
             INSERT INTO H_LINE_ACTIVITY_EXECUTION
               (ID, INSTANCE_ID, NODE_ID, ACTIVITY_NAME, STATUS_ST, RETRY_CNT,
-               USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
+               DEL_FL, START_DT, REG_DT)
             VALUES (?, ?, ?, ?, ?, 0,
-                    'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, id, instanceId, nodeId, activityName, status);
         return id;
     }

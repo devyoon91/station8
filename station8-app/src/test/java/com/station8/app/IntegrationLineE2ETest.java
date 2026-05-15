@@ -60,8 +60,8 @@ public class IntegrationLineE2ETest {
         // Fresh instance
         instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, 'DataMigrationLine', 'RUNNING', NULL, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, DEL_FL, START_DT, REG_DT)
+            VALUES (?, 'DataMigrationLine', 'RUNNING', NULL, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """, instanceId);
 
         // Create three pending activities with known payloads

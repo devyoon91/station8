@@ -31,8 +31,8 @@ public class JdbcLineAclRepository implements LineAclRepository {
             jdbcTemplate.update("""
                 INSERT INTO U_LINE_DEFINITION_ACL
                   (ID, DEFINITION_ID, USER_ID, PERMISSION,
-                   USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                   DEL_FL, REG_DT, REG_ID)
+                VALUES (?, ?, ?, ?, 'N', CURRENT_TIMESTAMP, ?)
                 """, UUID.randomUUID().toString(), definitionId, userId, permission, regId);
         } catch (DuplicateKeyException ex) {
             // 이미 grant 됨 — idempotent
@@ -107,8 +107,6 @@ public class JdbcLineAclRepository implements LineAclRepository {
                     rs.getString("DEFINITION_ID"),
                     rs.getString("USER_ID"),
                     rs.getString("PERMISSION"),
-                    rs.getString("USE_FL"),
-                    rs.getString("VIEW_FL"),
                     rs.getString("DEL_FL"),
                     rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                     rs.getString("REG_ID"),

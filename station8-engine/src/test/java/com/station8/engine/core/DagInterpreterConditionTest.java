@@ -199,14 +199,14 @@ class DagInterpreterConditionTest {
         defRepo.insertDefinition(new LineDefinition(
                 defId, name, null, 1, "Y",
                 null, null, null, null,  // #168 projectId
-                "Y", "Y", "N",
+                "N",
                 null, "test", null, null));
         defRepo.insertNode(new LineStation("n-a", defId, "A", "A", null, null, 0, 0,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         defRepo.insertNode(new LineStation("n-b", defId, "B", "B", null, null, 0, 0,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         defRepo.insertEdge(new LineTrack("e1", defId, "n-a", "n-b", conditionOnAB,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         return defId;
     }
 
@@ -216,26 +216,26 @@ class DagInterpreterConditionTest {
         defRepo.insertDefinition(new LineDefinition(
                 defId, name, null, 1, "Y",
                 null, null, null, null,  // #168 projectId
-                "Y", "Y", "N",
+                "N",
                 null, "test", null, null));
         defRepo.insertNode(new LineStation("n-a", defId, "A", "A", null, null, 0, 0,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         defRepo.insertNode(new LineStation("n-b", defId, "B", "B", null, null, 0, 0,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         defRepo.insertNode(new LineStation("n-c", defId, "C", "C", null, null, 0, 0,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         defRepo.insertEdge(new LineTrack("e1", defId, "n-a", "n-b", condAB,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         defRepo.insertEdge(new LineTrack("e2", defId, "n-a", "n-c", condAC,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         return defId;
     }
 
     private void startInstance(String instanceId, String workflowName) {
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, 'RUNNING', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, 'RUNNING', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, instanceId, workflowName);
     }
 
@@ -247,7 +247,7 @@ class DagInterpreterConditionTest {
                 "COMPLETED", exec.inputData(), outputJson,
                 null, null, exec.retryCnt(), null,
                 exec.startDt(), java.time.LocalDateTime.now(),
-                exec.useFl(), exec.viewFl(), exec.delFl(),
+                exec.delFl(),
                 exec.regDt(), exec.regId(), java.time.LocalDateTime.now(), "test");
         activityRepo.updateStatus(updated);
     }

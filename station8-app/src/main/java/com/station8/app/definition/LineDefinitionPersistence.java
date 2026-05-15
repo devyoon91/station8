@@ -94,7 +94,7 @@ public class LineDefinitionPersistence {
                 req.slaSeconds(), req.slaAction(),
                 req.concurrencyPolicy(),
                 com.station8.engine.entity.LineProject.DEFAULT_PROJECT_ID,
-                "Y", "Y", "N",
+                "N",
                 null, "api", null, null
         );
         definitionRepository.insertDefinition(def);
@@ -200,7 +200,7 @@ public class LineDefinitionPersistence {
         return req.nodes().stream().map(n -> new LineStation(
                 n.nodeId(), definitionId, n.nodeNm(), n.activityNm(), n.inputParams(),
                 serializeBindings(n.datasourceBindings()),
-                n.posX(), n.posY(), "Y", "Y", "N", null, null, null, null
+                n.posX(), n.posY(), "N", null, null, null, null
         )).toList();
     }
 
@@ -211,7 +211,7 @@ public class LineDefinitionPersistence {
         }
         return req.edges().stream().map(e -> new LineTrack(
                 e.edgeId(), definitionId, e.fromNodeId(), e.toNodeId(), e.conditionExpr(),
-                "Y", "Y", "N", null, null, null, null
+                "N", null, null, null, null
         )).toList();
     }
 

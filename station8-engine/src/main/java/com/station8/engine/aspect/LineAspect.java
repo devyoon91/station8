@@ -41,8 +41,8 @@ public class LineAspect {
         // TODO: 중단된 라인 재개(resume) 시나리오 대응을 위한 이미 존재하는 인스턴스 체크 로직 필요
         log.info("Starting workflow: {} (ID: {})", workflowName, instanceId);
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, 'RUNNING', ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, instanceId, workflowName, inputJson);
 
         try {

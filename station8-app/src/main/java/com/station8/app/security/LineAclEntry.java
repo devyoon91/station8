@@ -19,8 +19,6 @@ public record LineAclEntry(
         String definitionId,
         String userId,
         String permission,
-        String useFl,
-        String viewFl,
         String delFl,
         LocalDateTime regDt,
         String regId,

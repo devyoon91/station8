@@ -55,8 +55,8 @@ public class JdbcLineExecutor implements LineExecutor {
 
         // U_LINE_INSTANCE 기록 (Aspect에서도 기록되지만, 명시적 호출 대응)
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, 'RUNNING', ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, instanceId, workflowName, inputJson);
 
         // 첫 번째 액티비티를 찾는 로직이 필요할 수 있으나, 

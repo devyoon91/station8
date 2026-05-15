@@ -51,7 +51,7 @@ public class LineProjectService {
         String id = UUID.randomUUID().toString();
         repository.insert(new LineProject(
                 id, req.projectNm(), req.description(),
-                "Y", "Y", "N",
+                "N",
                 null, regId != null ? regId : "api", null, null
         ));
         log.info("프로젝트 등록: id={}, nm={}, by={}", id, req.projectNm(), regId);

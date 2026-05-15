@@ -79,8 +79,8 @@ class SkipLockedConcurrencyMariaDbIT {
         // 1) 인스턴스 + PENDING 액티비티 30건 시드
         String instId = "concurrency-" + UUID.randomUUID();
         jdbc.update("""
-                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, REG_DT)
-                VALUES (?, 'TestFlow', 'RUNNING', 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, REG_DT)
+                VALUES (?, 'TestFlow', 'RUNNING', 'N', CURRENT_TIMESTAMP)
                 """, instId);
 
         int rowCount = 30;
@@ -88,8 +88,8 @@ class SkipLockedConcurrencyMariaDbIT {
             jdbc.update("""
                     INSERT INTO H_LINE_ACTIVITY_EXECUTION (
                         ID, INSTANCE_ID, ACTIVITY_NAME, STATUS_ST, RETRY_CNT,
-                        USE_FL, VIEW_FL, DEL_FL, REG_DT
-                    ) VALUES (?, ?, 'noop', 'PENDING', 0, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+                        DEL_FL, REG_DT
+                    ) VALUES (?, ?, 'noop', 'PENDING', 0, 'N', CURRENT_TIMESTAMP)
                     """, UUID.randomUUID().toString(), instId);
         }
 

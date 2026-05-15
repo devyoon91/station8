@@ -40,8 +40,6 @@ class JdbcDataSourceDefinitionRepositoryTest {
                     DIALECT VARCHAR(50),
                     HIKARI_OPTIONS CLOB,
                     ENABLED_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
-                    USE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
-                    VIEW_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
                     DEL_FL VARCHAR(1) DEFAULT 'N' NOT NULL,
                     REG_DT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     REG_ID VARCHAR(32),
@@ -101,7 +99,7 @@ class JdbcDataSourceDefinitionRepositoryTest {
         DataSourceDefinition edit = new DataSourceDefinition(
                 orig.id(), orig.name(), "jdbc:h2:mem:NEW_URL", "newuser", "",
                 orig.driverClass(), orig.dialect(), orig.hikariOptions(),
-                "Y", "Y", "Y", "N", orig.regDt(), orig.regId(),
+                "Y", "N", orig.regDt(), orig.regId(),
                 LocalDateTime.now(), "admin");
         repository.update(edit, /*keepPasswordIfBlank*/ true);
 
@@ -119,7 +117,7 @@ class JdbcDataSourceDefinitionRepositoryTest {
         DataSourceDefinition edit = new DataSourceDefinition(
                 orig.id(), orig.name(), orig.jdbcUrl(), orig.username(), "newpass",
                 orig.driverClass(), orig.dialect(), orig.hikariOptions(),
-                "Y", "Y", "Y", "N", orig.regDt(), orig.regId(),
+                "Y", "N", orig.regDt(), orig.regId(),
                 LocalDateTime.now(), "admin");
         repository.update(edit, /*keepPasswordIfBlank*/ false);
 
@@ -164,7 +162,7 @@ class JdbcDataSourceDefinitionRepositoryTest {
                 "oracle.jdbc.OracleDriver",
                 "oracle",
                 "{\"maximum-pool-size\":\"5\"}",
-                "Y", "Y", "Y", "N",
+                "Y", "N",
                 LocalDateTime.now(), "admin",
                 null, null);
     }

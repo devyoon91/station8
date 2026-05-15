@@ -65,7 +65,7 @@ public class JdbcLineUserRepository implements LineUserRepository {
         for (LineUser u : users) {
             Set<String> roles = rolesByUser.getOrDefault(u.id(), Set.of());
             withRoles.add(new LineUser(u.id(), u.username(), u.passwordHash(), u.displayNm(),
-                    u.enabledFl(), roles, u.useFl(), u.viewFl(), u.delFl(),
+                    u.enabledFl(), roles, u.delFl(),
                     u.regDt(), u.regId(), u.editDt(), u.editId()));
         }
         return withRoles;
@@ -85,8 +85,8 @@ public class JdbcLineUserRepository implements LineUserRepository {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_USER
                   (ID, USERNAME, PASSWORD_HASH, DISPLAY_NM, ENABLED_FL,
-                   USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                   DEL_FL, REG_DT, REG_ID)
+                VALUES (?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP, ?)
                 """,
                 u.id(), u.username(), u.passwordHash(), u.displayNm(),
                 u.enabledFl() != null ? u.enabledFl() : "Y",
@@ -96,8 +96,8 @@ public class JdbcLineUserRepository implements LineUserRepository {
         for (String role : rolesToInsert) {
             jdbcTemplate.update("""
                     INSERT INTO U_LINE_USER_ROLE
-                      (ID, USER_ID, ROLE, USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                    VALUES (?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                      (ID, USER_ID, ROLE, DEL_FL, REG_DT, REG_ID)
+                    VALUES (?, ?, ?, 'N', CURRENT_TIMESTAMP, ?)
                     """, UUID.randomUUID().toString(), u.id(), role, u.regId());
         }
     }
@@ -151,7 +151,7 @@ public class JdbcLineUserRepository implements LineUserRepository {
                 "SELECT ROLE FROM U_LINE_USER_ROLE WHERE USER_ID = ? AND DEL_FL = 'N'",
                 (rs, rowNum) -> rs.getString(1), u.id()));
         return new LineUser(u.id(), u.username(), u.passwordHash(), u.displayNm(),
-                u.enabledFl(), roles, u.useFl(), u.viewFl(), u.delFl(),
+                u.enabledFl(), roles, u.delFl(),
                 u.regDt(), u.regId(), u.editDt(), u.editId());
     }
 
@@ -165,8 +165,6 @@ public class JdbcLineUserRepository implements LineUserRepository {
                     rs.getString("DISPLAY_NM"),
                     rs.getString("ENABLED_FL"),
                     new LinkedHashMap<String, String>().keySet(),  // 빈 Set placeholder
-                    rs.getString("USE_FL"),
-                    rs.getString("VIEW_FL"),
                     rs.getString("DEL_FL"),
                     rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                     rs.getString("REG_ID"),

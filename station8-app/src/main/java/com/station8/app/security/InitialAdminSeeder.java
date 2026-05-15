@@ -107,7 +107,7 @@ public class InitialAdminSeeder {
                 passwordEncoder.encode(passwordToUse),
                 "Initial Admin",
                 "Y", Set.of("ADMIN", "USER"),
-                "Y", "Y", "N", null, "system", null, null);
+                "N", null, "system", null, null);
         repository.insert(admin);
 
         if ("auto-generated".equals(source)) {

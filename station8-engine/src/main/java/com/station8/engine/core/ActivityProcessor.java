@@ -229,7 +229,7 @@ public class ActivityProcessor {
                 "FAILED", activity.inputData(), null,
                 e.getMessage(), formatStackTrace(e), nextRetryCnt, nextRetryDt,
                 activity.startDt(), LocalDateTime.now(),
-                activity.useFl(), activity.viewFl(), activity.delFl(),
+                activity.delFl(),
                 activity.regDt(), activity.regId(), LocalDateTime.now(), "worker"
         );
         activityRepository.updateStatus(failed);
@@ -255,7 +255,7 @@ public class ActivityProcessor {
                     context.attempt(),
                     maxRetry,
                     LocalDateTime.now(),
-                    null, null, null, null, null, null, null
+                    null, null, null, null, null
             );
             dlqRepository.insert(entry);
             log.info("[DLQ] 적재 완료. Activity={}, Instance={}", activity.activityName(), activity.instanceId());

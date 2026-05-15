@@ -265,8 +265,8 @@ class AclReadEnforcementTest {
     private String seedDefinition(String name) {
         String id = "def-" + UUID.randomUUID();
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL, REG_DT)
-            VALUES (?, ?, 1, 'Y', 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, DEL_FL, REG_DT)
+            VALUES (?, ?, 1, 'Y', 'N', CURRENT_TIMESTAMP)
             """, id, name);
         return id;
     }
@@ -274,8 +274,8 @@ class AclReadEnforcementTest {
     private String seedUser(String username) {
         String id = "user-" + UUID.randomUUID();
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_USER (ID, USERNAME, PASSWORD_HASH, ENABLED_FL, USE_FL, VIEW_FL, DEL_FL, REG_DT)
-            VALUES (?, ?, '$2a$10$placeholder', 'Y', 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_USER (ID, USERNAME, PASSWORD_HASH, ENABLED_FL, DEL_FL, REG_DT)
+            VALUES (?, ?, '$2a$10$placeholder', 'Y', 'N', CURRENT_TIMESTAMP)
             """, id, username);
         return id;
     }
@@ -290,8 +290,8 @@ class AclReadEnforcementTest {
     private void seedInstance(String workflowName) {
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, REG_DT, START_DT)
-            VALUES (?, ?, 'COMPLETED', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, REG_DT, START_DT)
+            VALUES (?, ?, 'COMPLETED', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, "inst-" + UUID.randomUUID(), workflowName);
     }
 
@@ -300,9 +300,9 @@ class AclReadEnforcementTest {
         jdbcTemplate.update("""
             INSERT INTO U_LINE_SCHEDULE
               (ID, DEFINITION_ID, CRON_EXPR, NEXT_RUN_DT, PAUSED_FL,
-               USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
+               DEL_FL, REG_DT, REG_ID)
             VALUES (?, ?, '0 0 * * * *', CURRENT_TIMESTAMP, 'N',
-                    'Y', 'Y', 'N', CURRENT_TIMESTAMP, 'test')
+                    'N', CURRENT_TIMESTAMP, 'test')
             """, id, definitionId);
         return id;
     }
@@ -320,7 +320,7 @@ class AclReadEnforcementTest {
                 /*activeFl*/ "Y", /*slaSeconds*/ null, /*slaAction*/ null,
                 /*concurrencyPolicy*/ null,
                 /*projectId*/ null,  // #168
-                /*useFl*/ "Y", /*viewFl*/ "Y", /*delFl*/ "N",
+                /*delFl*/ "N",
                 /*regDt*/ null, /*regId*/ null,
                 /*editDt*/ null, /*editId*/ null
         );

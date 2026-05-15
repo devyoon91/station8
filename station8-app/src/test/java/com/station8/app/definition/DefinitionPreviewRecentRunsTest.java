@@ -129,8 +129,8 @@ class DefinitionPreviewRecentRunsTest {
         String id = UUID.randomUUID().toString();
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_INSTANCE
-                  (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-                VALUES (?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                  (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+                VALUES (?, ?, ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, id, workflowName, status);
         return id;
     }

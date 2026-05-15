@@ -9,15 +9,26 @@
 
 | 명칭       | 타입             | 값(예)                  | NOT NULL | DEFAULT | 설명     |
 |----------|----------------|-----------------------|----------|---------|--------|
-| ``USE_FL``  | ``VARCHAR(1)``  | ``'Y'``, ``'N'``      | Y        | ``'N'`` | 사용 여부  |
-| ``VIEW_FL`` | ``VARCHAR(1)``  | ``'Y'``, ``'N'``      | Y        | ``'Y'`` | 표시 여부  |
-| ``DEL_FL``  | ``VARCHAR(1)``  | ``'Y'``, ``'N'``      | Y        | ``'N'`` | 삭제 여부  |
+| ``DEL_FL``  | ``VARCHAR(1)``  | ``'Y'``, ``'N'``      | Y        | ``'N'`` | 삭제 여부 (soft-delete) |
 | ``REG_DT``  | ``TIMESTAMP``   | ``2026-05-08 12:00`` | N        |         | 등록일시   |
 | ``REG_ID``  | ``VARCHAR(32)`` | ``bykim``             | N        |         | 등록자    |
 | ``EDIT_DT`` | ``TIMESTAMP``   | ``2026-05-08 12:00`` | N        |         | 수정일시   |
 | ``EDIT_ID`` | ``VARCHAR(32)`` | ``bykim``             | N        |         | 수정자    |
 
 본 저장소의 ``H_LINE_*`` 이력 테이블은 ``REG_DT``를 폴링 키로도 사용한다 (``ORDER BY REG_DT ASC``).
+
+### enable/disable 토글이 필요한 경우
+
+전용 도메인 컬럼을 둔다. 본 저장소 사용 예:
+
+| 테이블 | 컬럼 | 의미 |
+|---|---|---|
+| ``U_LINE_USER`` | ``ENABLED_FL`` | 사용자 비활성화 (로그인 차단) |
+| ``U_LINE_DATASOURCE`` | ``ENABLED_FL`` | DataSource 풀 build 여부 |
+| ``U_LINE_DEFINITION`` | ``ACTIVE_FL`` | 라인 정의 활성 버전 |
+| ``U_LINE_SCHEDULE`` | ``PAUSED_FL`` | cron 스케줄 일시정지 |
+
+> **이력**: 초기에 ``USE_FL`` (사용 여부) / ``VIEW_FL`` (표시 여부) 두 공통 플래그를 모든 테이블에 두었으나, 도입 후 어떤 코드 경로에서도 의미 있게 사용되지 않아 dead weight로 판단 → 일괄 제거 (마이그레이션: `assets/sql/migrations/2026-05-16-drop-use-fl-view-fl.md`). enable/disable이 필요하면 위 표처럼 도메인별 전용 컬럼을 두고, 의미 모호한 공통 플래그는 추가하지 않는다.
 
 ---
 

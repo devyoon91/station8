@@ -24,8 +24,6 @@ public record DataSourceDefinition(
         String hikariOptions,
         /** 'Y'/'N' — 'N'이면 풀 build 안 함 (운영자가 명시적으로 사용 중지). */
         String enabledFl,
-        String useFl,
-        String viewFl,
         String delFl,
         LocalDateTime regDt,
         String regId,

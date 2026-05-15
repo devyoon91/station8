@@ -95,8 +95,8 @@ class InstanceTerminateTest {
     void terminate_alreadyCompletedInstance_throwsIllegalState() {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, 'SomeFlow', 'COMPLETED', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES (?, 'SomeFlow', 'COMPLETED', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, instanceId);
 
         assertThatThrownBy(() -> lineExecutor.terminateLine(instanceId))
@@ -150,8 +150,8 @@ class InstanceTerminateTest {
     void rest_terminate_completedInstance_returns409() throws Exception {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, 'F', 'COMPLETED', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES (?, 'F', 'COMPLETED', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, instanceId);
 
         mockMvc.perform(post("/api/line/instances/" + instanceId + "/terminate").with(csrf()))
@@ -205,8 +205,8 @@ class InstanceTerminateTest {
     private String seedBareInstance(String workflowName, String statusSt) {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, instanceId, workflowName, statusSt);
         return instanceId;
     }

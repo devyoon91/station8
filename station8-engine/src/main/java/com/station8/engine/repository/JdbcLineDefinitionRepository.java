@@ -133,8 +133,8 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 INSERT INTO U_LINE_DEFINITION
                   (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL,
                    SLA_SECONDS, SLA_ACTION, CONCURRENCY_POLICY, PROJECT_ID,
-                   USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                   DEL_FL, REG_DT, REG_ID)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP, ?)
                 """,
                 definition.id(), definition.definitionNm(), definition.description(),
                 definition.versionNo(), definition.activeFl() != null ? definition.activeFl() : "Y",
@@ -264,8 +264,8 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 INSERT INTO U_LINE_STATION
                   (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, DATASOURCE_BINDINGS,
                    POS_X_NO, POS_Y_NO,
-                   USE_FL, VIEW_FL, DEL_FL, REG_DT)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+                   DEL_FL, REG_DT)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP)
                 """,
                 node.id(), node.definitionId(), node.nodeNm(), node.activityNm(),
                 node.inputParams(), node.datasourceBindings(),
@@ -287,8 +287,8 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_TRACK
                   (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, CONDITION_EXPR,
-                   USE_FL, VIEW_FL, DEL_FL, REG_DT)
-                VALUES (?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+                   DEL_FL, REG_DT)
+                VALUES (?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP)
                 """,
                 edge.id(), edge.definitionId(), edge.fromNodeId(), edge.toNodeId(),
                 edge.conditionExpr());
@@ -338,8 +338,6 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 rs.getString("SLA_ACTION"),
                 rs.getString("CONCURRENCY_POLICY"),  // #141
                 rs.getString("PROJECT_ID"),           // #168
-                rs.getString("USE_FL"),
-                rs.getString("VIEW_FL"),
                 rs.getString("DEL_FL"),
                 rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                 rs.getString("REG_ID"),
@@ -365,8 +363,6 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 rs.getString("DATASOURCE_BINDINGS"),
                 posXVal,
                 posYVal,
-                rs.getString("USE_FL"),
-                rs.getString("VIEW_FL"),
                 rs.getString("DEL_FL"),
                 rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                 rs.getString("REG_ID"),
@@ -385,8 +381,6 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 rs.getString("FROM_NODE_ID"),
                 rs.getString("TO_NODE_ID"),
                 rs.getString("CONDITION_EXPR"),
-                rs.getString("USE_FL"),
-                rs.getString("VIEW_FL"),
                 rs.getString("DEL_FL"),
                 rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                 rs.getString("REG_ID"),

@@ -58,7 +58,7 @@ class InitialAdminSeederTest {
         // 사용자가 이미 있음 (다른 username)
         repository.insert(new LineUser(UUID.randomUUID().toString(),
                 "alice", passwordEncoder.encode("Hello!1234"), "Alice",
-                "Y", Set.of("USER"), "Y", "Y", "N", null, "test", null, null));
+                "Y", Set.of("USER"), "N", null, "test", null, null));
 
         ReflectionTestUtils.setField(seeder, "initialAdminPassword", "");
         ReflectionTestUtils.setField(seeder, "initialAdminUsername", "admin");

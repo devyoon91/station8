@@ -215,7 +215,7 @@ class LineContextFactoryTest {
                 null, null, null,
                 runOptionsJson,
                 LocalDateTime.now(), null,
-                "Y", "Y", "N",
+                "N",
                 LocalDateTime.now(), "test",
                 null, null
         );
@@ -227,7 +227,7 @@ class LineContextFactoryTest {
                 "PENDING", "input-data", null, null, null,
                 retryCnt, null,
                 null, null,
-                "Y", "Y", "N",
+                "N",
                 LocalDateTime.now(), "test", null, null
         );
     }
@@ -239,7 +239,7 @@ class LineContextFactoryTest {
                 "PENDING", "input-data", null, null, null,
                 retryCnt, null,
                 null, null,
-                "Y", "Y", "N",
+                "N",
                 LocalDateTime.now(), "test", null, null
         );
     }
@@ -251,7 +251,7 @@ class LineContextFactoryTest {
                 "COMPLETED", "input-data", outputData, null, null,
                 0, null,
                 null, null,
-                "Y", "Y", "N",
+                "N",
                 LocalDateTime.now(), "test", null, null
         );
     }
@@ -260,7 +260,7 @@ class LineContextFactoryTest {
         return new LineTrack(
                 "edge-" + fromNodeId + "-" + toNodeId,
                 "def-1", fromNodeId, toNodeId, null,
-                "Y", "Y", "N",
+                "N",
                 LocalDateTime.now(), "test", null, null
         );
     }

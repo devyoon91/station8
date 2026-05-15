@@ -164,13 +164,13 @@ class PauseRetryTest {
         String defId = "def-" + UUID.randomUUID();
         defRepo.insertDefinition(new LineDefinition(defId, "FlowFanout", null, 1, "Y",
                 null, null, null, null,  // #168 projectId
-                "Y", "Y", "N", null, "test", null, null));
+                "N", null, "test", null, null));
         defRepo.insertNode(new LineStation("n-a", defId, "A", "A", null, null, 0, 0,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         defRepo.insertNode(new LineStation("n-b", defId, "B", "B", null, null, 0, 0,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
         defRepo.insertEdge(new LineTrack("e1", defId, "n-a", "n-b", null,
-                "Y", "Y", "N", null, null, null, null));
+                "N", null, null, null, null));
 
         String inst = seedInstance("FlowFanout", "PAUSED");
         // A는 COMPLETED, B는 WAITING (Pause 동안 fan-out이 차단됐다고 가정)
@@ -234,8 +234,8 @@ class PauseRetryTest {
         String id = "inst-" + UUID.randomUUID();
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, id, workflowName, status);
         return id;
     }
@@ -249,9 +249,9 @@ class PauseRetryTest {
         jdbcTemplate.update("""
             INSERT INTO H_LINE_ACTIVITY_EXECUTION
               (ID, INSTANCE_ID, NODE_ID, ACTIVITY_NAME, STATUS_ST, RETRY_CNT,
-               USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
+               DEL_FL, START_DT, REG_DT)
             VALUES (?, ?, ?, ?, ?, 0,
-                    'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, id, instanceId, nodeId, activityName, status);
         return id;
     }
