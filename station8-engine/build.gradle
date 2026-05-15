@@ -13,3 +13,26 @@ dependencies {
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'com.h2database:h2'
 }
+
+// 기본 :test에선 @Tag("perf") 마이크로벤치 (#261)는 제외 — 시간 보호.
+test {
+    useJUnitPlatform {
+        excludeTags 'perf'
+    }
+}
+
+// :station8-engine:perfTest — perf 태그 테스트만 실행. 결과는 stdout으로 출력.
+tasks.register('perfTest', Test) {
+    description = 'M16 (#261) latency 마이크로벤치 — @Tag("perf") 만 실행.'
+    group = 'verification'
+    useJUnitPlatform {
+        includeTags 'perf'
+    }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    testLogging {
+        showStandardStreams = true
+        events 'passed', 'failed'
+    }
+    outputs.upToDateWhen { false }  // 항상 실행 (벤치 결과 보려고 호출하므로)
+}
