@@ -114,7 +114,9 @@ public class JdbcTaskExecutor implements TaskExecutor {
             // 매 retry마다 escape가 누적됨). String이 아닐 때만 직렬화한다.
             Object input = context.input();
             String inputJson = (input instanceof String s) ? s : jsonUtil.toJson(input);
-            activityRepository.createPending(context.instanceId(), context.currentActivityName(), inputJson, nextRetry);
+            // #278 — DAG 모드 활동의 retry는 nodeId 보존. legacy/linear 모드는 nodeId=null 그대로.
+            activityRepository.createPending(context.instanceId(), context.nodeId(),
+                    context.currentActivityName(), inputJson, nextRetry);
         }
     }
 

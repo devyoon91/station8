@@ -109,20 +109,21 @@ public class JdbcActivityRepository implements ActivityRepository {
 
     @Override
     @Transactional
-    public String createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt) {
+    public String createPending(String instanceId, String nodeId, String activityName, String inputData, LocalDateTime nextRetryDt) {
         String id = UUID.randomUUID().toString();
         String sql = String.format("""
             INSERT INTO H_LINE_ACTIVITY_EXECUTION (
                 ID, INSTANCE_ID, NODE_ID, ACTIVITY_NAME, STATUS_ST, INPUT_DATA,
                 RETRY_CNT, NEXT_RETRY_DT, DEL_FL, REG_DT
             ) VALUES (
-                ?, ?, NULL, ?, 'PENDING', ?,
+                ?, ?, ?, ?, 'PENDING', ?,
                 0, ?, 'N', %s
             )
             """, dbDialect.currentTimestamp());
         jdbcTemplate.update(sql,
             id,
             instanceId,
+            nodeId,                 // #278 — DAG 모드 retry는 원본 nodeId 보존, legacy는 null
             activityName,
             inputData,
             nextRetryDt

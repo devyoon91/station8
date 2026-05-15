@@ -287,7 +287,7 @@ class LineContextFactoryTest {
 
         @Override public List<ActivityExecution> findPendingActivitiesWithLock(int limit) { return List.of(); }
         @Override public void updateStatus(ActivityExecution activityExecution) { }
-        @Override public String createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt) { return null; }
+        @Override public String createPending(String instanceId, String nodeId, String activityName, String inputData, LocalDateTime nextRetryDt) { return null; }
         @Override public String createForNode(String instanceId, String nodeId, String activityName, String statusSt, String inputData) { return null; }
         @Override public ActivityExecution findById(String executionId) { return null; }
         @Override public void promoteToPending(String executionId) { }

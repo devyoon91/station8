@@ -30,7 +30,13 @@ class JdbcTaskExecutorTest {
     }
 
     private DefaultLineContext createContext(String instanceId, String activityName, int attempt, Object input) {
-        var ctx = new DefaultLineContext(instanceId, "TestWF", activityName, attempt, input, null, jsonUtil);
+        return createContext(instanceId, activityName, null, attempt, input);
+    }
+
+    /** #278 — DAG 모드 회귀 가드용: nodeId 명시 가능. */
+    private DefaultLineContext createContext(String instanceId, String activityName, String nodeId,
+                                              int attempt, Object input) {
+        var ctx = new DefaultLineContext(instanceId, "TestWF", activityName, nodeId, attempt, input, null, jsonUtil);
         ctx.attributes().put("executionId", "exec-001");
         ctx.attributes().put("instanceId", instanceId);
         return ctx;
@@ -132,6 +138,33 @@ class JdbcTaskExecutorTest {
                 "이미 String JSON인 input은 그대로 보존되어야 함 (이중 직렬화 금지)");
     }
 
+    // ---- #278 — retry preserves nodeId ----
+
+    @Test
+    @DisplayName("#278: DAG 모드 활동의 retry는 원본 nodeId를 보존한다")
+    void fail_dagMode_retryPreservesNodeId() {
+        // DAG 모드 — context에 nodeId 명시
+        var context = createContext("inst-001", "MIGRATE", "node-A", 1, "{\"id\":\"x\"}");
+        taskExecutor.fail(context, new RuntimeException("err"), Duration.ofSeconds(5));
+
+        assertEquals(1, activityRepository.pendingCalls.size());
+        var call = activityRepository.pendingCalls.getFirst();
+        assertEquals("node-A", call.nodeId,
+                "DAG retry는 원본 nodeId 보존해야 — 이전엔 NULL로 박혀 fan-out 차단 + row 누적");
+    }
+
+    @Test
+    @DisplayName("#278: legacy/linear 모드 retry는 nodeId=null 그대로")
+    void fail_legacyMode_retryWithNullNodeId() {
+        // legacy 모드 — context의 nodeId가 null
+        var context = createContext("inst-001", "step1", null, 1, null);
+        taskExecutor.fail(context, new RuntimeException("err"), Duration.ofSeconds(5));
+
+        assertEquals(1, activityRepository.pendingCalls.size());
+        var call = activityRepository.pendingCalls.getFirst();
+        assertNull(call.nodeId, "legacy/linear 모드는 nodeId=null 그대로 (회귀 가드)");
+    }
+
     @Test
     @DisplayName("#49 fix: fail이 비-String input은 직렬화한다")
     void fail_serializesNonStringInput() {
@@ -195,7 +228,7 @@ class JdbcTaskExecutorTest {
 
     // --- Stub 구현 ---
 
-    record PendingCall(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt) {}
+    record PendingCall(String instanceId, String nodeId, String activityName, String inputData, LocalDateTime nextRetryDt) {}
 
     static class StubActivityRepository implements ActivityRepository {
         final List<ActivityExecution> updatedExecutions = new ArrayList<>();
@@ -212,8 +245,8 @@ class JdbcTaskExecutorTest {
         }
 
         @Override
-        public String createPending(String instanceId, String activityName, String inputData, LocalDateTime nextRetryDt) {
-            pendingCalls.add(new PendingCall(instanceId, activityName, inputData, nextRetryDt));
+        public String createPending(String instanceId, String nodeId, String activityName, String inputData, LocalDateTime nextRetryDt) {
+            pendingCalls.add(new PendingCall(instanceId, nodeId, activityName, inputData, nextRetryDt));
             return "stub-id-" + pendingCalls.size();
         }
 

@@ -14,6 +14,7 @@ public class DefaultLineContext implements LineContext {
     private final String instanceId;
     private final String workflowName;
     private final String currentActivityName;
+    private final String nodeId;             // #278 — DAG 노드 ID (legacy mode = null)
     private final int attempt;
     private final Object input;
     private final Object previousOutput;
@@ -26,16 +27,29 @@ public class DefaultLineContext implements LineContext {
     private Object nextActivityInput;
     private String stateSnapshotJson;
 
-    public DefaultLineContext(String instanceId, 
-                                  String workflowName, 
-                                  String currentActivityName, 
-                                  int attempt, 
-                                  Object input, 
+    public DefaultLineContext(String instanceId,
+                                  String workflowName,
+                                  String currentActivityName,
+                                  int attempt,
+                                  Object input,
+                                  Object previousOutput,
+                                  JsonUtil jsonUtil) {
+        this(instanceId, workflowName, currentActivityName, null, attempt, input, previousOutput, jsonUtil);
+    }
+
+    /** #278 — nodeId 포함 생성자 (DAG 모드 retry 시 nodeId 보존). */
+    public DefaultLineContext(String instanceId,
+                                  String workflowName,
+                                  String currentActivityName,
+                                  String nodeId,
+                                  int attempt,
+                                  Object input,
                                   Object previousOutput,
                                   JsonUtil jsonUtil) {
         this.instanceId = instanceId;
         this.workflowName = workflowName;
         this.currentActivityName = currentActivityName;
+        this.nodeId = nodeId;
         this.attempt = attempt;
         this.input = input;
         this.previousOutput = previousOutput;
@@ -55,6 +69,11 @@ public class DefaultLineContext implements LineContext {
     @Override
     public String currentActivityName() {
         return currentActivityName;
+    }
+
+    @Override
+    public String nodeId() {
+        return nodeId;
     }
 
     @Override
