@@ -4,6 +4,11 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
+    // M16 (#247, RFC #255) — GraalVM JavaScript expression engine.
+    // Community edition (UPL) — OpenJDK 21에서 동작 (interpreter mode).
+    implementation 'org.graalvm.polyglot:polyglot:24.1.1'
+    implementation 'org.graalvm.polyglot:js-community:24.1.1'
+
     testImplementation 'org.testcontainers:mariadb'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'com.h2database:h2'
