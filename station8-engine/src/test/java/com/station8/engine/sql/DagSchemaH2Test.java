@@ -63,22 +63,22 @@ class DagSchemaH2Test {
         String edge = "edge-ab";
 
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
-                VALUES (?, ?, ?, ?, 'Y', 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, DEL_FL)
+                VALUES (?, ?, ?, ?, 'Y', 'N')
                 """, defId, "TestDag", "사이클 없는 단순 DAG", 1);
 
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, DEL_FL)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'N')
                 """, nodeA, defId, "Start", "MIGRATION_WRITE", "{}", 100, 100);
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, DEL_FL)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'N')
                 """, nodeB, defId, "End", "MIGRATION_WRITE", "{}", 300, 100);
 
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
-                VALUES (?, ?, ?, ?, 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, DEL_FL)
+                VALUES (?, ?, ?, ?, 'N')
                 """, edge, defId, nodeA, nodeB);
 
         Integer nodeCount = jdbcTemplate.queryForObject(
@@ -93,15 +93,15 @@ class DagSchemaH2Test {
     @Test
     void duplicateNameAndVersionIsRejected() {
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('dup-1', 'DupDag', 1, 'Y', 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, DEL_FL)
+                VALUES ('dup-1', 'DupDag', 1, 'Y', 'N')
                 """);
 
         boolean threw = false;
         try {
             jdbcTemplate.update("""
-                    INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
-                    VALUES ('dup-2', 'DupDag', 1, 'Y', 'Y', 'Y', 'N')
+                    INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, DEL_FL)
+                    VALUES ('dup-2', 'DupDag', 1, 'Y', 'N')
                     """);
         } catch (Exception e) {
             threw = true;
@@ -112,27 +112,27 @@ class DagSchemaH2Test {
     @Test
     void duplicateEdgeIsRejected() {
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('dup-edge-def', 'DupEdgeDag', 1, 'Y', 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, DEL_FL)
+                VALUES ('dup-edge-def', 'DupEdgeDag', 1, 'Y', 'N')
                 """);
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('n-1', 'dup-edge-def', 'A', 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, ACTIVITY_NM, DEL_FL)
+                VALUES ('n-1', 'dup-edge-def', 'A', 'N')
                 """);
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('n-2', 'dup-edge-def', 'B', 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, ACTIVITY_NM, DEL_FL)
+                VALUES ('n-2', 'dup-edge-def', 'B', 'N')
                 """);
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('e-1', 'dup-edge-def', 'n-1', 'n-2', 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, DEL_FL)
+                VALUES ('e-1', 'dup-edge-def', 'n-1', 'n-2', 'N')
                 """);
 
         boolean threw = false;
         try {
             jdbcTemplate.update("""
-                    INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
-                    VALUES ('e-2', 'dup-edge-def', 'n-1', 'n-2', 'Y', 'Y', 'N')
+                    INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, DEL_FL)
+                    VALUES ('e-2', 'dup-edge-def', 'n-1', 'n-2', 'N')
                     """);
         } catch (Exception e) {
             threw = true;

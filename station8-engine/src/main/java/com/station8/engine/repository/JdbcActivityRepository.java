@@ -49,7 +49,6 @@ public class JdbcActivityRepository implements ActivityRepository {
             SELECT * FROM H_LINE_ACTIVITY_EXECUTION
             WHERE STATUS_ST = 'PENDING'
               AND (NEXT_RETRY_DT IS NULL OR NEXT_RETRY_DT <= %s)
-              AND USE_FL = 'Y'
               AND DEL_FL = 'N'
               AND EXISTS (
                   SELECT 1 FROM U_LINE_INSTANCE i
@@ -115,10 +114,10 @@ public class JdbcActivityRepository implements ActivityRepository {
         String sql = String.format("""
             INSERT INTO H_LINE_ACTIVITY_EXECUTION (
                 ID, INSTANCE_ID, NODE_ID, ACTIVITY_NAME, STATUS_ST, INPUT_DATA,
-                RETRY_CNT, NEXT_RETRY_DT, USE_FL, VIEW_FL, DEL_FL, REG_DT
+                RETRY_CNT, NEXT_RETRY_DT, DEL_FL, REG_DT
             ) VALUES (
                 ?, ?, NULL, ?, 'PENDING', ?,
-                0, ?, 'Y', 'Y', 'N', %s
+                0, ?, 'N', %s
             )
             """, dbDialect.currentTimestamp());
         jdbcTemplate.update(sql,
@@ -138,10 +137,10 @@ public class JdbcActivityRepository implements ActivityRepository {
         String sql = String.format("""
             INSERT INTO H_LINE_ACTIVITY_EXECUTION (
                 ID, INSTANCE_ID, NODE_ID, ACTIVITY_NAME, STATUS_ST, INPUT_DATA,
-                RETRY_CNT, USE_FL, VIEW_FL, DEL_FL, REG_DT
+                RETRY_CNT, DEL_FL, REG_DT
             ) VALUES (
                 ?, ?, ?, ?, ?, ?,
-                0, 'Y', 'Y', 'N', %s
+                0, 'N', %s
             )
             """, dbDialect.currentTimestamp());
         jdbcTemplate.update(sql, id, instanceId, nodeId, activityName, statusSt, inputData);
@@ -372,8 +371,6 @@ public class JdbcActivityRepository implements ActivityRepository {
                 rs.getString("RUN_OPTIONS"),
                 rs.getTimestamp("START_DT") != null ? rs.getTimestamp("START_DT").toLocalDateTime() : null,
                 rs.getTimestamp("END_DT") != null ? rs.getTimestamp("END_DT").toLocalDateTime() : null,
-                rs.getString("USE_FL"),
-                rs.getString("VIEW_FL"),
                 rs.getString("DEL_FL"),
                 rs.getTimestamp("REG_DT").toLocalDateTime(),
                 rs.getString("REG_ID"),
@@ -400,8 +397,6 @@ public class JdbcActivityRepository implements ActivityRepository {
                 rs.getTimestamp("NEXT_RETRY_DT") != null ? rs.getTimestamp("NEXT_RETRY_DT").toLocalDateTime() : null,
                 rs.getTimestamp("START_DT") != null ? rs.getTimestamp("START_DT").toLocalDateTime() : null,
                 rs.getTimestamp("END_DT") != null ? rs.getTimestamp("END_DT").toLocalDateTime() : null,
-                rs.getString("USE_FL"),
-                rs.getString("VIEW_FL"),
                 rs.getString("DEL_FL"),
                 rs.getTimestamp("REG_DT").toLocalDateTime(),
                 rs.getString("REG_ID"),

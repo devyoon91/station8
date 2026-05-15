@@ -20,8 +20,6 @@ public record LineInstance(
     LocalDateTime endDt,      // END_DT
 
     // 공통 컬럼
-    String useFl,             // USE_FL
-    String viewFl,            // VIEW_FL
     String delFl,             // DEL_FL
     LocalDateTime regDt,      // REG_DT
     String regId,             // REG_ID
@@ -39,7 +37,7 @@ public record LineInstance(
             null,
             LocalDateTime.now(),
             null,
-            "Y", "Y", "N",
+            "N",
             LocalDateTime.now(),
             "SYSTEM",
             null,

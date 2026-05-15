@@ -24,8 +24,6 @@ public record ActivityExecution(
     LocalDateTime endDt,      // END_DT
 
     // 공통 컬럼
-    String useFl,             // USE_FL
-    String viewFl,            // VIEW_FL
     String delFl,             // DEL_FL
     LocalDateTime regDt,      // REG_DT
     String regId,             // REG_ID
@@ -38,7 +36,7 @@ public record ActivityExecution(
             id, instanceId, nodeId, activityName, newStatus,
             inputData, outputData, errorMessage, stackTrace,
             retryCnt, nextRetryDt, startDt, endDt,
-            useFl, viewFl, delFl, regDt, regId, editDt, editId
+            delFl, regDt, regId, editDt, editId
         );
     }
 }

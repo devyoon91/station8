@@ -31,8 +31,8 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_SCHEDULE
                   (ID, DEFINITION_ID, CRON_EXPR, NEXT_RUN_DT, LAST_RUN_DT,
-                   PAUSED_FL, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                   PAUSED_FL, INPUT_DATA, DEL_FL, REG_DT, REG_ID)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP, ?)
                 """,
                 s.id(), s.definitionId(), s.cronExpr(),
                 s.nextRunDt(), s.lastRunDt(),
@@ -93,7 +93,6 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
                 SELECT * FROM U_LINE_SCHEDULE
                 WHERE PAUSED_FL = 'N'
                   AND DEL_FL = 'N'
-                  AND USE_FL = 'Y'
                   AND NEXT_RUN_DT IS NOT NULL
                   AND NEXT_RUN_DT <= %s
                 ORDER BY NEXT_RUN_DT ASC
@@ -154,8 +153,6 @@ public class JdbcLineScheduleRepository implements LineScheduleRepository {
                     rs.getTimestamp("LAST_RUN_DT") != null ? rs.getTimestamp("LAST_RUN_DT").toLocalDateTime() : null,
                     rs.getString("PAUSED_FL"),
                     rs.getString("INPUT_DATA"),
-                    rs.getString("USE_FL"),
-                    rs.getString("VIEW_FL"),
                     rs.getString("DEL_FL"),
                     rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                     rs.getString("REG_ID"),

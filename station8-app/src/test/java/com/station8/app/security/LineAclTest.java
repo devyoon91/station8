@@ -296,8 +296,8 @@ class LineAclTest {
     private String seedDefinition(String name) {
         String id = "def-" + UUID.randomUUID();
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL, REG_DT)
-            VALUES (?, ?, 1, 'Y', 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, DEL_FL, REG_DT)
+            VALUES (?, ?, 1, 'Y', 'N', CURRENT_TIMESTAMP)
             """, id, name);
         return id;
     }
@@ -306,8 +306,8 @@ class LineAclTest {
     private String seedDefinitionWithStartNode(String name) {
         String defId = seedDefinition(name);
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL, REG_DT)
-            VALUES (?, ?, 'A', 'MIGRATION_WRITE', 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, DEL_FL, REG_DT)
+            VALUES (?, ?, 'A', 'MIGRATION_WRITE', 'N', CURRENT_TIMESTAMP)
             """, "n-" + UUID.randomUUID(), defId);
         return defId;
     }
@@ -315,8 +315,8 @@ class LineAclTest {
     private String seedUser(String username) {
         String id = "user-" + UUID.randomUUID();
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_USER (ID, USERNAME, PASSWORD_HASH, ENABLED_FL, USE_FL, VIEW_FL, DEL_FL, REG_DT)
-            VALUES (?, ?, '$2a$10$placeholder', 'Y', 'Y', 'Y', 'N', CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_USER (ID, USERNAME, PASSWORD_HASH, ENABLED_FL, DEL_FL, REG_DT)
+            VALUES (?, ?, '$2a$10$placeholder', 'Y', 'N', CURRENT_TIMESTAMP)
             """, id, username);
         return id;
     }

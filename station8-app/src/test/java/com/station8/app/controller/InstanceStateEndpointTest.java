@@ -43,8 +43,8 @@ class InstanceStateEndpointTest {
     void state_runningInstance_returnsTerminalFalseAndIsRunningTrue() throws Exception {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-                VALUES (?, 'PollFlow', 'RUNNING', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+                VALUES (?, 'PollFlow', 'RUNNING', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, instanceId);
 
         // 활동 1개 — PENDING
@@ -67,8 +67,8 @@ class InstanceStateEndpointTest {
     void state_completedInstance_returnsTerminalTrue() throws Exception {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, END_DT, REG_DT)
-                VALUES (?, 'DoneFlow', 'COMPLETED', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, END_DT, REG_DT)
+                VALUES (?, 'DoneFlow', 'COMPLETED', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, instanceId);
 
         mockMvc.perform(get("/api/line/instances/" + instanceId + "/state"))
@@ -89,8 +89,8 @@ class InstanceStateEndpointTest {
     void timelinePage_runningInstance_includesAjaxPollScript() throws Exception {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-                VALUES (?, 'PollPage', 'RUNNING', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+                VALUES (?, 'PollPage', 'RUNNING', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, instanceId);
 
         mockMvc.perform(get("/line/instance/" + instanceId))
@@ -110,8 +110,8 @@ class InstanceStateEndpointTest {
     void timelinePage_completedInstance_doesNotShowLiveIndicator() throws Exception {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, END_DT, REG_DT)
-                VALUES (?, 'DonePage', 'COMPLETED', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, END_DT, REG_DT)
+                VALUES (?, 'DonePage', 'COMPLETED', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, instanceId);
 
         mockMvc.perform(get("/line/instance/" + instanceId))

@@ -25,8 +25,8 @@ public class JdbcDataSourceDefinitionRepository implements DataSourceDefinitionR
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_DATASOURCE
                   (ID, NAME, JDBC_URL, USERNAME, PASSWORD, DRIVER_CLASS, DIALECT, HIKARI_OPTIONS,
-                   ENABLED_FL, USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                   ENABLED_FL, DEL_FL, REG_DT, REG_ID)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP, ?)
                 """,
                 d.id(), d.name(), d.jdbcUrl(), d.username(), d.password(),
                 d.driverClass(), d.dialect(), d.hikariOptions(),
@@ -120,8 +120,6 @@ public class JdbcDataSourceDefinitionRepository implements DataSourceDefinitionR
                     rs.getString("DIALECT"),
                     rs.getString("HIKARI_OPTIONS"),
                     rs.getString("ENABLED_FL"),
-                    rs.getString("USE_FL"),
-                    rs.getString("VIEW_FL"),
                     rs.getString("DEL_FL"),
                     rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                     rs.getString("REG_ID"),

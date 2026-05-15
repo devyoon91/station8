@@ -55,8 +55,8 @@ public class JdbcLineProjectRepository implements LineProjectRepository {
     public void insert(LineProject project) {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_PROJECT
-                  (ID, PROJECT_NM, DESCRIPTION, USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, ?)
+                  (ID, PROJECT_NM, DESCRIPTION, DEL_FL, REG_DT, REG_ID)
+                VALUES (?, ?, ?, 'N', CURRENT_TIMESTAMP, ?)
                 """,
                 project.id(), project.projectNm(), project.description(),
                 project.regId() != null ? project.regId() : "system");
@@ -97,8 +97,6 @@ public class JdbcLineProjectRepository implements LineProjectRepository {
                     rs.getString("ID"),
                     rs.getString("PROJECT_NM"),
                     rs.getString("DESCRIPTION"),
-                    rs.getString("USE_FL"),
-                    rs.getString("VIEW_FL"),
                     rs.getString("DEL_FL"),
                     rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                     rs.getString("REG_ID"),

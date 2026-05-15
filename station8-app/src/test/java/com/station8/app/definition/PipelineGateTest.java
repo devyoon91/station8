@@ -188,8 +188,8 @@ class PipelineGateTest {
         String id = "inst-" + UUID.randomUUID();
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST,
-                USE_FL, VIEW_FL, DEL_FL, REG_DT, START_DT)
-            VALUES (?, ?, 'RUNNING', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                DEL_FL, REG_DT, START_DT)
+            VALUES (?, ?, 'RUNNING', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, id, workflowName);
         return id;
     }
@@ -202,8 +202,8 @@ class PipelineGateTest {
         jdbcTemplate.update("""
             INSERT INTO H_LINE_ACTIVITY_EXECUTION
               (ID, INSTANCE_ID, NODE_ID, ACTIVITY_NAME, STATUS_ST,
-               USE_FL, VIEW_FL, DEL_FL, REG_DT, START_DT)
-            VALUES (?, ?, ?, ?, 'RUNNING', 'Y', 'Y', 'N',
+               DEL_FL, REG_DT, START_DT)
+            VALUES (?, ?, ?, ?, 'RUNNING', 'N',
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, "exec-" + UUID.randomUUID(), instanceId, nodeId, activityName);
     }

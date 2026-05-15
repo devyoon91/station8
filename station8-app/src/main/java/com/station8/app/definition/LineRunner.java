@@ -97,8 +97,8 @@ public class LineRunner {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_INSTANCE
-                  (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, RUN_OPTIONS, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-                VALUES (?, ?, 'RUNNING', ?, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                  (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, RUN_OPTIONS, DEL_FL, START_DT, REG_DT)
+                VALUES (?, ?, 'RUNNING', ?, ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, instanceId, def.definitionNm(), inputData, optionsJson);
 
         dagInterpreter.startInstance(definitionId, instanceId, inputData);

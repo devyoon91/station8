@@ -71,21 +71,21 @@ class DagSchemaMariaDbIT {
     @Test
     void canInsertDefinitionWithNodesAndEdges() {
         jdbc.update("""
-                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
-                VALUES (?, ?, ?, ?, 'Y', 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL, DEL_FL)
+                VALUES (?, ?, ?, ?, 'Y', 'N')
                 """, "mdb-def-1", "MariaDbDag", "Testcontainers 검증", 1);
 
         jdbc.update("""
-                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, DEL_FL)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'N')
                 """, "mdb-n-a", "mdb-def-1", "Start", "MIGRATION_WRITE", "{}", 0, 0);
         jdbc.update("""
-                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, USE_FL, VIEW_FL, DEL_FL)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, POS_X_NO, POS_Y_NO, DEL_FL)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'N')
                 """, "mdb-n-b", "mdb-def-1", "End", "MIGRATION_WRITE", "{}", 200, 0);
         jdbc.update("""
-                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, USE_FL, VIEW_FL, DEL_FL)
-                VALUES (?, ?, ?, ?, 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_TRACK (ID, DEFINITION_ID, FROM_NODE_ID, TO_NODE_ID, DEL_FL)
+                VALUES (?, ?, ?, ?, 'N')
                 """, "mdb-e-1", "mdb-def-1", "mdb-n-a", "mdb-n-b");
 
         Integer nodes = jdbc.queryForObject(
@@ -99,13 +99,13 @@ class DagSchemaMariaDbIT {
     @Test
     void duplicateDefinitionNameVersionRejected() {
         jdbc.update("""
-                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('mdb-dup-1', 'MdbDup', 1, 'Y', 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, DEL_FL)
+                VALUES ('mdb-dup-1', 'MdbDup', 1, 'Y', 'N')
                 """);
 
         assertThatThrownBy(() -> jdbc.update("""
-                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('mdb-dup-2', 'MdbDup', 1, 'Y', 'Y', 'Y', 'N')
+                INSERT INTO U_LINE_DEFINITION (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, DEL_FL)
+                VALUES ('mdb-dup-2', 'MdbDup', 1, 'Y', 'N')
                 """))
                 .as("(DEFINITION_NM, VERSION_NO) unique 제약으로 차단되어야 함")
                 .hasMessageContaining("Duplicate");

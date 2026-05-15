@@ -19,8 +19,6 @@ public record LineStation(
     String datasourceBindings,
     Integer posXNo,
     Integer posYNo,
-    String useFl,
-    String viewFl,
     String delFl,
     LocalDateTime regDt,
     String regId,

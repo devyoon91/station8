@@ -64,8 +64,8 @@ class ScheduleSchemaH2Test {
         // 테스트용 정의 1개 생성 (FK 제약 만족)
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_DEFINITION
-                  (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('def-test', 'TestDef', 1, 'Y', 'Y', 'Y', 'N')
+                  (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, DEL_FL)
+                VALUES ('def-test', 'TestDef', 1, 'Y', 'N')
                 """);
     }
 
@@ -100,7 +100,7 @@ class ScheduleSchemaH2Test {
         LineSchedule s = new LineSchedule(
                 "sch-1", "def-test", "0 */5 * * * *",
                 LocalDateTime.now().plusMinutes(5), null,
-                "N", null, "Y", "Y", "N", null, "test", null, null
+                "N", null, "N", null, "test", null, null
         );
         repository.insert(s);
 
@@ -117,17 +117,17 @@ class ScheduleSchemaH2Test {
         repository.insert(new LineSchedule(
                 "sch-due", "def-test", "* * * * * *",
                 LocalDateTime.now().minusMinutes(1), null,
-                "N", null, "Y", "Y", "N", null, "test", null, null));
+                "N", null, "N", null, "test", null, null));
         // 미래 (제외)
         repository.insert(new LineSchedule(
                 "sch-future", "def-test", "* * * * * *",
                 LocalDateTime.now().plusHours(1), null,
-                "N", null, "Y", "Y", "N", null, "test", null, null));
+                "N", null, "N", null, "test", null, null));
         // 일시중지 (제외)
         repository.insert(new LineSchedule(
                 "sch-paused", "def-test", "* * * * * *",
                 LocalDateTime.now().minusMinutes(5), null,
-                "Y", null, "Y", "Y", "N", null, "test", null, null));
+                "Y", null, "N", null, "test", null, null));
 
         List<LineSchedule> due = repository.findDueWithLock(10);
         assertEquals(1, due.size());
@@ -139,7 +139,7 @@ class ScheduleSchemaH2Test {
         repository.insert(new LineSchedule(
                 "sch-mr", "def-test", "* * * * * *",
                 LocalDateTime.now().minusMinutes(1), null,
-                "N", null, "Y", "Y", "N", null, "test", null, null));
+                "N", null, "N", null, "test", null, null));
 
         LocalDateTime nextRun = LocalDateTime.now().plusMinutes(5);
         LocalDateTime lastRun = LocalDateTime.now();
@@ -156,7 +156,7 @@ class ScheduleSchemaH2Test {
         repository.insert(new LineSchedule(
                 "sch-p", "def-test", "* * * * * *",
                 null, null, "N", null,
-                "Y", "Y", "N", null, "test", null, null));
+                "N", null, "test", null, null));
 
         repository.setPaused("sch-p", true);
         assertEquals("Y", repository.findById("sch-p").pausedFl());
@@ -170,7 +170,7 @@ class ScheduleSchemaH2Test {
         repository.insert(new LineSchedule(
                 "sch-d", "def-test", "* * * * * *",
                 null, null, "N", null,
-                "Y", "Y", "N", null, "test", null, null));
+                "N", null, "test", null, null));
 
         repository.softDelete("sch-d");
 

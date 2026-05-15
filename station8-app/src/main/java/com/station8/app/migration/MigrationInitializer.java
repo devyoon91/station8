@@ -53,8 +53,8 @@ public class MigrationInitializer implements CommandLineRunner {
         // 2) 라인 인스턴스 생성
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, 'DataMigrationLine', 'RUNNING', NULL, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, DEL_FL, START_DT, REG_DT)
+            VALUES (?, 'DataMigrationLine', 'RUNNING', NULL, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """, instanceId);
 
         // 3) SRC_DATA에서 아직 마이그레이션 안 된 데이터 조회 후, 각 건에 대해 PENDING 생성

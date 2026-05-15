@@ -121,7 +121,7 @@ class SecurityIntegrationTest {
         // 사전 시드 — 사용자
         String userId = UUID.randomUUID().toString();
         repository.insert(new LineUser(userId, "selfpw", passwordEncoder.encode("Old!1234"),
-                "Self", "Y", Set.of("USER"), "Y", "Y", "N", null, "test", null, null));
+                "Self", "Y", Set.of("USER"), "N", null, "test", null, null));
 
         mockMvc.perform(post("/me/password")
                         .param("currentPassword", "Old!1234")
@@ -141,7 +141,7 @@ class SecurityIntegrationTest {
     void selfPasswordChange_rejectsWrongCurrentPassword() throws Exception {
         String userId = UUID.randomUUID().toString();
         repository.insert(new LineUser(userId, "wrongpw", passwordEncoder.encode("Old!1234"),
-                "Wrong", "Y", Set.of("USER"), "Y", "Y", "N", null, "test", null, null));
+                "Wrong", "Y", Set.of("USER"), "N", null, "test", null, null));
 
         mockMvc.perform(post("/me/password")
                         .param("currentPassword", "WrongCurrent!1")

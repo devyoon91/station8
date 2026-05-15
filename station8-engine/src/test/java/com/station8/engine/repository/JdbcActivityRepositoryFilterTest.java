@@ -135,8 +135,8 @@ class JdbcActivityRepositoryFilterTest {
     private void seed(String id, String workflow, String status, LocalDateTime startDt) {
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, ?, 'Y', 'Y', 'N', ?, CURRENT_TIMESTAMP)
+              (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, ?, 'N', ?, CURRENT_TIMESTAMP)
             """, id, workflow, status, java.sql.Timestamp.valueOf(startDt));
     }
 }

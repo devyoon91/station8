@@ -56,7 +56,7 @@ public class LineProjectSeeder {
                     LineProject.DEFAULT_PROJECT_ID,
                     LineProject.DEFAULT_PROJECT_NM,
                     "System default project (auto-created by LineProjectSeeder, #168)",
-                    "Y", "Y", "N",
+                    "N",
                     null, "system", null, null
             ));
             seeded = true;

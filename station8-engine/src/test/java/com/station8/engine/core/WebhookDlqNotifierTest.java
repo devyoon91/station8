@@ -60,7 +60,7 @@ class WebhookDlqNotifierTest {
         return new DlqEntry(
                 "dlq-1", "inst-1", "exec-1", "wf", "act",
                 "NEW", "boom", "stack...", 3, 3, LocalDateTime.now(),
-                null, null, null, null, null, null, null);
+                null, null, null, null, null);
     }
 
     @Test

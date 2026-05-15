@@ -16,8 +16,6 @@ public record LineUser(
         String displayNm,
         String enabledFl,
         Set<String> roles,
-        String useFl,
-        String viewFl,
         String delFl,
         LocalDateTime regDt,
         String regId,

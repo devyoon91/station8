@@ -99,8 +99,8 @@ public class LineScheduler {
             // 3) 인스턴스 INSERT
             jdbcTemplate.update("""
                     INSERT INTO U_LINE_INSTANCE
-                      (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-                    VALUES (?, ?, 'RUNNING', ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                      (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, DEL_FL, START_DT, REG_DT)
+                    VALUES (?, ?, 'RUNNING', ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     """, instanceId, workflowName, s.inputData());
 
             // 4) DAG 시작 (검증 + 시작 역 PENDING + 후행 WAITING_DEPENDENCIES)

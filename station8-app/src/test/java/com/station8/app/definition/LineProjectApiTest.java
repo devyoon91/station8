@@ -153,8 +153,8 @@ class LineProjectApiTest {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_DEFINITION
                   (ID, DEFINITION_NM, DESCRIPTION, VERSION_NO, ACTIVE_FL,
-                   USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-                VALUES (?, ?, NULL, 1, 'Y', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, 'test')
+                   DEL_FL, REG_DT, REG_ID)
+                VALUES (?, ?, NULL, 1, 'Y', 'N', CURRENT_TIMESTAMP, 'test')
                 """, defId, "NullProjectFlow");
 
         // Seeder의 backfill UPDATE을 직접 실행 (Seeder는 boot 시점에만 실행되므로)

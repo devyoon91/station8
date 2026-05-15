@@ -35,8 +35,6 @@ class JdbcLineDefinitionRepositoryStationTest {
                     DESCRIPTION VARCHAR(500),
                     VERSION_NO INT DEFAULT 1 NOT NULL,
                     ACTIVE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
-                    USE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
-                    VIEW_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
                     DEL_FL VARCHAR(1) DEFAULT 'N' NOT NULL,
                     REG_DT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     REG_ID VARCHAR(32),
@@ -53,8 +51,6 @@ class JdbcLineDefinitionRepositoryStationTest {
                     DATASOURCE_BINDINGS CLOB,
                     POS_X_NO INT,
                     POS_Y_NO INT,
-                    USE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
-                    VIEW_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
                     DEL_FL VARCHAR(1) DEFAULT 'N' NOT NULL,
                     REG_DT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     REG_ID VARCHAR(32),
@@ -83,7 +79,7 @@ class JdbcLineDefinitionRepositoryStationTest {
                 "{\"limit\":10}",
                 bindingsJson,
                 10, 20,
-                "Y", "Y", "N", null, "tester", null, null);
+                "N", null, "tester", null, null);
         repository.insertNode(node);
 
         LineStation got = repository.findStationById(stationId);
@@ -102,7 +98,7 @@ class JdbcLineDefinitionRepositoryStationTest {
         LineStation node = new LineStation(
                 stationId, "def-1", "NoBindings", "NOOP",
                 null, null, 0, 0,
-                "Y", "Y", "N", null, "tester", null, null);
+                "N", null, "tester", null, null);
         repository.insertNode(node);
 
         LineStation got = repository.findStationById(stationId);

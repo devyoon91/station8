@@ -56,15 +56,15 @@ class JdbcDlqRepositoryFilterTest {
         // FK 만족 — 더미 instance + execution 먼저
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
-            VALUES ('inst-x', 'dummy', 'FAILED', 'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES ('inst-x', 'dummy', 'FAILED', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """);
         jdbcTemplate.update("""
             INSERT INTO H_LINE_ACTIVITY_EXECUTION
               (ID, INSTANCE_ID, ACTIVITY_NAME, STATUS_ST, RETRY_CNT,
-               USE_FL, VIEW_FL, DEL_FL, START_DT, REG_DT)
+               DEL_FL, START_DT, REG_DT)
             VALUES ('exec-x', 'inst-x', 'dummy', 'FAILED', 0,
-                    'Y', 'Y', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """);
         seed("dlq-1", "FlowA", "Validate", "NEW", "Timeout after 30s",
                 LocalDateTime.of(2026, 5, 1, 10, 0));
@@ -141,8 +141,8 @@ class JdbcDlqRepositoryFilterTest {
             INSERT INTO H_LINE_DLQ
               (ID, INSTANCE_ID, EXECUTION_ID, WORKFLOW_NAME, ACTIVITY_NAME,
                DLQ_STATUS_ST, ERROR_MESSAGE, RETRY_CNT, FAILED_AT_DT,
-               USE_FL, VIEW_FL, DEL_FL, REG_DT, REG_ID)
-            VALUES (?, 'inst-x', 'exec-x', ?, ?, ?, ?, 3, ?, 'Y', 'Y', 'N', CURRENT_TIMESTAMP, 'test')
+               DEL_FL, REG_DT, REG_ID)
+            VALUES (?, 'inst-x', 'exec-x', ?, ?, ?, ?, 3, ?, 'N', CURRENT_TIMESTAMP, 'test')
             """, id, workflow, activity, status, error, java.sql.Timestamp.valueOf(failedAt));
     }
 }

@@ -121,7 +121,7 @@ class DagValidatorTest {
         List<LineStation> nodes = List.of(node("n-a", "A"), node("n-b", "B"));
         LineTrack edge = new LineTrack("e1", "def-test", "n-a", "n-b",
                 "#result['success'] == true",
-                "Y", "Y", "N", null, null, null, null);
+                "N", null, null, null, null);
         assertDoesNotThrow(() -> validator.validate(nodes, List.of(edge), registered));
     }
 
@@ -131,7 +131,7 @@ class DagValidatorTest {
         List<LineStation> nodes = List.of(node("n-a", "A"), node("n-b", "B"));
         LineTrack edge = new LineTrack("e1", "def-test", "n-a", "n-b",
                 "#result[ == ",  // 잘못된 SpEL 문법
-                "Y", "Y", "N", null, null, null, null);
+                "N", null, null, null, null);
         LineEngineException ex = assertThrows(LineEngineException.class,
                 () -> validator.validate(nodes, List.of(edge), registered));
         assertTrue(ex.getMessage().contains(ErrorCodes.DAG_INVALID_CONDITION), ex.getMessage());
@@ -143,14 +143,14 @@ class DagValidatorTest {
         // 조건 없음 (null/blank) — 검증 패스
         List<LineStation> nodes = List.of(node("n-a", "A"), node("n-b", "B"));
         LineTrack edgeNull = new LineTrack("e1", "def-test", "n-a", "n-b", null,
-                "Y", "Y", "N", null, null, null, null);
+                "N", null, null, null, null);
         LineTrack edgeBlank = new LineTrack("e2", "def-test", "n-a", "n-b", "   ",
-                "Y", "Y", "N", null, null, null, null);
+                "N", null, null, null, null);
         assertDoesNotThrow(() -> validator.validate(nodes, List.of(edgeNull), registered));
         // edgeBlank는 별개 검증 (같은 from→to 두 번 — DagValidator가 이걸 거부 안 하므로 OK)
         assertDoesNotThrow(() -> validator.validate(nodes,
                 List.of(new LineTrack("e3", "def-test", "n-a", "n-b", "   ",
-                        "Y", "Y", "N", null, null, null, null)), registered));
+                        "N", null, null, null, null)), registered));
     }
 
     @Test
@@ -172,12 +172,12 @@ class DagValidatorTest {
 
     private LineStation node(String id, String activityNm) {
         return new LineStation(id, "def-test", id + "-label", activityNm,
-                null, null, null, null, "Y", "Y", "N", null, null, null, null);
+                null, null, null, null, "N", null, null, null, null);
     }
 
     private LineTrack edge(String id, String from, String to) {
         return new LineTrack(id, "def-test", from, to, null,
-                "Y", "Y", "N", null, null, null, null);
+                "N", null, null, null, null);
     }
 
     /** 테스트 케이스 빌더 */
@@ -187,13 +187,13 @@ class DagValidatorTest {
         static List<NodeEdge> cycle() {
             // A → B, B → A
             LineStation na = new LineStation("n-a", "def-test", "A-lbl", "A",
-                    null, null, null, null, "Y", "Y", "N", null, null, null, null);
+                    null, null, null, null, "N", null, null, null, null);
             LineStation nb = new LineStation("n-b", "def-test", "B-lbl", "B",
-                    null, null, null, null, "Y", "Y", "N", null, null, null, null);
+                    null, null, null, null, "N", null, null, null, null);
             LineTrack e1 = new LineTrack("e1", "def-test", "n-a", "n-b", null,
-                    "Y", "Y", "N", null, null, null, null);
+                    "N", null, null, null, null);
             LineTrack e2 = new LineTrack("e2", "def-test", "n-b", "n-a", null,
-                    "Y", "Y", "N", null, null, null, null);
+                    "N", null, null, null, null);
             return List.of(new NodeEdge(List.of(na, nb), List.of(e1, e2)));
         }
     }

@@ -113,14 +113,14 @@ class LineDagTopoTest {
         return new LineStation(id, "def", id, "A",
                 /*inputParams*/ null, /*datasourceBindings*/ null,
                 /*posXNo*/ 0, /*posYNo*/ 0,
-                "Y", "Y", "N",
+                "N",
                 null, null, null, null);
     }
 
     private static LineTrack edge(String from, String to) {
         return new LineTrack("e-" + from + "-" + to, "def", from, to,
                 /*conditionExpr*/ null,
-                "Y", "Y", "N",
+                "N",
                 null, null, null, null);
     }
 }

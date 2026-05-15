@@ -18,8 +18,6 @@ public record LineDefinition(
     String slaAction,          // #138: ALERT_ONLY / AUTO_TERMINATE / null
     String concurrencyPolicy,  // #141: CONCURRENT(default) / SKIP_IF_RUNNING / null
     String projectId,          // #168: 소속 프로젝트 (default 또는 명시 지정)
-    String useFl,
-    String viewFl,
     String delFl,
     LocalDateTime regDt,
     String regId,

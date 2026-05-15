@@ -20,8 +20,6 @@ public record LineSchedule(
     LocalDateTime lastRunDt,
     String pausedFl,
     String inputData,
-    String useFl,
-    String viewFl,
     String delFl,
     LocalDateTime regDt,
     String regId,

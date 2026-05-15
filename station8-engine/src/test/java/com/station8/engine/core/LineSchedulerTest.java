@@ -105,13 +105,13 @@ class LineSchedulerTest {
         // 단일 역 정의 (시작이자 종료) — DAG 검증 통과
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_DEFINITION
-                  (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('def-sched', 'CronDef', 1, 'Y', 'Y', 'Y', 'N')
+                  (ID, DEFINITION_NM, VERSION_NO, ACTIVE_FL, DEL_FL)
+                VALUES ('def-sched', 'CronDef', 1, 'Y', 'N')
                 """);
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_STATION
-                  (ID, DEFINITION_ID, ACTIVITY_NM, USE_FL, VIEW_FL, DEL_FL)
-                VALUES ('n-only', 'def-sched', 'A', 'Y', 'Y', 'N')
+                  (ID, DEFINITION_ID, ACTIVITY_NM, DEL_FL)
+                VALUES ('n-only', 'def-sched', 'A', 'N')
                 """);
     }
 
@@ -120,7 +120,7 @@ class LineSchedulerTest {
         scheduleRepo.insert(new LineSchedule(
                 "sch-due", "def-sched", "0 */1 * * * *",
                 LocalDateTime.now().minusMinutes(1), null,
-                "N", null, "Y", "Y", "N", null, "test", null, null));
+                "N", null, "N", null, "test", null, null));
 
         List<String> triggered = tx.execute(status -> scheduler.pollOnce(10));
         assertNotNull(triggered);
@@ -146,11 +146,11 @@ class LineSchedulerTest {
         scheduleRepo.insert(new LineSchedule(
                 "sch-paused", "def-sched", "* * * * * *",
                 LocalDateTime.now().minusMinutes(1), null,
-                "Y", null, "Y", "Y", "N", null, "test", null, null));
+                "Y", null, "N", null, "test", null, null));
         scheduleRepo.insert(new LineSchedule(
                 "sch-future", "def-sched", "* * * * * *",
                 LocalDateTime.now().plusHours(1), null,
-                "N", null, "Y", "Y", "N", null, "test", null, null));
+                "N", null, "N", null, "test", null, null));
 
         List<String> triggered = tx.execute(status -> scheduler.pollOnce(10));
         assertEquals(0, triggered.size(), "일시중지/미래 스케줄은 트리거되지 않아야 함");
@@ -177,7 +177,7 @@ class LineSchedulerTest {
             scheduleRepo.insert(new LineSchedule(
                     "sch-batch-" + i, "def-sched", "0 */10 * * * *",
                     LocalDateTime.now().minusSeconds(10 + i), null,
-                    "N", null, "Y", "Y", "N", null, "test", null, null));
+                    "N", null, "N", null, "test", null, null));
         }
         List<String> triggered = tx.execute(status -> scheduler.pollOnce(10));
         assertEquals(3, triggered.size());
@@ -190,7 +190,7 @@ class LineSchedulerTest {
             scheduleRepo.insert(new LineSchedule(
                     "sch-cap-" + i, "def-sched", "* * * * * *",
                     LocalDateTime.now().minusSeconds(10 + i), null,
-                    "N", null, "Y", "Y", "N", null, "test", null, null));
+                    "N", null, "N", null, "test", null, null));
         }
         List<String> triggered = tx.execute(status -> scheduler.pollOnce(2));
         assertEquals(2, triggered.size(), "limit=2이면 2건만 처리");

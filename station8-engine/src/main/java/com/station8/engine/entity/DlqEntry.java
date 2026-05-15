@@ -20,8 +20,6 @@ public record DlqEntry(
     LocalDateTime failedAtDt, // FAILED_AT_DT
 
     // 공통 컬럼
-    String useFl,             // USE_FL
-    String viewFl,            // VIEW_FL
     String delFl,             // DEL_FL
     LocalDateTime regDt,      // REG_DT
     String regId,             // REG_ID

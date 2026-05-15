@@ -32,7 +32,7 @@ public class JdbcActivityRepositoryTest {
         jdbcTemplate.execute("CREATE TABLE U_LINE_INSTANCE (" +
                 "ID VARCHAR(50), WORKFLOW_NAME VARCHAR(100), STATUS_ST VARCHAR(20), " +
                 "INPUT_DATA CLOB, OUTPUT_DATA CLOB, STATE_DATA CLOB, " +
-                "START_DT TIMESTAMP, END_DT TIMESTAMP, USE_FL VARCHAR(1), VIEW_FL VARCHAR(1), " +
+                "START_DT TIMESTAMP, END_DT TIMESTAMP, " +
                 "DEL_FL VARCHAR(1), REG_DT TIMESTAMP, REG_ID VARCHAR(32), EDIT_DT TIMESTAMP, EDIT_ID VARCHAR(32), " +
                 "PRIMARY KEY (ID))");
 
@@ -41,7 +41,7 @@ public class JdbcActivityRepositoryTest {
                 "ACTIVITY_NAME VARCHAR(100), STATUS_ST VARCHAR(30), " +
                 "INPUT_DATA CLOB, OUTPUT_DATA CLOB, ERROR_MESSAGE CLOB, STACK_TRACE CLOB, " +
                 "RETRY_CNT INT, NEXT_RETRY_DT TIMESTAMP, START_DT TIMESTAMP, END_DT TIMESTAMP, " +
-                "USE_FL VARCHAR(1), VIEW_FL VARCHAR(1), DEL_FL VARCHAR(1), REG_DT TIMESTAMP, REG_ID VARCHAR(32), " +
+                "DEL_FL VARCHAR(1), REG_DT TIMESTAMP, REG_ID VARCHAR(32), " +
                 "EDIT_DT TIMESTAMP, EDIT_ID VARCHAR(32), PRIMARY KEY (ID))");
     }
 
@@ -87,7 +87,7 @@ public class JdbcActivityRepositoryTest {
         ActivityExecution update = new ActivityExecution(
                 executionId, instanceId, null, "Activity1", "COMPLETED",
                 null, "{\"result\":\"ok\"}", null, null, 0, null, null, LocalDateTime.now(),
-                "Y", "Y", "N", LocalDateTime.now(), "system", LocalDateTime.now(), "engine"
+                "N", LocalDateTime.now(), "system", LocalDateTime.now(), "engine"
         );
 
         repository.updateStatus(update);

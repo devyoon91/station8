@@ -155,7 +155,7 @@ public class AdminDataSourceController {
                     name, jdbcUrl, nullIfBlank(username), nullIfBlank(password),
                     nullIfBlank(driverClass), nullIfBlank(dialect),
                     hikariOptionsJson != null && !hikariOptionsJson.isBlank() ? hikariOptionsJson.trim() : null,
-                    enabled ? "Y" : "N", "Y", "Y", "N",
+                    enabled ? "Y" : "N", "N",
                     LocalDateTime.now(), "admin", null, null);
             repository.insert(def);
             log.info("DataSource definition saved: {} (id={})", name, def.id());
@@ -236,7 +236,7 @@ public class AdminDataSourceController {
                     nullIfBlank(driverClass), nullIfBlank(dialect),
                     hikariOptionsJson != null && !hikariOptionsJson.isBlank() ? hikariOptionsJson.trim() : null,
                     enabled ? "Y" : "N",
-                    existing.useFl(), existing.viewFl(), existing.delFl(),
+                    existing.delFl(),
                     existing.regDt(), existing.regId(),
                     LocalDateTime.now(), "admin");
             repository.update(updated, /*keepPasswordIfBlank*/ true);

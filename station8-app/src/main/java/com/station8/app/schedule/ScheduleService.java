@@ -58,7 +58,7 @@ public class ScheduleService {
         LocalDateTime nextRun = LineScheduler.nextFromCron(cronExpr, LocalDateTime.now());
         LineSchedule s = new LineSchedule(
                 id, definitionId, cronExpr, nextRun, null,
-                "N", inputData, "Y", "Y", "N", null, "api", null, null
+                "N", inputData, "N", null, "api", null, null
         );
         scheduleRepository.insert(s);
         log.info("스케줄 등록: id={}, definitionId={}, cron={}, nextRun={}", id, definitionId, cronExpr, nextRun);
