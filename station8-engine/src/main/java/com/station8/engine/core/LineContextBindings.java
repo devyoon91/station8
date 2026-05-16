@@ -38,9 +38,33 @@ public class LineContextBindings {
     public static final String CREDENTIALS = "$credentials";
 
     private final JsonUtil jsonUtil;
+    private final CredentialResolver credentialResolver;
 
-    public LineContextBindings(JsonUtil jsonUtil) {
+    /** Spring auto-wired constructor (#272). */
+    @org.springframework.beans.factory.annotation.Autowired
+    public LineContextBindings(JsonUtil jsonUtil, CredentialResolver credentialResolver) {
         this.jsonUtil = jsonUtil;
+        this.credentialResolver = credentialResolver;
+    }
+
+    /**
+     * 후방 호환 — credential resolver 없이 생성. $credentials는 빈 ProxyObject 반환.
+     * 새 코드는 위 2-arg 생성자 사용 권장. 본 생성자는 vault 미사용 단위 테스트 등 한정.
+     */
+    public LineContextBindings(JsonUtil jsonUtil) {
+        this(jsonUtil, NoCredentialsResolver.INSTANCE);
+    }
+
+    /** 빈 vault — getMember는 항상 null, hasMember는 항상 false. */
+    static final class NoCredentialsResolver extends CredentialResolver {
+        static final NoCredentialsResolver INSTANCE = new NoCredentialsResolver();
+        private NoCredentialsResolver() {
+            super(null, null, null);
+        }
+        @Override
+        public Object topLevelBinding() {
+            return ProxyObject.fromMap(Map.of());
+        }
     }
 
     /**
@@ -87,9 +111,9 @@ public class LineContextBindings {
     }
 
     private Object credentialsBinding() {
-        // M17 (#248) 머지 후: credential vault에서 라인/노드별 secret 맵으로 교체.
-        // 현재는 빈 ProxyObject — 사용자 표현식이 $credentials.foo를 참조하면 undefined → null.
-        return ProxyObject.fromMap(Map.of());
+        // M17 (#272) — vault에서 lazy 해소. 표현식이 $credentials.foo.value를 액세스하면
+        // 그 시점에 findByName + decrypt 1회. 미사용 시 DB 쿼리/decrypt 0.
+        return credentialResolver.topLevelBinding();
     }
 
     /**
