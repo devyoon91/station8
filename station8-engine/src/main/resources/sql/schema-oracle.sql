@@ -293,3 +293,22 @@ CREATE TABLE U_LINE_DATASOURCE (
 );
 
 CREATE INDEX U_LINE_DATASOURCE_IDX01 ON U_LINE_DATASOURCE (DEL_FL, ENABLED_FL);
+
+-- M17 (#270) — Credential vault. AES-GCM 암호화된 secret 저장소.
+-- VALUE_ENC = Base64( IV(12B) || ciphertext || authTag(16B) )
+CREATE TABLE U_LINE_CREDENTIAL (
+    ID VARCHAR2(50),
+    NAME VARCHAR2(100) NOT NULL,                            -- {{ $credentials.<NAME> }} 참조 키
+    TYPE VARCHAR2(50) NOT NULL,                             -- http_basic / http_bearer / api_key / generic
+    VALUE_ENC CLOB NOT NULL,                                -- Base64 ciphertext (IV prepended)
+    SCHEMA_JSON CLOB,                                       -- 옵션 — 타입별 메타
+    DEL_FL VARCHAR2(1) DEFAULT 'N' NOT NULL,
+    REG_DT DATE DEFAULT CURRENT_TIMESTAMP,
+    REG_ID VARCHAR2(32),
+    EDIT_DT DATE,
+    EDIT_ID VARCHAR2(32),
+    CONSTRAINT U_LINE_CREDENTIAL_PK PRIMARY KEY (ID),
+    CONSTRAINT U_LINE_CREDENTIAL_U01 UNIQUE (NAME)
+);
+
+CREATE INDEX U_LINE_CREDENTIAL_IDX01 ON U_LINE_CREDENTIAL (DEL_FL);
