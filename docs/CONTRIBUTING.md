@@ -1,9 +1,8 @@
 # CONTRIBUTING
 
-본 문서는 ``station8`` 저장소의 **브랜치 / 커밋 / PR 형식 규정**을 정의한다.
-작업 흐름(이슈 → 브랜치 → 변경 → PR → 리뷰)과 협업 원칙은 [AGENTS.md](../AGENTS.md)를 참조한다.
+``station8`` 저장소의 **브랜치 / 커밋 / PR 형식 규정**. 작업 흐름(이슈 → 브랜치 → 변경 → PR → 리뷰)과 협업 원칙은 [AGENTS.md](../AGENTS.md).
 
-> **AI 에이전트 주의**: 본 저장소는 ``.gitmessage`` 커밋 템플릿과 ``.github/pull_request_template.md`` PR 템플릿을 제공한다.
+> **AI 에이전트 주의**: 저장소에 ``.gitmessage`` 커밋 템플릿과 ``.github/pull_request_template.md`` PR 템플릿이 있다.
 > 매번 같은 규격으로 PR/커밋을 만들기 위해 두 템플릿을 그대로 따른다.
 
 ---
