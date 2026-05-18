@@ -1,6 +1,6 @@
 # Architecture
 
-`station8`의 모듈 구성과 런타임 흐름을 코드 기준으로 설명한다. 본 문서는 "어떻게 돌아가는가"에 답하고, "왜 그렇게 설계했는가"는 [line-engine-spec.md](line-engine-spec.md)에 둔다.
+`station8`의 모듈 구성과 런타임 흐름을 코드 기준으로 적는다. "어떻게 돌아가는가"는 여기, "왜 그렇게 설계했는가"는 [line-engine-spec.md](line-engine-spec.md).
 
 ## 1. 모듈 구성
 

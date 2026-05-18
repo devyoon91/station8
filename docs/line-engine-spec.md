@@ -1,6 +1,6 @@
 # Line Engine Specification
 
-## 1. Project Overview
+## 1. 프로젝트 개요
 
 Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azkaban 스타일의 **웹 기반 DAG 빌더 + Cron 스케줄러 + 운영 모니터링**을 그 위에 올리는 **하이브리드 라인 엔진**.
 
@@ -16,7 +16,7 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 - Airflow의 Python DAG처럼 코드 파일로 라인을 정의하지 않는다 (운영자 친화 우선).
 - Spring Batch를 대체하지 않는다. 필요 시 Spring Batch Job을 어댑터 역로 감싸서 호출한다.
 
-## 2. Technical Stack
+## 2. 기술 스택
 
 * **Language:** Java 21 (LTS)
 * **Framework:** Spring Boot 3.4.x
@@ -24,7 +24,7 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 * **Database:** Oracle / MariaDB (공통 지원)
 * **View Engine:** Mustache + Drawflow (DAG 빌더 클라이언트)
 
-## 3. Multi-Module Architecture
+## 3. 멀티 모듈 구조
 
 * **`:station8-engine`** — 엔진 SDK
   * `@LineDefinition`, `@Activity` 어노테이션 + AOP/Registry
@@ -38,7 +38,7 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
   * 운영 대시보드 / 타임라인 / DLQ 관리
   * 액티비티 카탈로그 (등록된 `@Activity` 목록 노출)
 
-## 4. Key Functional Requirements
+## 4. 핵심 기능 요구
 
 ### 4.1. DAG 정의 모델
 
@@ -61,7 +61,7 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 * `@Scheduled` 트리거 폴러: 만료된 cron을 찾아 `startLine(definitionId)` 호출.
 * 수동 실행도 동일 경로 (운영자가 UI에서 "지금 실행" 버튼).
 
-### 4.4. Orchestration & Persistence (기존 유지)
+### 4.4. 오케스트레이션 / 영속화
 
 * 모든 액티비티의 입력값/결과값/스택트레이스를 DB에 JSON으로 저장.
 * Worker Polling: `FOR UPDATE SKIP LOCKED` 분산 처리.
@@ -69,25 +69,24 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
   `application.properties`에 `station8.datasources.<name>.*`로 secondary 선언 → 액티비티는
   `DataSourceRegistry`를 메서드 파라미터로 받아 이름으로 `JdbcTemplate`을 조회.
   엔진 SQL 생성은 primary dialect만, secondary dialect는 액티비티가 알아서 다룸.
-  단일 DS 트랜잭션만 보장(JTA/XA 비도입 — [#111](https://github.com/devyoon91/station8/issues/111) 토론).
+  단일 DS 트랜잭션만 보장(JTA/XA 비도입 — #111 토론).
   운영자는 `/admin/datasources`에서 등록 목록 / 풀 상태 / Test ping 진단 가능.
 * **동적 DataSource 등록 (#110):** 위 정적 선언 외에, 어드민 UI(`/admin/datasources`)에서
   운영자가 DataSource를 직접 추가/수정/삭제 가능. `U_LINE_DATASOURCE` 테이블에 영속화되며 부팅 시
   `DynamicDataSourceLoader`가 자동 로드. 수정 시 connection pool은 즉시 graceful drain 후 새 풀로 swap.
-  정적 선언과 이름 충돌 시 정적 win — DB 행은 무시. 비밀번호는 plain text 저장 (시크릿 통합은
-  [#112](https://github.com/devyoon91/station8/issues/112)).
+  정적 선언과 이름 충돌 시 정적 win — DB 행은 무시. 비밀번호는 plain text 저장 (시크릿 통합은 #112).
 * **Station 단위 DataSource 바인딩 (#113):** 라인 정의의 각 station(`U_LINE_STATION.DATASOURCE_BINDINGS`)에
   `{role: registry-name}` 매핑을 선언적으로 둘 수 있다. 액티비티는 `@BoundDataSource("role") JdbcTemplate`로
   파라미터를 받아 — DS 이름이 코드에 박히지 않고 라인 정의가 결정. 같은 액티비티 코드를 여러 DS에서
   재사용 가능. 누락 시 primary fallback. 기존 `DataSourceRegistry` 직접 호출(#108)도 유지되지만 권장 안 함.
 
-### 4.5. Fault Tolerance (기존 유지 + 확장)
+### 4.5. 장애 내성
 
 * Exponential Backoff 자동 재시도.
 * 최대 재시도 초과 → `H_LINE_DLQ` 적재 + Webhook 알림.
 * DLQ Requeue/Discard.
 
-### 4.6. Monitoring UI (확장)
+### 4.6. 모니터링 UI
 
 * **Dashboard:** 인스턴스 목록/통계/검색·필터.
 * **Lines (서브웨이 맵):** 라인 정의 목록 + 정의별 정적 노선도 미리보기. 인스턴스 상세에서는 같은 노선도가 진행 위치 오버레이(running 점멸 / completed 채움 / failed 적색)로 동작. 역 hover→인접 트랙 강조, 클릭→해당 timeline 카드로 스크롤·강조.
@@ -97,7 +96,7 @@ Temporal의 **Durable Execution** 메커니즘을 코어로 하고, Airflow/Azka
 * **Timeline:** 인스턴스 액티비티 실행 이력(시간순 카드 + status dot).
 * **DLQ Console:** 실패한 액티비티 Requeue/Discard.
 
-## 5. 비범위 (Out of Scope)
+## 5. 비범위
 
 * 웹에서 Java 코드 작성/컴파일.
 * Airflow의 XCom 같은 무거운 역 간 데이터 전달 (각 역은 DB 직접 R/W).

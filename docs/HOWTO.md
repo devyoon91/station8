@@ -8,7 +8,7 @@
 
 ## 1. 액티비티 작성 (Java)
 
-라인의 단위 작업은 **`@Activity` 어노테이션이 붙은 Java 메서드**입니다.
+라인의 단위 작업은 **`@Activity` 어노테이션이 붙은 Java 메서드**다.
 
 ### 1.1. 가장 간단한 액티비티
 
@@ -39,7 +39,7 @@ public class OrderFlow {
 
 ### 1.2. 자동 등록 + 가시화
 
-부팅 시 `LineRegistry`가 `@Activity`를 스캔해 등록 → `/line/activities` 페이지에 즉시 노출됩니다. **별도 설정 없음**.
+부팅 시 `LineRegistry`가 `@Activity`를 스캔해 등록 → `/line/activities` 페이지에 즉시 노출된다. **별도 설정 없음**.
 
 ### 1.3. 입력 파라미터 규칙
 
@@ -155,7 +155,7 @@ public String charge(String inputJson) {
 }
 ```
 
-엔진은 RuntimeException 종류를 구분하지 않습니다. retryCount 횟수만큼 시도 후 `H_LINE_DLQ`로 이관됩니다 (Webhook 알림 발송).
+엔진은 RuntimeException 종류를 구분하지 않는다. retryCount 횟수만큼 시도 후 `H_LINE_DLQ`로 이관된다 (Webhook 알림 발송).
 
 ---
 

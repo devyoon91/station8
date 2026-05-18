@@ -4,7 +4,7 @@ REST Assured + JUnit5 + Awaitility 기반 정식 회귀 테스트 모듈.
 
 ## 활성화 조건
 
-기본 비활성화 — `-PdockerHost` 또는 `SWE_E2E_HOST` 환경변수가 있어야 `:e2e-tests:test`가 실행됩니다. 미지정 시 `onlyIf`가 false를 반환하여 스킵됩니다.
+기본 비활성화 — `-PdockerHost` 또는 `SWE_E2E_HOST` 환경변수가 있어야 `:e2e-tests:test`가 실행된다. 미지정 시 `onlyIf`가 false를 반환해 스킵.
 
 ## 실행 방법
 
@@ -43,7 +43,7 @@ SWE_E2E_HOST=localhost:8080 ./gradlew :e2e-tests:test
 
 ## bash 시나리오와의 관계
 
-`scripts/scenarios/01-05*.sh`의 동일 시나리오를 JUnit 클래스로 포팅한 것입니다. bash는 빠른 수동 점검, e2e-tests는 CI 통합 회귀에 사용합니다.
+`scripts/scenarios/01-05*.sh`의 동일 시나리오를 JUnit 클래스로 포팅한 것. bash는 빠른 수동 점검, e2e-tests는 CI 통합 회귀에 쓴다.
 
 | 측면 | bash + curl | REST Assured |
 |------|-------------|-------------|
@@ -54,7 +54,7 @@ SWE_E2E_HOST=localhost:8080 ./gradlew :e2e-tests:test
 
 ## 헬스체크
 
-`E2EBaseTest.@BeforeAll`에서 `/actuator/health`를 30초간 폴링합니다. station8-app이 부팅되지 않은 경우 `ConditionTimeoutException`으로 빠르게 실패합니다.
+`E2EBaseTest.@BeforeAll`에서 `/actuator/health`를 30초간 폴링한다. station8-app이 부팅되지 않은 경우 `ConditionTimeoutException`으로 빠르게 실패.
 
 ## 부하 테스트 (k6)
 

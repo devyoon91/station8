@@ -93,20 +93,25 @@ $ctx = {
 {{ $ctx.runtime.date }}          // 즉시 실행 시 모달에서 입력한 named param
 ```
 
-### `$credentials` — 시크릿 (M17 머지 후 활성)
+### `$credentials` — 시크릿 (vault lazy 해소)
+
+`/admin/credentials`에 등록한 항목을 이름으로 끌어온다. lookup은 표현식이 실제 멤버를 액세스하는 순간에만 발생 — 표현식이 `$credentials`를 참조 안 하면 DB 쿼리 0, decrypt 0.
 
 ```js
-$credentials = {}    // 현재는 placeholder. M17 (#248) 머지 후 vault에서 채워짐
+{{ $credentials.slack.value }}        // 복호화된 평문 (bearer token, api key 등)
+{{ $credentials.slack.type }}         // "http_bearer" / "http_basic" / "api_key" / "generic"
+{{ $credentials.slack.name }}         // 등록한 이름 그대로
+{{ $credentials.basic.username }}     // http_basic의 username (schema 필드)
+{{ $credentials.basic.value }}        // http_basic의 password (복호화)
 ```
 
-M17 후엔:
+규칙:
+- `.value` 액세스 시점에만 decrypt — schema 필드(`username` 등)만 쓰면 decrypt 비용 0
+- 등록 안 된 이름 → `null` (`$credentials.foo` 자체가 null이라 `.value` 접근 시 TypeError → 활동 FAILED)
+- 읽기 전용 — `$credentials.x.value = 'y'`는 예외
+- 평문은 응답/로그에 안 나옴 — `ExpressionEvaluator`의 `HostAccess.NONE` 정책으로 reflection escape 차단
 
-```js
-{{ $credentials.slack.token }}   // slack vault entry의 token
-{{ $credentials.aws.accessKey }}
-```
-
-지금 `$credentials.foo`를 쓰면 `null`이 들어온다 (`undefined` → null).
+타입별 schema 필드는 `/admin/credentials` 등록 폼 참조. `http_basic`은 `username` + `value(=password)`, `http_bearer`는 `value(=token)`만, `generic`은 `value` + 사용자 정의 메타.
 
 ---
 
@@ -220,7 +225,7 @@ M17 후엔:
 | 직전 출력 | `$json` (직전 노드 출력 단축) | `$prev.json` (n8n의 `$node["prev"].json` 형태) |
 | 라인 입력 | `$input.first().json` | `$ctx.input` |
 | 노드 메타 | `$node["NodeName"]` | `$ctx.line` (현재 노드만) |
-| 환경/시크릿 | `$env`, `$secrets` | `$credentials` (M17 머지 후) |
+| 환경/시크릿 | `$env`, `$secrets` | `$credentials.<name>.value` |
 | Sandbox | 제한 적음 | strict — Java 메서드 호출 일체 차단 |
 | Item streaming | 1순위 의미론 | M22 별도 마일스톤 — 현재는 평가 단위 = 활동 단위 1회 |
 
