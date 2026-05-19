@@ -86,7 +86,8 @@ class LineSchedulerTest {
         };
         interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry,
                 conditionEvaluator, noOpExecutor);
-        scheduler = new LineScheduler(scheduleRepo, interpreter, jdbcTemplate);
+        TriggerLauncher launcher = new TriggerLauncher(interpreter, jdbcTemplate);
+        scheduler = new LineScheduler(scheduleRepo, launcher);
 
         // SKIP LOCKED + @Transactional이 동작하도록 트랜잭션 관리자 준비
         PlatformTransactionManager tm = new DataSourceTransactionManager(dataSource);

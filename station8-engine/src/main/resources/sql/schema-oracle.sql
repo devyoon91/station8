@@ -199,6 +199,30 @@ CREATE INDEX U_LINE_SCHEDULE_IDX01 ON U_LINE_SCHEDULE (PAUSED_FL, NEXT_RUN_DT);
 CREATE INDEX U_LINE_SCHEDULE_IDX02 ON U_LINE_SCHEDULE (DEFINITION_ID);
 
 -- ============================================================================
+-- Triggers (#310) — cron 외 trigger 타입. webhook이 첫 구현
+-- ============================================================================
+
+CREATE TABLE U_LINE_TRIGGER (
+    ID VARCHAR2(50),
+    DEFINITION_ID VARCHAR2(50) NOT NULL,
+    TRIGGER_TYPE VARCHAR2(32) NOT NULL,
+    TRIGGER_KEY VARCHAR2(128) NOT NULL,
+    CONFIG_JSON CLOB,
+    ACTIVE_FL VARCHAR2(1) DEFAULT 'Y' NOT NULL,
+    DEL_FL VARCHAR2(1) DEFAULT 'N' NOT NULL,
+    REG_DT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    REG_ID VARCHAR2(32),
+    EDIT_DT TIMESTAMP,
+    EDIT_ID VARCHAR2(32),
+    CONSTRAINT U_LINE_TRIGGER_PK PRIMARY KEY (ID),
+    CONSTRAINT U_LINE_TRIGGER_U01 UNIQUE (TRIGGER_KEY),
+    CONSTRAINT U_LINE_TRIGGER_FK01 FOREIGN KEY (DEFINITION_ID) REFERENCES U_LINE_DEFINITION(ID)
+);
+
+CREATE INDEX U_LINE_TRIGGER_IDX01 ON U_LINE_TRIGGER (TRIGGER_KEY, ACTIVE_FL);
+CREATE INDEX U_LINE_TRIGGER_IDX02 ON U_LINE_TRIGGER (DEFINITION_ID);
+
+-- ============================================================================
 -- Users + Roles (#121) — Spring Security 사용자/역할 테이블
 -- ============================================================================
 
