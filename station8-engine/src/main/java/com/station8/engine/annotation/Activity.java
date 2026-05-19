@@ -19,5 +19,11 @@ public @interface Activity {
      * <p>빈 문자열이면 UI에 표시되지 않는다 (선택 메타).</p>
      */
     String description() default "";
+
+    /**
+     * 입력 파라미터 schema (#304). 빈 배열이면 빌더가 free-form textarea로 fallback —
+     * 점진 도입 가능. {@link ActivityParam} 자체 Javadoc 참조.
+     */
+    ActivityParam[] params() default {};
 }
 

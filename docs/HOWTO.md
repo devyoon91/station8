@@ -41,6 +41,29 @@ public class OrderFlow {
 
 부팅 시 `LineRegistry`가 `@Activity`를 스캔해 등록 → `/line/activities` 페이지에 즉시 노출된다. **별도 설정 없음**.
 
+#### 입력 파라미터 schema — `@ActivityParam`
+
+활동에 `params` 메타를 박아두면 빌더 UI가 JSON textarea 대신 form 필드를 자동 생성한다. 운영자가 활동 매뉴얼 안 봐도 어떤 키를 채워야 할지 알 수 있게.
+
+```java
+@Activity(value = "http.request", retryCount = 3, backoffSeconds = 2,
+    description = "HTTP request 노드 — built-in.",
+    params = {
+        @ActivityParam(name = "method", kind = Kind.SELECT, required = true,
+            options = {"GET", "POST", "PUT", "DELETE", "PATCH"},
+            defaultValue = "GET"),
+        @ActivityParam(name = "url", kind = Kind.STRING, required = true,
+            description = "절대 URL. 표현식 사용 가능."),
+        @ActivityParam(name = "credentialId", kind = Kind.CREDENTIAL,
+            options = {"http_bearer", "http_basic"})
+    })
+public String request(String inputJson) { ... }
+```
+
+지원 kind: `STRING` / `NUMBER` / `BOOLEAN` / `SELECT` (`options` 필수) / `OBJECT` (raw JSON textarea) / `CREDENTIAL` (vault 등록 이름. dropdown은 후속 sub-issue).
+
+`params`가 비어있으면 빌더는 기존 free-form textarea로 fallback — 기존 활동은 그대로 동작, 새 활동에 schema 추가는 선택. 자세한 enum/필드 설명은 `com.station8.engine.annotation.ActivityParam` Javadoc.
+
 ### 1.3. 입력 파라미터 규칙
 
 > **노드 입력에 표현식을 쓰고 싶을 때**: `inputData`의 `{{ ... }}`는 활동 메서드에 도달하기 전에 평가된다. 직전 노드 출력 / 라인 컨텍스트 / 시크릿 접근 — [EXPRESSIONS.md](EXPRESSIONS.md)에서 다룬다.

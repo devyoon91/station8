@@ -1,6 +1,8 @@
 package com.station8.engine.core.builtin.file;
 
 import com.station8.engine.annotation.Activity;
+import com.station8.engine.annotation.ActivityParam;
+import com.station8.engine.annotation.ActivityParam.Kind;
 import com.station8.engine.annotation.LineDefinition;
 import com.station8.engine.core.NoRetryException;
 import com.station8.engine.util.JsonUtil;
@@ -42,7 +44,23 @@ public class FileWriteActivity {
     }
 
     @Activity(value = "file.write", retryCount = 3, backoffSeconds = 2,
-            description = "파일 쓰기 — built-in. URI는 file:// (SFTP/S3는 별도 sub-issue), format=text|json|binary.")
+            description = "파일 쓰기 — built-in. URI scheme로 backend dispatch (file/sftp/s3).",
+            params = {
+                @ActivityParam(name = "uri", kind = Kind.STRING, required = true,
+                        description = "file:// / sftp:// / s3:// URI 또는 절대 path. 표현식 가능."),
+                @ActivityParam(name = "format", kind = Kind.SELECT,
+                        options = {"text", "json", "binary"},
+                        defaultValue = "text",
+                        description = "content 해석. binary는 Base64 입력."),
+                @ActivityParam(name = "content", kind = Kind.OBJECT,
+                        description = "파일 내용. format에 따른 타입: text=String, json=Object, binary=Base64 String."),
+                @ActivityParam(name = "encoding", kind = Kind.STRING,
+                        defaultValue = "UTF-8",
+                        description = "text/json 모드 charset."),
+                @ActivityParam(name = "credentialId", kind = Kind.CREDENTIAL,
+                        description = "SFTP/S3 인증용. local backend는 무시.",
+                        options = {"sftp_password", "sftp_key", "s3_access_key"})
+            })
     public String write(String inputJson) {
         FileWriteInput input = parseInput(inputJson);
         validate(input);
