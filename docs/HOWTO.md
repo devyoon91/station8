@@ -64,6 +64,8 @@ public String request(String inputJson) { ... }
 
 `params`가 비어있으면 빌더는 기존 free-form textarea로 fallback — 기존 활동은 그대로 동작, 새 활동에 schema 추가는 선택. 자세한 enum/필드 설명은 `com.station8.engine.annotation.ActivityParam` Javadoc.
 
+`CREDENTIAL` kind는 빌더가 vault 등록 목록을 자동으로 dropdown에 채운다. `options`에 호환 type 화이트리스트(예: `{"http_bearer","http_basic"}`)를 박아두면 그 타입만 dropdown에. 빌더 부팅 시 한 번 fetch + properties 패널의 ↻ 버튼으로 재로딩 가능 — 운영자가 vault에 mid-session 등록한 credential도 즉시 보임. 저장된 credentialId가 vault에 없으면 ⚠ 경고와 함께 그대로 유지 (라인 정의 손실 0).
+
 ### 1.3. 입력 파라미터 규칙
 
 > **노드 입력에 표현식을 쓰고 싶을 때**: `inputData`의 `{{ ... }}`는 활동 메서드에 도달하기 전에 평가된다. 직전 노드 출력 / 라인 컨텍스트 / 시크릿 접근 — [EXPRESSIONS.md](EXPRESSIONS.md)에서 다룬다.

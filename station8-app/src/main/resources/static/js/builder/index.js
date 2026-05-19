@@ -22,6 +22,7 @@ const EDIT_MODE = __builderConfig.editMode;
 const EDIT_DEFINITION_ID = __builderConfig.editDefinitionId;
 
 let activities = [];
+let credentials = [];   // #305 — vault 등록 credential 목록, CREDENTIAL kind dropdown 소스
 let connectMode = null;  // {from: nodeId} when waiting for second click
 let selectedNodeId = null;  // #151 — Drawflow 선택 노드 추적 (Delete 단축키 대상)
 
@@ -58,6 +59,27 @@ async function loadActivities() {
         });
     } catch (e) {
         palette.innerHTML = '<div style="color: var(--accent-red);">Failed to load activities: ' + e.message + '</div>';
+    }
+}
+
+/**
+ * #305 — vault에 등록된 credential을 fetch해서 글로벌에 캐싱. CREDENTIAL kind form 필드의
+ * dropdown 소스. 부팅 시 1회 + 사용자가 properties 패널의 "↻" 버튼 누르면 재호출.
+ *
+ * 응답 권한: USER 인증 필요 (M17). 로그인 안 됐거나 권한 부족이면 빈 list — 빌더는 그대로
+ * 동작하되 CREDENTIAL 필드는 text input fallback.
+ */
+async function loadCredentials() {
+    try {
+        const res = await fetch('/api/line/credentials');
+        if (!res.ok) {
+            credentials = [];
+            return;
+        }
+        const data = await res.json();
+        credentials = Array.isArray(data) ? data : [];
+    } catch (_) {
+        credentials = [];
     }
 }
 
@@ -187,11 +209,8 @@ function renderParamField(p, currentValue) {
                 escapeHtmlBuilder(value) + '</textarea>';
             break;
         case 'CREDENTIAL':
-            // sub-issue 2에서 vault dropdown으로 — 일단 text input + 라벨
-            input = '<input type="text" class="swe-input" id="' + id + '" data-param-name="' + p.name +
-                '" data-param-kind="CREDENTIAL" placeholder="vault 등록 이름" value="' +
-                escapeHtmlBuilder(value) + '">' +
-                '<div class="swe-mute" style="font-size: 10px; margin-top: 2px;">credential id — /admin/credentials에서 등록</div>';
+            // #305 — vault dropdown. options 비어있으면 모든 credential, 있으면 type 화이트리스트.
+            input = renderCredentialPicker(id, p, value);
             break;
         case 'STRING':
         default:
@@ -201,6 +220,65 @@ function renderParamField(p, currentValue) {
     }
     return '<div><label for="' + id + '">' + escapeHtmlBuilder(p.name) + reqMark + '</label>' +
         input + desc + '</div>';
+}
+
+/**
+ * #305 — CREDENTIAL kind 전용 렌더러. vault dropdown + 새로고침 + 미등록 fallback.
+ *
+ * - p.options 비어있으면 모든 활성 credential을 보임
+ * - p.options 명시 (예: ["http_bearer","http_basic"]) — type 화이트리스트로 필터
+ * - 저장된 value가 vault에 없으면 ⚠ 경고 + 텍스트 입력 fallback
+ * - "↻" 버튼으로 vault 재fetch (사용자가 mid-session에 credential 등록한 경우)
+ */
+function renderCredentialPicker(id, p, currentValue) {
+    const allowedTypes = (p.options && p.options.length > 0) ? p.options : null;
+    const matching = credentials.filter(c => !allowedTypes || allowedTypes.includes(c.type));
+    const knownNames = new Set(matching.map(c => c.name));
+
+    // dropdown options 구성. value="" 는 placeholder.
+    let optionsHtml = '<option value="">— select credential —</option>';
+    matching.forEach(c => {
+        const sel = (c.name === currentValue) ? ' selected' : '';
+        optionsHtml += '<option value="' + escapeHtmlBuilder(c.name) + '"' + sel + '>' +
+            escapeHtmlBuilder(c.name) + ' <' + escapeHtmlBuilder(c.type) + '></option>';
+    });
+
+    // 저장된 값이 vault에 없으면 별도 옵션 + 경고
+    const orphan = currentValue && !knownNames.has(currentValue);
+    if (orphan) {
+        optionsHtml += '<option value="' + escapeHtmlBuilder(currentValue) + '" selected>' +
+            '⚠ ' + escapeHtmlBuilder(currentValue) + ' (vault 미등록)</option>';
+    }
+
+    const typeHint = allowedTypes
+        ? '호환 type: ' + allowedTypes.join(' / ')
+        : '모든 credential type';
+
+    const orphanWarn = orphan
+        ? '<div style="color: var(--text-error); font-size: 11px; margin-top: 2px;">' +
+            "⚠ '" + escapeHtmlBuilder(currentValue) + "'은 vault에 없음 — 운영자가 삭제했거나 이름 오타. /admin/credentials에서 확인" +
+            '</div>'
+        : '';
+
+    return '<div style="display: flex; gap: var(--space-xs); align-items: center;">' +
+        '<select class="swe-input" id="' + id + '" data-param-name="' + p.name +
+            '" data-param-kind="CREDENTIAL" style="flex: 1;">' + optionsHtml + '</select>' +
+        '<button type="button" class="swe-btn-tertiary" title="vault 새로고침" ' +
+            'onclick="refreshCredentialsAndRepaint()" style="padding: 4px 8px;">↻</button>' +
+        '</div>' +
+        '<div class="swe-mute" style="font-size: 10px; margin-top: 2px;">' +
+            escapeHtmlBuilder(typeHint) + ' · ' + matching.length + '건 등록됨' +
+        '</div>' +
+        orphanWarn;
+}
+
+/** #305 — vault refetch 후 현재 선택된 노드 properties 다시 그림. */
+async function refreshCredentialsAndRepaint() {
+    await loadCredentials();
+    if (selectedNodeId != null) {
+        populateProps(selectedNodeId);
+        setStatus('Credential list refreshed (' + credentials.length + ' entries)');
+    }
 }
 editor.on('nodeSelected', id => { selectedNodeId = id; populateProps(id); });
 editor.on('nodeUnselected', () => { selectedNodeId = null; });
@@ -444,6 +522,7 @@ function refreshNodeLabels() {
 //   (그래야 본 모듈이 index.js 보다 먼저 로드돼도 editor 미존재 에러가 없음).
 bindEdgeConditionEditorEvents();
 loadActivities();
+loadCredentials();
 restoreExistingDefinition();
 // #135 — stations list 초기 렌더 + 검색 입력 listener
 refreshStationsList();
