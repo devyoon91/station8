@@ -47,4 +47,43 @@ class ActivityCatalogControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("NO_SUCH_ACTIVITY")));
     }
+
+    // ============ #304 — @ActivityParam schema 응답 ============
+
+    @Test
+    void getByName_httpRequest_exposesParamSchema() throws Exception {
+        mvc.perform(get("/api/line/activities/http.request"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.params").isArray())
+                // method 필드 — SELECT kind + options
+                .andExpect(jsonPath("$.params[?(@.name == 'method')].kind").value("SELECT"))
+                .andExpect(jsonPath("$.params[?(@.name == 'method')].required").value(true))
+                .andExpect(jsonPath("$.params[?(@.name == 'method')].options[*]",
+                        org.hamcrest.Matchers.hasItems("GET", "POST", "PUT", "DELETE", "PATCH")))
+                // url 필드 — STRING + required
+                .andExpect(jsonPath("$.params[?(@.name == 'url')].kind").value("STRING"))
+                .andExpect(jsonPath("$.params[?(@.name == 'url')].required").value(true))
+                // credentialId 필드 — CREDENTIAL kind + type 화이트리스트
+                .andExpect(jsonPath("$.params[?(@.name == 'credentialId')].kind").value("CREDENTIAL"))
+                .andExpect(jsonPath("$.params[?(@.name == 'credentialId')].options[*]",
+                        org.hamcrest.Matchers.hasItem("http_bearer")));
+    }
+
+    @Test
+    void getByName_fileRead_exposesParamSchema() throws Exception {
+        mvc.perform(get("/api/line/activities/file.read"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.params[?(@.name == 'uri')].required").value(true))
+                .andExpect(jsonPath("$.params[?(@.name == 'format')].kind").value("SELECT"))
+                .andExpect(jsonPath("$.params[?(@.name == 'format')].defaultValue").value("text"));
+    }
+
+    @Test
+    void getByName_noSchemaActivity_returnsEmptyParams() throws Exception {
+        // NOOP 같이 schema 안 박은 활동은 빈 params — 빌더에서 textarea fallback 발동
+        mvc.perform(get("/api/line/activities/NOOP"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.params").isArray())
+                .andExpect(jsonPath("$.params.length()").value(0));
+    }
 }

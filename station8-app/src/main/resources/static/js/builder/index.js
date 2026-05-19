@@ -104,11 +104,16 @@ function populateProps(id) {
         ? '<div class="swe-mute" style="font-size: 12px; padding: var(--space-sm) var(--space-md); background: var(--surface-card); border-radius: var(--radius-sm); margin-bottom: var(--space-sm);">'
             + escapeHtmlBuilder(meta.description) + '</div>'
         : '';
+    // #304 — schema 있으면 form 렌더, 없으면 기존 textarea fallback
+    const paramsBlock = (meta && Array.isArray(meta.params) && meta.params.length > 0)
+        ? renderParamsForm(meta.params, node.data.inputParams)
+        : renderParamsTextarea(node.data.inputParams);
+
     props.innerHTML = '<div class="swe-stack">' +
         descHtml +
         '<div><label>Node ID</label><input class="swe-input" value="' + id + '" disabled></div>' +
         '<div><label>Activity</label><input class="swe-input" value="' + node.data.activityNm + '" disabled></div>' +
-        '<div><label>Input params (JSON)</label><textarea class="swe-input" rows="6" id="paramsInput" style="height: auto; padding: 8px;" placeholder="{}">' + (node.data.inputParams || '') + '</textarea></div>' +
+        paramsBlock +
         '<div><label>DataSource bindings (JSON)</label><textarea class="swe-input" rows="3" id="bindingsInput" style="height: auto; padding: 8px;" placeholder=\'{"source":"oracle-prod","target":"mart"}\'>' + (node.data.datasourceBindings || '') + '</textarea><div class="swe-mute" style="font-size: 11px; margin-top: 4px;">role → DataSource 이름. 액티비티가 <code>@BoundDataSource("role") JdbcTemplate</code>로 받아씀. 비우면 모두 primary fallback.</div></div>' +
         '<button class="swe-btn-tertiary" onclick="updateParams(' + id + ')">Update params + bindings</button>' +
         '<button class="swe-btn-tertiary swe-btn-danger" onclick="deleteNode(' + id + ')">Delete node</button>' +
@@ -116,6 +121,86 @@ function populateProps(id) {
         '<button class="swe-btn-tertiary swe-w-full" onclick="startConnect(' + id + ')">Connect from this node</button>' +
         (connectMode ? '<button class="swe-btn-tertiary swe-w-full" onclick="cancelConnect()">Cancel connect</button>' : '') +
         '</div>';
+}
+
+/** #304 — 기존 free-form textarea (schema 없는 활동용 fallback). */
+function renderParamsTextarea(existing) {
+    return '<div><label>Input params (JSON)</label>' +
+        '<textarea class="swe-input" rows="6" id="paramsInput" style="height: auto; padding: 8px;" placeholder="{}">' +
+        escapeHtmlBuilder(existing || '') + '</textarea></div>';
+}
+
+/**
+ * #304 — schema 기반 form 렌더. data-param-name 속성으로 직렬화 시 식별.
+ * existing inputParams (JSON string)이 있으면 그 값으로 form 초기화 — 사용자가 이전 라인을
+ * 열었을 때 손실 0.
+ */
+function renderParamsForm(params, existingJson) {
+    let existing = {};
+    if (existingJson && existingJson.trim()) {
+        try { existing = JSON.parse(existingJson); } catch (_) { /* invalid JSON — defaultValue 사용 */ }
+    }
+    const fieldsHtml = params.map(p => renderParamField(p, existing[p.name])).join('');
+    return '<div data-params-form="1">' +
+        '<label style="font-weight: 600;">Input params</label>' +
+        '<div class="swe-stack" style="gap: var(--space-sm);">' + fieldsHtml + '</div>' +
+        '<details style="margin-top: var(--space-sm);"><summary class="swe-mute" style="font-size: 11px; cursor: pointer;">JSON raw 보기 / 직접 편집</summary>' +
+        '<textarea class="swe-input" rows="6" id="paramsInput" style="height: auto; padding: 8px; margin-top: var(--space-xs);">' +
+        escapeHtmlBuilder(existingJson || '') + '</textarea>' +
+        '<div class="swe-mute" style="font-size: 11px; margin-top: var(--space-xs);">위 form과 동기화는 Update 시점에 form → JSON 으로 덮어씀. raw 편집은 form에 없는 키만 보존 용도.</div>' +
+        '</details></div>';
+}
+
+/** 단일 ActivityParam → 입력 element. label + (input | select | textarea | checkbox). */
+function renderParamField(p, currentValue) {
+    const id = 'param-' + p.name;
+    const reqMark = p.required ? ' <span style="color: var(--text-error);">*</span>' : '';
+    const desc = p.description
+        ? '<div class="swe-mute" style="font-size: 11px; margin-top: 2px;">' + escapeHtmlBuilder(p.description) + '</div>'
+        : '';
+    const value = currentValue !== undefined && currentValue !== null
+        ? (typeof currentValue === 'string' ? currentValue : JSON.stringify(currentValue))
+        : (p.defaultValue || '');
+
+    let input;
+    switch (p.kind) {
+        case 'NUMBER':
+            input = '<input type="number" class="swe-input" id="' + id + '" data-param-name="' + p.name +
+                '" data-param-kind="NUMBER" value="' + escapeHtmlBuilder(value) + '">';
+            break;
+        case 'BOOLEAN':
+            const checked = (value === true || value === 'true') ? ' checked' : '';
+            input = '<label style="display: flex; align-items: center; gap: var(--space-xs);">' +
+                '<input type="checkbox" id="' + id + '" data-param-name="' + p.name +
+                '" data-param-kind="BOOLEAN"' + checked + '> ' + p.name + '</label>';
+            break;
+        case 'SELECT':
+            const opts = (p.options || []).map(o =>
+                '<option value="' + escapeHtmlBuilder(o) + '"' +
+                (o === value ? ' selected' : '') + '>' + escapeHtmlBuilder(o) + '</option>').join('');
+            input = '<select class="swe-input" id="' + id + '" data-param-name="' + p.name +
+                '" data-param-kind="SELECT">' + opts + '</select>';
+            break;
+        case 'OBJECT':
+            input = '<textarea class="swe-input" rows="3" id="' + id + '" data-param-name="' + p.name +
+                '" data-param-kind="OBJECT" placeholder="{}" style="height: auto; padding: 8px;">' +
+                escapeHtmlBuilder(value) + '</textarea>';
+            break;
+        case 'CREDENTIAL':
+            // sub-issue 2에서 vault dropdown으로 — 일단 text input + 라벨
+            input = '<input type="text" class="swe-input" id="' + id + '" data-param-name="' + p.name +
+                '" data-param-kind="CREDENTIAL" placeholder="vault 등록 이름" value="' +
+                escapeHtmlBuilder(value) + '">' +
+                '<div class="swe-mute" style="font-size: 10px; margin-top: 2px;">credential id — /admin/credentials에서 등록</div>';
+            break;
+        case 'STRING':
+        default:
+            input = '<input type="text" class="swe-input" id="' + id + '" data-param-name="' + p.name +
+                '" data-param-kind="STRING" placeholder="{{ \$prev.json.x }} 표현식 가능" value="' +
+                escapeHtmlBuilder(value) + '">';
+    }
+    return '<div><label for="' + id + '">' + escapeHtmlBuilder(p.name) + reqMark + '</label>' +
+        input + desc + '</div>';
 }
 editor.on('nodeSelected', id => { selectedNodeId = id; populateProps(id); });
 editor.on('nodeUnselected', () => { selectedNodeId = null; });
@@ -125,11 +210,59 @@ editor.on('nodeRemoved', () => { selectedNodeId = null; });
 
 function updateParams(id) {
     const node = editor.getNodeFromId(id);
-    node.data.inputParams = document.getElementById('paramsInput').value;
+    // #304 — schema form이 렌더된 경우 form 필드를 우선, raw textarea는 form에 없는 키 보존용
+    const formContainer = document.querySelector('[data-params-form="1"]');
+    if (formContainer) {
+        node.data.inputParams = serializeParamsForm(formContainer);
+    } else {
+        node.data.inputParams = document.getElementById('paramsInput').value;
+    }
     const bindingsEl = document.getElementById('bindingsInput');
     if (bindingsEl) node.data.datasourceBindings = bindingsEl.value;
     editor.updateNodeDataFromId(id, node.data);
     setStatus('Updated node #' + id);
+}
+
+/**
+ * #304 — schema form의 모든 [data-param-name] 필드를 모아 JSON object로. raw textarea의 추가 키는
+ * 보존 (form에 없는 키만 merge — 점진 도입 시 호환).
+ */
+function serializeParamsForm(container) {
+    const inputs = container.querySelectorAll('[data-param-name]');
+    const obj = {};
+    inputs.forEach(el => {
+        const name = el.getAttribute('data-param-name');
+        const kind = el.getAttribute('data-param-kind');
+        let value;
+        switch (kind) {
+            case 'NUMBER':
+                value = el.value === '' ? undefined : Number(el.value);
+                if (isNaN(value)) value = el.value;  // 표현식 사용 시 그대로 둠
+                break;
+            case 'BOOLEAN':
+                value = el.checked;
+                break;
+            case 'OBJECT':
+                if (el.value.trim()) {
+                    try { value = JSON.parse(el.value); } catch (_) { value = el.value; }
+                }
+                break;
+            default:  // STRING / SELECT / CREDENTIAL
+                if (el.value !== '') value = el.value;
+        }
+        if (value !== undefined) obj[name] = value;
+    });
+    // raw textarea에 form에 없는 키가 있으면 보존
+    const raw = document.getElementById('paramsInput');
+    if (raw && raw.value.trim()) {
+        try {
+            const rawObj = JSON.parse(raw.value);
+            for (const k in rawObj) {
+                if (!(k in obj)) obj[k] = rawObj[k];
+            }
+        } catch (_) { /* invalid raw — form 우선 */ }
+    }
+    return JSON.stringify(obj);
 }
 
 function deleteNode(id) {

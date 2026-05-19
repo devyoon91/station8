@@ -1,6 +1,8 @@
 package com.station8.engine.core.builtin.file;
 
 import com.station8.engine.annotation.Activity;
+import com.station8.engine.annotation.ActivityParam;
+import com.station8.engine.annotation.ActivityParam.Kind;
 import com.station8.engine.annotation.LineDefinition;
 import com.station8.engine.core.NoRetryException;
 import com.station8.engine.util.JsonUtil;
@@ -44,7 +46,21 @@ public class FileReadActivity {
     }
 
     @Activity(value = "file.read", retryCount = 3, backoffSeconds = 2,
-            description = "파일 읽기 — built-in. URI는 file:// (SFTP/S3는 별도 sub-issue), format=text|json|binary.")
+            description = "파일 읽기 — built-in. URI scheme로 backend dispatch (file/sftp/s3).",
+            params = {
+                @ActivityParam(name = "uri", kind = Kind.STRING, required = true,
+                        description = "file:// / sftp:// / s3:// URI 또는 절대 path. 표현식 가능."),
+                @ActivityParam(name = "format", kind = Kind.SELECT,
+                        options = {"text", "json", "binary"},
+                        defaultValue = "text",
+                        description = "응답 content 형태. binary는 Base64로."),
+                @ActivityParam(name = "encoding", kind = Kind.STRING,
+                        defaultValue = "UTF-8",
+                        description = "text/json 모드 charset. binary는 무시."),
+                @ActivityParam(name = "credentialId", kind = Kind.CREDENTIAL,
+                        description = "SFTP/S3 인증용. local backend는 무시.",
+                        options = {"sftp_password", "sftp_key", "s3_access_key"})
+            })
     public String read(String inputJson) {
         FileReadInput input = parseInput(inputJson);
         validate(input);

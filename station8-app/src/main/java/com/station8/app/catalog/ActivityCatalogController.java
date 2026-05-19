@@ -1,5 +1,6 @@
 package com.station8.app.catalog;
 
+import com.station8.engine.annotation.ActivityParam;
 import com.station8.engine.core.LineRegistry;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -79,6 +80,10 @@ public class ActivityCatalogController {
         List<String> paramTypes = Arrays.stream(m.getParameterTypes())
                 .map(Class::getName)
                 .toList();
+        List<ActivityCatalogEntry.ParamSchema> params =
+                Arrays.stream(meta.annotation().params())
+                        .map(ActivityCatalogController::toParamSchema)
+                        .toList();
         return new ActivityCatalogEntry(
                 activityName,
                 beanClassName,
@@ -87,7 +92,19 @@ public class ActivityCatalogController {
                 meta.annotation().backoffSeconds(),
                 paramTypes,
                 m.getReturnType().getName(),
-                meta.annotation().description()
+                meta.annotation().description(),
+                params
         );
+    }
+
+    /** #304 — @ActivityParam → DTO. enum kind는 name() 문자열로 직렬화. */
+    private static ActivityCatalogEntry.ParamSchema toParamSchema(ActivityParam p) {
+        return new ActivityCatalogEntry.ParamSchema(
+                p.name(),
+                p.kind().name(),
+                p.required(),
+                p.description(),
+                Arrays.asList(p.options()),
+                p.defaultValue());
     }
 }

@@ -1,6 +1,8 @@
 package com.station8.engine.core.builtin;
 
 import com.station8.engine.annotation.Activity;
+import com.station8.engine.annotation.ActivityParam;
+import com.station8.engine.annotation.ActivityParam.Kind;
 import com.station8.engine.annotation.LineDefinition;
 import com.station8.engine.core.CredentialResolver;
 import com.station8.engine.core.NoRetryException;
@@ -106,7 +108,26 @@ public class HttpRequestActivity {
     }
 
     @Activity(value = "http.request", retryCount = 3, backoffSeconds = 2,
-            description = "HTTP request 노드 — built-in. method/url/headers/body/credentialId 입력으로.")
+            description = "HTTP request 노드 — built-in. method/url/headers/body/credentialId 입력으로.",
+            params = {
+                @ActivityParam(name = "method", kind = Kind.SELECT, required = true,
+                        options = {"GET", "POST", "PUT", "DELETE", "PATCH"},
+                        defaultValue = "GET",
+                        description = "HTTP 메서드. POST/PUT/PATCH만 body 사용."),
+                @ActivityParam(name = "url", kind = Kind.STRING, required = true,
+                        description = "절대 URL (http:// 또는 https://). 표현식 사용 가능."),
+                @ActivityParam(name = "headers", kind = Kind.OBJECT,
+                        description = "추가 헤더 JSON object. credential 자동 헤더보다 우선.",
+                        defaultValue = "{}"),
+                @ActivityParam(name = "body", kind = Kind.OBJECT,
+                        description = "POST/PUT/PATCH 본문. string이면 그대로, object면 JSON serialize."),
+                @ActivityParam(name = "timeoutMs", kind = Kind.NUMBER,
+                        description = "ms 단위. default 30000, max 300000.",
+                        defaultValue = "30000"),
+                @ActivityParam(name = "credentialId", kind = Kind.CREDENTIAL,
+                        description = "vault 등록 이름. type별로 Authorization 등 자동 주입.",
+                        options = {"http_bearer", "http_basic", "api_key", "generic"})
+            })
     public String request(String inputJson) {
         HttpRequestInput input = parseInput(inputJson);
         validate(input);
