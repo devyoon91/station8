@@ -233,6 +233,18 @@ $ctx = {
 
 ---
 
+## 8. 빌더 UX — 자동완성과 미리보기
+
+라인 빌더 properties 패널의 STRING / OBJECT input은 표현식 affordance가 붙는다:
+
+- **자동완성**: `{{ ` 를 입력하면 변수 dropdown이 뜬다 (`$prev.json` / `$ctx.input` / `$ctx.run.id` 등 8종). 클릭하면 커서 위치에 삽입되고 `}}`까지 자동으로 닫는다. Esc로 닫기.
+- **하이라이트 preview**: input 바로 아래 텍스트로 `{{ ... }}` 부분만 색을 다르게 칠한 미리보기. 표현식이 의도대로 묶였는지 한눈에.
+- **🪄 Test 버튼**: 현재 input 값을 백엔드로 보내 dummy `$prev` / `$ctx`로 평가해서 결과를 인라인으로 보여준다. 무한 루프 방어로 5초 timeout. 사용자 dummy 데이터 커스터마이즈는 추후.
+
+내부적으로 `POST /api/line/expressions/_evaluate` 가 호출된다. 같은 `ExpressionEvaluator`를 쓰므로 운영 평가 경로와 동작이 일치 — 빌더에서 통과한 표현식은 라인 실행 시에도 같은 결과.
+
+---
+
 ## 관련 문서
 
 - [docs/HOWTO.md](HOWTO.md) — 액티비티 / DAG / 운영 전반

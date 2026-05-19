@@ -205,8 +205,10 @@ function renderParamField(p, currentValue) {
             break;
         case 'OBJECT':
             input = '<textarea class="swe-input" rows="3" id="' + id + '" data-param-name="' + p.name +
-                '" data-param-kind="OBJECT" placeholder="{}" style="height: auto; padding: 8px;">' +
-                escapeHtmlBuilder(value) + '</textarea>';
+                '" data-param-kind="OBJECT" placeholder="{}" style="height: auto; padding: 8px;" ' +
+                'oninput="onExprInput(this)" onkeydown="onExprKeydown(event, this)">' +
+                escapeHtmlBuilder(value) + '</textarea>' +
+                renderExprAffordance(id, value);
             break;
         case 'CREDENTIAL':
             // #305 — vault dropdown. options 비어있으면 모든 credential, 있으면 type 화이트리스트.
@@ -216,7 +218,8 @@ function renderParamField(p, currentValue) {
         default:
             input = '<input type="text" class="swe-input" id="' + id + '" data-param-name="' + p.name +
                 '" data-param-kind="STRING" placeholder="{{ \$prev.json.x }} 표현식 가능" value="' +
-                escapeHtmlBuilder(value) + '">';
+                escapeHtmlBuilder(value) + '" oninput="onExprInput(this)" onkeydown="onExprKeydown(event, this)">' +
+                renderExprAffordance(id, value);
     }
     return '<div><label for="' + id + '">' + escapeHtmlBuilder(p.name) + reqMark + '</label>' +
         input + desc + '</div>';
@@ -271,6 +274,184 @@ function renderCredentialPicker(id, p, currentValue) {
         '</div>' +
         orphanWarn;
 }
+
+// ============ #306 — 표현식 affordance (autocomplete + preview + test) ============
+
+/** STRING/OBJECT input 하단에 붙는 보조 UI: highlighted preview + Test 버튼. */
+function renderExprAffordance(inputId, currentValue) {
+    const preview = (currentValue || '').includes('{{')
+        ? renderExprPreview(currentValue)
+        : '';
+    return '<div class="swe-expr-affordance" data-target="' + inputId + '" style="margin-top: 2px;">' +
+        '<div class="swe-expr-preview" id="' + inputId + '-preview" style="font-family: monospace; font-size: 11px; color: var(--text-subtle);">' +
+        preview + '</div>' +
+        '<button type="button" class="swe-btn-tertiary" onclick="testExpression(\'' + inputId + '\')" ' +
+        'style="font-size: 11px; padding: 2px 8px; margin-top: 2px;">🪄 Test</button>' +
+        '<div id="' + inputId + '-result" style="font-family: monospace; font-size: 11px; margin-top: 2px;"></div>' +
+        '</div>';
+}
+
+/** {{ ... }} 부분만 색 다르게 칠한 HTML — 단순 span wrap. */
+function renderExprPreview(text) {
+    if (!text || !text.includes('{{')) return '';
+    return escapeHtmlBuilder(text)
+        .replace(/(\{\{[^}]*\}\})/g, '<span style="color: var(--accent-blue, #2563eb); background: rgba(37,99,235,0.08); padding: 0 2px; border-radius: 2px;">$1</span>');
+}
+
+/** input 변경 시 preview 갱신 + autocomplete 표시 여부 판단. */
+function onExprInput(el) {
+    const previewEl = document.getElementById(el.id + '-preview');
+    if (previewEl) previewEl.innerHTML = renderExprPreview(el.value);
+    // 결과 영역은 input 변경하면 초기화
+    const resultEl = document.getElementById(el.id + '-result');
+    if (resultEl) resultEl.innerHTML = '';
+    maybeShowAutocomplete(el);
+}
+
+/** Esc 누르면 dropdown 닫기. */
+function onExprKeydown(ev, el) {
+    if (ev.key === 'Escape') {
+        hideAutocomplete();
+    }
+}
+
+/** 커서 직전이 `{{` (또는 `{{` + 공백)이면 dropdown 띄움. */
+function maybeShowAutocomplete(el) {
+    const pos = el.selectionStart;
+    const before = el.value.substring(0, pos);
+    // 마지막 `{{` 위치 찾기 — 그 뒤에 `}}`가 없으면 미완 표현식 = autocomplete 대상
+    const lastOpen = before.lastIndexOf('{{');
+    if (lastOpen < 0) { hideAutocomplete(); return; }
+    const afterOpen = before.substring(lastOpen);
+    if (afterOpen.includes('}}')) { hideAutocomplete(); return; }
+    // `{{` 뒤가 빈 문자열이거나 공백뿐이면 dropdown — 변수 이름 일부 입력 중일 땐 안 띄움
+    // (간단 룰. 더 좋은 fuzzy match는 후속)
+    const trimmed = afterOpen.substring(2).trimStart();
+    if (trimmed.length > 0 && !trimmed.startsWith('$')) {
+        // 사용자가 이미 뭘 치고 있음 — 방해 안 함
+        hideAutocomplete();
+        return;
+    }
+    showAutocomplete(el);
+}
+
+/** {{ 직후 자동완성 dropdown. 절대 위치로 input 바로 아래에 붙임. */
+function showAutocomplete(el) {
+    let drop = document.getElementById('swe-expr-autocomplete');
+    if (!drop) {
+        drop = document.createElement('div');
+        drop.id = 'swe-expr-autocomplete';
+        drop.style.cssText = 'position: absolute; background: var(--surface-card, #fff); border: 1px solid var(--hairline, #ddd); ' +
+            'border-radius: 4px; padding: 4px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); ' +
+            'z-index: 9999; min-width: 240px; font-size: 12px; font-family: monospace;';
+        document.body.appendChild(drop);
+    }
+    drop.innerHTML = EXPR_VARS.map(v =>
+        '<div class="swe-autocomplete-item" data-insert="' + escapeHtmlBuilder(v.insert) + '" ' +
+        'style="padding: 6px 12px; cursor: pointer;" ' +
+        'onmouseover="this.style.background=\'var(--surface-hover, #f3f4f6)\'" ' +
+        'onmouseout="this.style.background=\'\'">' +
+        '<strong>' + escapeHtmlBuilder(v.insert) + '</strong>' +
+        '<div style="font-size: 10px; color: var(--text-subtle); margin-top: 2px;">' +
+        escapeHtmlBuilder(v.desc) + '</div></div>').join('');
+    // 클릭 → 삽입
+    drop.querySelectorAll('.swe-autocomplete-item').forEach(item => {
+        item.addEventListener('click', () => {
+            insertAtCursor(el, item.getAttribute('data-insert'));
+            hideAutocomplete();
+        });
+    });
+    // 위치 — input 바로 아래
+    const rect = el.getBoundingClientRect();
+    drop.style.left = (rect.left + window.scrollX) + 'px';
+    drop.style.top = (rect.bottom + window.scrollY) + 'px';
+    drop.style.display = 'block';
+}
+
+function hideAutocomplete() {
+    const drop = document.getElementById('swe-expr-autocomplete');
+    if (drop) drop.style.display = 'none';
+}
+
+/** 커서 위치에 텍스트 삽입 + }} 닫기 + preview 갱신. */
+function insertAtCursor(el, snippet) {
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const before = el.value.substring(0, start);
+    const after = el.value.substring(end);
+    // {{ 후에 공백이 없으면 보강
+    const needsSpace = !before.endsWith(' ');
+    const insertion = (needsSpace ? ' ' : '') + snippet;
+    // 닫는 }} 가 뒤에 없으면 추가
+    const afterTrim = after.trimStart();
+    const needsClose = !afterTrim.startsWith('}}');
+    const closing = needsClose ? ' }}' : '';
+    el.value = before + insertion + closing + after;
+    // 커서를 삽입 끝 (닫기 직전) 으로
+    const newPos = before.length + insertion.length;
+    el.setSelectionRange(newPos, newPos);
+    el.focus();
+    onExprInput(el);
+}
+
+/** 자주 쓰는 변수 5종 — autocomplete 옵션. */
+const EXPR_VARS = [
+    {insert: '$prev.json', desc: '직전 노드 출력의 JSON 본문'},
+    {insert: '$ctx.input', desc: '라인 입력 (run-now 시 전달한 JSON)'},
+    {insert: '$ctx.run.id', desc: '인스턴스 ID'},
+    {insert: '$ctx.run.attempt', desc: '재시도 횟수 (1부터)'},
+    {insert: '$ctx.line.name', desc: '라인 정의 이름'},
+    {insert: '$ctx.line.activity', desc: '현재 활동 이름'},
+    {insert: '$ctx.runtime', desc: 'RUN_OPTIONS named params'},
+    {insert: '$credentials', desc: 'vault credential. $credentials.<name>.value'}
+];
+
+/** Test 버튼 — 현재 input 값을 dry-run endpoint로 평가, 결과를 result div에 표시. */
+async function testExpression(inputId) {
+    const el = document.getElementById(inputId);
+    const resultEl = document.getElementById(inputId + '-result');
+    if (!el || !resultEl) return;
+    const expr = el.value;
+    if (!expr || !expr.includes('{{')) {
+        resultEl.innerHTML = '<span style="color: var(--text-subtle);">표현식이 없음 — {{ ... }} 입력하면 평가 가능</span>';
+        return;
+    }
+    resultEl.innerHTML = '<span style="color: var(--text-subtle);">평가 중...</span>';
+    try {
+        const res = await fetch('/api/line/expressions/_evaluate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({expression: expr})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            const resultStr = (typeof data.result === 'string')
+                ? data.result
+                : JSON.stringify(data.result);
+            resultEl.innerHTML = '<span style="color: var(--accent-green, #16a34a);">✓</span> ' +
+                '<span style="color: var(--text-subtle);">(' + escapeHtmlBuilder(data.resultType) + ', ' +
+                data.durationMs + 'ms)</span> ' +
+                '<code style="background: var(--surface-card); padding: 1px 4px; border-radius: 2px;">' +
+                escapeHtmlBuilder(resultStr) + '</code>';
+        } else {
+            resultEl.innerHTML = '<span style="color: var(--accent-red, #dc2626);">✗</span> ' +
+                escapeHtmlBuilder(data.error || 'eval failed');
+        }
+    } catch (e) {
+        resultEl.innerHTML = '<span style="color: var(--accent-red, #dc2626);">✗</span> ' +
+            escapeHtmlBuilder('네트워크 오류: ' + e.message);
+    }
+}
+
+// 빌더 영역 밖 클릭 시 autocomplete 닫기
+document.addEventListener('click', ev => {
+    const drop = document.getElementById('swe-expr-autocomplete');
+    if (!drop || drop.style.display === 'none') return;
+    if (drop.contains(ev.target)) return;
+    // input 자체 클릭이면 maybeShow가 다시 띄움 — 일단 닫음
+    if (ev.target.matches('input[data-param-kind], textarea[data-param-kind]')) return;
+    hideAutocomplete();
+});
 
 /** #305 — vault refetch 후 현재 선택된 노드 properties 다시 그림. */
 async function refreshCredentialsAndRepaint() {
