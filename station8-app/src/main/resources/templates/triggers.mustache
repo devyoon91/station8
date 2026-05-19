@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Triggers — Line Engine</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/design.css">
+</head>
+<body>
+{{> _nav }}
+
+<div class="swe-container" style="padding-top: var(--space-xxl); padding-bottom: var(--space-section);">
+
+    <div class="swe-flex-between swe-mb-xl">
+        <div>
+            <h1 class="swe-display-lg" style="margin: 0;">Triggers</h1>
+            <p class="swe-body-md swe-mute" style="margin: var(--space-sm) 0 0;">cron 외 trigger 관리 — 외부 시스템이 라인을 시작하는 진입점</p>
+        </div>
+        {{#currentUser.admin}}
+        <button type="button" class="swe-btn-primary" onclick="openCreate()">+ New Trigger</button>
+        {{/currentUser.admin}}
+    </div>
+
+    <div class="swe-card" style="padding: 0;">
+        <table class="swe-table">
+            <thead>
+            <tr>
+                <th>Type</th>
+                <th>Key</th>
+                <th>Definition</th>
+                <th>Endpoint</th>
+                <th>Active</th>
+                <th class="swe-text-right">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#triggers}}
+            <tr>
+                <td><span class="swe-keycap">{{triggerType}}</span></td>
+                <td><code>{{triggerKey}}</code></td>
+                <td>{{definitionNm}} <span class="swe-mute" style="font-size: 11px;">({{definitionId}})</span></td>
+                <td>
+                    {{#isWebhook}}
+                    <code style="font-size: 11px;">{{webhookUrl}}</code>
+                    <button type="button" class="swe-btn-tertiary" style="font-size: 10px; padding: 2px 8px; margin-left: var(--space-xs);"
+                            onclick="copyToClipboard('{{webhookUrl}}')">copy</button>
+                    {{/isWebhook}}
+                    {{^isWebhook}}<span class="swe-mute">—</span>{{/isWebhook}}
+                </td>
+                <td>
+                    {{#isActive}}<span style="color: var(--accent-green);">● active</span>{{/isActive}}
+                    {{^isActive}}<span class="swe-mute">○ paused</span>{{/isActive}}
+                </td>
+                <td class="swe-text-right">
+                    {{#currentUser.admin}}
+                    <button type="button" class="swe-btn-tertiary" onclick="toggleActive('{{id}}', '{{activeFl}}')">
+                        {{#isActive}}Pause{{/isActive}}{{^isActive}}Resume{{/isActive}}
+                    </button>
+                    <button type="button" class="swe-btn-tertiary swe-btn-danger" onclick="deleteTrigger('{{id}}', '{{triggerKey}}')">Delete</button>
+                    {{/currentUser.admin}}
+                </td>
+            </tr>
+            {{/triggers}}
+            {{^triggers}}
+            <tr><td colspan="6" class="swe-mute" style="text-align: center; padding: var(--space-xl);">등록된 trigger가 없습니다.</td></tr>
+            {{/triggers}}
+            </tbody>
+        </table>
+    </div>
+
+    {{#currentUser.admin}}
+    <!-- Create modal — 운영자가 + New Trigger 누르면 표시 -->
+    <div id="create-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;" onclick="if(event.target===this)closeCreate()">
+        <div class="swe-card" style="max-width: 640px; margin: 60px auto; padding: var(--space-xl);">
+            <h2 class="swe-display-md" style="margin-top: 0;">New Trigger</h2>
+            <form onsubmit="event.preventDefault(); submitCreate();">
+                <div class="swe-stack">
+                    <div>
+                        <label for="trg-type">Type</label>
+                        <select id="trg-type" class="swe-input" onchange="updateConfigHint()">
+                            <option value="webhook">webhook</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="trg-key">Key <span style="color: var(--text-error);">*</span></label>
+                        <input id="trg-key" class="swe-input" placeholder="incoming-orders" pattern="^[a-z0-9_-]+$" required>
+                        <div class="swe-mute" style="font-size: 11px; margin-top: 2px;">lowercase / 숫자 / dash / underscore 만 (URL path가 됨)</div>
+                    </div>
+                    <div>
+                        <label for="trg-def">Definition <span style="color: var(--text-error);">*</span></label>
+                        <select id="trg-def" class="swe-input" required>
+                            <option value="">— select line definition —</option>
+                            {{#definitions}}
+                            <option value="{{id}}">{{definitionNm}}</option>
+                            {{/definitions}}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="trg-config">Config JSON <span style="color: var(--text-error);">*</span></label>
+                        <textarea id="trg-config" class="swe-input" rows="4" style="height: auto; padding: 8px; font-family: monospace;" required>{
+  "hmacSecret": "your-credential-name"
+}</textarea>
+                        <div id="config-hint" class="swe-mute" style="font-size: 11px; margin-top: 2px;">
+                            webhook: <code>hmacSecret</code> 필드에 vault의 <code>webhook_hmac</code> credential 이름.
+                            선택 필드: <code>allowedMethods</code> (default <code>["POST"]</code>).
+                        </div>
+                    </div>
+                    <div id="create-error" style="color: var(--accent-red); font-size: 12px; display: none;"></div>
+                    <div style="display: flex; gap: var(--space-sm); justify-content: flex-end;">
+                        <button type="button" class="swe-btn-tertiary" onclick="closeCreate()">Cancel</button>
+                        <button type="submit" class="swe-btn-primary">Create</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {{/currentUser.admin}}
+
+    <!-- 등록 직후 webhook 사용 예시 -->
+    <div class="swe-card" style="padding: var(--space-lg); margin-top: var(--space-xl);">
+        <h3 class="swe-display-sm" style="margin-top: 0;">Webhook trigger 호출 예시</h3>
+        <pre style="background: var(--surface-card); padding: var(--space-md); border-radius: 4px; overflow-x: auto; font-size: 12px;"><code>BODY='{"orderId":"42"}'
+SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^.* //')
+
+curl -X POST {{baseUrl}}/api/triggers/webhook/&lt;key&gt; \
+  -H "X-Signature: $SIG" \
+  -H "Content-Type: application/json" \
+  -d "$BODY"</code></pre>
+        <div class="swe-mute" style="font-size: 11px; margin-top: var(--space-sm);">
+            <code>$SECRET</code>은 vault에 <code>webhook_hmac</code> credential로 등록한 평문 secret과 같아야 함.
+            자세한 운영 가이드는 <a href="https://github.com/devyoon91/station8/blob/main/docs/HOWTO.md">HOWTO.md §3.4</a>.
+        </div>
+    </div>
+</div>
+
+<script>
+function openCreate() {
+    document.getElementById('create-modal').style.display = 'block';
+    document.getElementById('create-error').style.display = 'none';
+}
+function closeCreate() {
+    document.getElementById('create-modal').style.display = 'none';
+}
+
+function updateConfigHint() {
+    // 현재 webhook만 — 다른 type 도입 시 분기 추가
+}
+
+async function submitCreate() {
+    const errEl = document.getElementById('create-error');
+    errEl.style.display = 'none';
+    const body = {
+        triggerType: document.getElementById('trg-type').value,
+        triggerKey: document.getElementById('trg-key').value,
+        definitionId: document.getElementById('trg-def').value,
+        configJson: document.getElementById('trg-config').value,
+        activeFl: 'Y'
+    };
+    try {
+        const csrf = getCsrfToken();
+        const res = await fetch('/api/line/triggers', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', ...csrf},
+            body: JSON.stringify(body)
+        });
+        if (res.status === 201) {
+            location.reload();
+        } else {
+            const data = await res.json().catch(() => ({}));
+            errEl.textContent = data.message || data.error || ('HTTP ' + res.status);
+            errEl.style.display = 'block';
+        }
+    } catch (e) {
+        errEl.textContent = '네트워크 오류: ' + e.message;
+        errEl.style.display = 'block';
+    }
+}
+
+async function toggleActive(id, currentFl) {
+    // 현재 행의 모든 필드를 보존하면서 active만 토글
+    const res = await fetch('/api/line/triggers/' + id);
+    if (!res.ok) {
+        alert('trigger 조회 실패: ' + res.status);
+        return;
+    }
+    const t = await res.json();
+    const newActive = currentFl === 'Y' ? 'N' : 'Y';
+    const csrf = getCsrfToken();
+    const put = await fetch('/api/line/triggers/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json', ...csrf},
+        body: JSON.stringify({
+            definitionId: t.definitionId,
+            triggerType: t.triggerType,
+            triggerKey: t.triggerKey,
+            configJson: t.configJson,
+            activeFl: newActive
+        })
+    });
+    if (put.ok) location.reload();
+    else alert('toggle 실패: ' + put.status);
+}
+
+async function deleteTrigger(id, key) {
+    if (!confirm('trigger "' + key + '" 삭제?')) return;
+    const csrf = getCsrfToken();
+    const res = await fetch('/api/line/triggers/' + id, {
+        method: 'DELETE',
+        headers: csrf
+    });
+    if (res.ok) location.reload();
+    else alert('삭제 실패: ' + res.status);
+}
+
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="_csrf"]');
+    const header = document.querySelector('meta[name="_csrf_header"]');
+    if (meta && header) {
+        return {[header.content]: meta.content};
+    }
+    return {};
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // 짧은 시각적 피드백 — 향후 toast notification로 대체 가능
+    });
+}
+</script>
+
+</body>
+</html>
