@@ -1,180 +1,107 @@
 # Credential Vault — 운영 가이드
 
-라인 활동이 외부 시스템에 접근할 때 쓰는 secret을 보호한다. AES-GCM 256-bit으로 암호화해 `U_LINE_CREDENTIAL.VALUE_ENC`에 저장, 활동 실행 시 `{{ $credentials.<name>.value }}` 표현식으로 평문 1회 해소. 마스터 키(`STATION8_CREDENTIAL_KEY`)만 외부에서 주입한다.
+라인 활동이 외부 시스템에 접근할 때 쓰는 secret을 보관하는 작은 vault다. 평문을 그대로 DB에 두지 않고, 마스터 키 하나로 AES-GCM(Galois/Counter Mode — 변조 감지가 결합된 표준 대칭 암호) 256비트로 암호화해서 `U_LINE_CREDENTIAL.VALUE_ENC`에 저장한다. 활동이 실행되면 표현식 `{{ $credentials.<name>.value }}` 평가 시점에 한 번 복호화돼서 활동 메서드에 전달된다.
 
-> DataSource 비밀번호 보안은 별도 layer다. 둘 다 "secret"이지만 라이프사이클이 다르다 — 자세한 비교는 #112.
+마스터 키 자체는 앱 안에 없다. 환경변수 `STATION8_CREDENTIAL_KEY`로 외부에서 주입한다. 이 한 줄이 vault의 안전성을 전부 결정하므로 키 관리 = vault 관리다.
 
----
+DataSource 비밀번호와는 다른 영역이다. 라인 활동이 실행 *도중* 쓰는 secret(API 토큰 등)이 vault에 들어가고, 부팅 시 DB pool을 만들기 위한 DataSource 비번은 별도 layer다. 두 secret이 같은 단어를 공유하지만 라이프사이클과 해소 시점이 다르다. DataSource 쪽은 [#112](https://github.com/devyoon91/station8/issues/112)에서 별도 정리.
 
-## 1. 마스터 키 — `STATION8_CREDENTIAL_KEY`
+## 마스터 키 다루기
 
-### 키 생성
+키를 만들 때:
 
-```bash
+```
 openssl rand -base64 32
 ```
 
-Base64 인코딩된 정확히 32 bytes (256-bit). 길이가 다르면 부팅 WARN + vault 호출 시 `IllegalStateException`.
+Base64로 인코딩된 32바이트가 나온다. 다른 길이를 넣으면 부팅 시 경고 로그가 찍히고, vault API를 호출하는 순간 `IllegalStateException`으로 실패한다. 앱 자체는 산다 — vault를 안 쓰는 환경에서 boot를 막지 않으려는 의도다.
 
-### 키 주입
+주입 방법은 실행 형태에 따라:
 
-| 실행 형태 | 방법 |
-|---|---|
-| local jar | `STATION8_CREDENTIAL_KEY=... java -jar station8-app.jar` |
-| docker compose | `./.env` 또는 `docker/.env`에 `STATION8_CREDENTIAL_KEY=...` (env_file이 컨테이너에 전달) |
-| k8s | `Secret` 리소스 생성 후 `envFrom` 또는 single `env.valueFrom.secretKeyRef`로 매핑 |
-| 폐쇄망 sealed envelope | 부팅 직전 운영자가 envFile에 한 줄 추가, 부팅 후 디스크에서 제거 (다음 부팅 시 재주입 필요) |
+- 로컬 jar: `STATION8_CREDENTIAL_KEY=... java -jar station8-app.jar`
+- docker compose: `.env` 또는 `docker/.env`에 `STATION8_CREDENTIAL_KEY=...` 한 줄. compose의 `env_file`이 컨테이너에 넘긴다
+- Kubernetes: `Secret` 리소스에 키를 두고 Pod spec의 `envFrom`이나 `env.valueFrom.secretKeyRef`로 매핑. 자세한 패턴은 K8s 공식 [Secret 가이드](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables) 참조
 
-### 부팅 동작
+부팅 로그로 상태를 확인할 수 있다. 키가 정상이면 INFO 한 줄: `CredentialCrypto initialized — AES-GCM 256-bit key loaded`. 미설정이면 WARN: `STATION8_CREDENTIAL_KEY 미설정 — credential vault 호출 시 실패함`. 길이나 인코딩이 깨졌으면 WARN 메시지가 그 사유를 알려준다.
 
-| 상태 | 로그 | vault API |
-|---|---|---|
-| 키 정상 (32 bytes Base64) | `INFO CredentialCrypto initialized — AES-GCM 256-bit key loaded` | 정상 |
-| 키 미설정 | `WARN STATION8_CREDENTIAL_KEY 미설정 — credential vault 호출 시 실패함` | 500 (`IllegalStateException`) |
-| 길이 / Base64 오류 | `WARN STATION8_CREDENTIAL_KEY 길이 오류` 또는 `valid Base64가 아님` | 500 (위와 동일) |
+## 키 rotation
 
-키가 없어도 앱 자체는 부팅 — credential vault를 안 쓰는 환경/테스트에서 boot 차단 안 되게 한 의도적 선택.
+지금 코드는 키 하나만 본다. 무중단 rotation(앱이 떠있는 채로 키 교체)은 두 키 동시 보유와 일괄 재암호화 도구가 추가로 필요해서 별도 작업으로 빠져있다. 그래서 운영 절차는 두 가지로 나눠 정리한다.
 
----
+### 무중단 — 향후 가능해질 절차
 
-## 2. 키 rotation 절차
+dual-key 도구가 추가된 뒤(별도 sub-issue로 등록 예정):
 
-### 현재 구현 상태
+1. 새 키 생성. `openssl rand -base64 32`
+2. `STATION8_CREDENTIAL_KEY_NEXT`에 새 키를 넣고 앱 재시작. 양쪽 키를 둘 다 메모리에 들고 있고, 복호화는 두 키 모두 시도하고 새 암호화는 새 키만 사용
+3. 재암호화 endpoint 호출. 모든 활성 credential을 한꺼번에 옛 키로 복호화 → 새 키로 재암호화 후 저장. 영향 행 수를 미리 보는 dry-run 옵션을 같이 둘 것
+4. `STATION8_CREDENTIAL_KEY`를 새 키로 교체, `STATION8_CREDENTIAL_KEY_NEXT`를 비우고 재시작
+5. [`scripts/scenarios/10-credential-vault-audit.sh`](../scripts/scenarios/10-credential-vault-audit.sh)를 돌려 등록·해소가 정상인지 확인
 
-코드에는 **단일 키 (`STATION8_CREDENTIAL_KEY`) 로딩만** 구현됨. 무중단 hot rotation은 `STATION8_CREDENTIAL_KEY_NEXT` dual-key 지원 + 일괄 재암호화 endpoint 도입 후 가능 — 별도 sub-issue로 정리.
+### 다운타임 — 지금 가능한 방법
 
-본 섹션은 **target 절차 (A)** 와 **다운타임 fallback (B)** 둘 다 기재한다.
+dual-key 도구가 없는 동안은 cold swap(앱을 내렸다가 키 바꿔 다시 띄우는 방식)이 유일한 안전한 길이다. 실행 중인 라인 인스턴스가 없을 때 해야 한다.
 
-### A. 무중단 hot rotation — target
+1. 실행 중인 활동을 모두 비운다. cron 비활성, in-flight 인스턴스가 자연 종료될 때까지 대기. `curl /api/line/instances?status=RUNNING`이 빈 배열인지 확인
+2. 앱을 내린다
+3. 임시 utility로 모든 active credential을 옛 키로 복호화 → 새 키로 재암호화. 본 PR에는 도구 미포함이라 — 운영 데이터가 거의 없을 때 키를 고정해두는 것이 가장 안전하다
+4. `STATION8_CREDENTIAL_KEY`를 교체하고 앱 재시작
+5. audit 스크립트로 확인 (위 §무중단의 step 5와 동일)
 
-dual-key 지원이 도입되면 (별도 sub-issue):
+언제 누가 rotation 했는지는 운영팀의 외부 도구(Slack pin, Confluence 등)로 남긴다. 앱 안에는 아직 audit 로그 테이블이 없다.
 
-1. **새 키 생성**
-   ```bash
-   openssl rand -base64 32 > /run/secrets/credential.key.new
-   ```
-2. **`STATION8_CREDENTIAL_KEY_NEXT` 환경변수 셋, 앱 재시작 (또는 hot reload)**
-   - 양 키 메모리 동시 보유. decrypt는 `KEY` 먼저 시도 → 실패 시 `KEY_NEXT`. encrypt는 `KEY`만 사용
-3. **일괄 재암호화**
-   - `POST /api/admin/credentials/_rotate-keys` (dry-run 옵션으로 영향 row 미리 확인 가능)
-   - 또는 CLI: `./gradlew :station8-app:credentialRotate`
-   - 모든 active 행에 대해 decrypt(KEY) → encrypt(KEY_NEXT) → update
-4. **키 swap**
-   - `STATION8_CREDENTIAL_KEY` ← 새 키, `STATION8_CREDENTIAL_KEY_NEXT` 제거. 앱 재시작
-5. **검증**
-   ```bash
-   bash scripts/scenarios/10-credential-vault-audit.sh
-   # 새 credential 등록 + 기존 credential 해소가 정상 동작하는지
-   ```
+## 키를 잃어버리면
 
-### B. 다운타임 cold rotation — 현재 가능한 fallback
+복구 불가능하다. AES-GCM은 키 없이는 ciphertext에서 평문을 얻을 방법이 없다. 우회로가 있는 게 아니라 알고리즘의 설계 의도다.
 
-dual-key 미도입 시점에 유일한 옵션. 실행 중인 라인 인스턴스가 없을 때만 안전.
+복구 절차 자체는 단순하다 — 대신 다른 곳이 아프다:
 
-1. **drain** — 실행 중 활동 0 확인
-   ```bash
-   curl "$BASE_URL/api/line/instances?status=RUNNING" | jq '. | length'
-   # 0이 될 때까지 대기 (혹은 cron 비활성 후 in-flight 자연 종료)
-   ```
-2. **앱 shutdown**
-3. **DB 직접 재암호화** — 임시 utility로 모든 active credential에 대해 `decrypt(OLD_KEY)` → `encrypt(NEW_KEY)` → UPDATE
-   > 본 PR에 utility 미포함. 도입 전 운영 데이터 0인 환경에서만 안전하게 키 fix 가능.
-4. **`STATION8_CREDENTIAL_KEY` 교체, 앱 재시작**
-5. **검증** — 위 (A.5)와 동일
+1. 외부 서비스(Slack, AWS 등)에서 secret을 *재발급* 받는다. 옛 secret 자체를 폐기하는 효과가 있어 보안 측면에서도 권장
+2. vault에 같은 이름으로 다시 등록한다. credential은 이름으로 참조되니까 라인 정의는 손대지 않아도 된다
+3. 옛 행은 soft delete. 어차피 못 푼다
 
-### 변경 이력 추적
+분실 방지는 키 자체를 한 군데에만 두지 않는 것이다. 흔한 패턴 몇 가지:
 
-매 rotation에 운영 로그를 남길 것 — 키 자체는 아니지만 "언제 누가 rotation 했나"는 BCP 추적에 필수. `H_LINE_AUDIT` (별도 sub-issue) 도입 전에는 운영팀 외부 도구 (Slack pin / Confluence 등) 활용.
+- 키와 DB 백업을 *다른 위치*에 둔다. DB dump에 키가 같이 들어가지 않게 분리
+- 여러 운영자가 키 일부씩 나눠 갖는다. 수학적으로 N분할 후 K명 동의로 복원하는 방법이 표준화돼 있다 — [Shamir Secret Sharing](https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing) 키워드로 찾아볼 수 있다
+- 봉인 봉투 + 금고. 폐쇄망 사이트에서 흔한 클래식 방식
+- QR이나 hex 인쇄본을 별도 위치에. 디지털 사본이 다 날아가도 종이가 남는다
 
----
+`.env`는 `.gitignore`에 들어가 있긴 한데 실수로 commit하는 사고가 잦다. [`.env.example`](../.env.example)엔 `STATION8_CREDENTIAL_KEY=` 같이 빈 값만 두는 게 안전하다.
 
-## 3. BCP — 키 분실 시
+## 폐쇄망에서 키 운반
 
-마스터 키 분실 = **모든 credential 영구 복구 불가**. AES-GCM은 키 없이 ciphertext에서 평문 복원 불가능 — 이건 알고리즘의 설계 의도라 우회로 없다.
+대부분 운영 사이트가 폐쇄망이라 AWS Secrets Manager 같은 SaaS 보안 저장소를 못 쓴다. 사이트 사정에 맞는 걸 고르면 된다:
 
-### 분실 발생 시 복구 절차
+- **컨테이너에 파일로 마운트.** Kubernetes `Secret`이나 Docker secret을 `/run/secrets/...`에 마운트하고 entrypoint 스크립트에서 `export STATION8_CREDENTIAL_KEY=$(cat /run/secrets/key)`. 운영 부담이 가장 적다
+- **사내 Vault.** HashiCorp Vault self-hosted 같은 사내 시크릿 서버에서 부팅 시 fetch. init container나 sidecar가 envFile을 만들어 주입
+- **Kubernetes Secret + envFrom.** etcd 자체 암호화 + RBAC로 보호한다. 백업은 etcd snapshot으로 따로
+- **SOPS / age.** git에 *암호화된* secret만 commit하고 부팅 시 복호화. git-ops 친화적인 방식. SOPS는 Mozilla의 secret 관리 도구, age는 modern PGP 대체
+- **수동 봉인 봉투.** 자동화는 0인 대신 키 노출면이 가장 작다. 부팅 직전 운영자가 envFile에 한 줄 넣고 부팅 후 디스크에서 지운다. 다음 부팅 시 다시 필요
 
-1. **외부에서 secret 재발급** — Slack token, AWS API key 등 외부 서비스에서 새 값 받아옴
-2. **vault에 같은 이름으로 재등록** — credential은 이름으로 참조되므로 라인 정의는 변경 불필요
-3. **이전 row soft delete** — `DELETE /api/line/credentials/{id}` (DEL_FL='Y'). 평문 복구 불가라 archive 의미 없음
+사이트별로 점검할 것들:
 
-### 분실 방지
+- 이미지(Dockerfile / git / 산출물 S3 등) 어디에도 키가 박혀있지 않은가
+- 부팅 로그에 키 평문이 찍히지 않는가. `CredentialCrypto`는 길이만 찍고 키 자체는 안 찍지만, 운영자가 만든 entrypoint나 다른 init 스크립트가 `echo $STATION8_CREDENTIAL_KEY` 같이 쓰지 않도록
+- DB 백업과 키 백업이 분리돼 있는가. 같은 매체에 같이 두면 분실/유출이 함께 일어난다
+- BCP drill을 1회는 해봤는가. 가짜 키로 분실 시나리오를 dry-run
 
-| 방법 | 비고 |
-|---|---|
-| 별도 매체 backup | vault 데이터(`U_LINE_CREDENTIAL`)와 마스터 키를 **다른 위치**에 보관. DB 백업에 키 포함 금지 |
-| 다중 운영자 보관 | Shamir Secret Sharing 등으로 키를 N분할, K명 동의 시 복원 |
-| sealed envelope | 키 적힌 봉인 봉투를 금고에 — 폐쇄망 사이트의 클래식 패턴 |
-| paper backup | QR / hex 인쇄본을 별도 위치에 (디지털 사본 분실 대비) |
+## 응답·로그에 평문이 안 나가는 것
 
-**git에 키 평문을 절대 두지 말 것.** `.env`는 `.gitignore`에 있지만 실수로 commit 가능 — `.env.example`은 placeholder만 (`STATION8_CREDENTIAL_KEY=`).
+응답 쪽은 코드에서 보장한다.
 
----
+POST/GET 응답은 `CredentialResponse` record로 직렬화되는데 이 record 자체에 `value`나 `valueEnc` 필드가 없다. 직렬화될 수 있는 형태가 애초에 존재하지 않는 것이다.
 
-## 4. 폐쇄망 환경 — secret 운반
+표현식 평가 중 복호화된 평문은 `ProxyObject`(GraalVM JS 호출이 닿을 수 있게 Java 객체를 감싼 래퍼) 안 호출 스택에 잠시 머물다가 JVM GC가 정리한다. Java String을 명시적으로 wipe할 방법은 없는데, 이건 JVM 표준 한계다.
 
-폐쇄망 사이트는 AWS Secrets Manager / GCP Secret Manager / Azure Key Vault 같은 SaaS를 못 씀. 운반 옵션:
+평가 실패 시 errorMessage는 `CredentialCryptoException`의 generic 메시지만 들어간다. ciphertext나 평문 일부는 메시지에 포함되지 않는다.
 
-| 방법 | 운영 부담 | 자동화 가능 |
-|---|---|---|
-| **마운트 파일** | 낮음 | k8s/docker secret으로 마운트, entrypoint가 `export STATION8_CREDENTIAL_KEY=$(cat /run/secrets/key)` |
-| **사내 Vault (self-hosted)** | 중간 | HashiCorp Vault on-prem 등, init container/sidecar가 부팅 시 fetch |
-| **K8s Secret + envFrom** | 낮음 | etcd 암호화 + RBAC로 보호. backup은 etcd snapshot |
-| **sealed envelope + 수동 주입** | 높음 | 부팅 직전 envFile 추가, 부팅 후 제거. 자동화 0 |
-| **SOPS / age** | 중간 | git-ops 친화 — 암호화된 secret만 commit, 부팅 시 decrypt |
+Sandbox는 `HostAccess.NONE`. 표현식이 `$credentials.x.getClass()` 같이 Java reflection으로 빠져나가는 길을 막아둔다. 자세한 sandbox 정책은 [`docs/decisions/m16-expression-engine.md`](decisions/m16-expression-engine.md).
 
-### 폐쇄망 체크리스트
+회귀 가드는 [`scripts/scenarios/10-credential-vault-audit.sh`](../scripts/scenarios/10-credential-vault-audit.sh). 매 릴리즈 전 한 번 돌리면 위 보장이 깨졌는지 잡힌다.
 
-- [ ] 이미지에 키 절대 박지 않음 (Dockerfile / git / S3 등)
-- [ ] 로그에 키 출력 안 함 (InitialAdmin 같은 부팅 로그에 평문 출력 금지 — `CredentialCrypto` 코드에서 이미 보장)
-- [ ] backup은 키와 데이터를 **분리** — DB dump에 키가 안 들어가게 (env 별도 보관)
-- [ ] rotation 절차를 사이트 runbook에 명시 — 위 §2.A 또는 §2.B
-- [ ] BCP 키 분실 시나리오 drill 1회 — 가짜 키로 분실 → 재발급 → 재등록 cycle을 dry-run
+빠진 부분은 정직하게 적어둔다.
 
-### DataSource 비밀번호와의 관계 (#112)
-
-본 vault의 마스터 키는 DataSource (`U_LINE_DATASOURCE.PASSWORD`) 비밀번호와 **다른 layer**다.
-
-| | credential vault | DataSource 비번 |
-|---|---|---|
-| 저장 위치 | `U_LINE_CREDENTIAL.VALUE_ENC` (AES-GCM) | `U_LINE_DATASOURCE.PASSWORD` (plain text 현재) |
-| 사용 시점 | 활동 실행 중 표현식 평가 | 앱 부팅 + DataSource pool 생성 |
-| 보호 메커니즘 | M17 vault (본 문서) | 별도 — #112에서 통합 가이드 |
-| 분실 영향 | credential 재발급 가능 | DataSource 재설정 (외부 DB 비번 교체) |
-
-DataSource 비번 통합 가이드는 #112에서 다룬다. 폐쇄망 운영자는 두 layer 모두 위 4.1의 운반 방법을 적용 — 통일된 secret 운반 채널이 가장 운영 부담이 낮다.
-
----
-
-## 5. 응답 / 로그 무누출 보장
-
-### 코드 레벨
-
-| 경로 | 보장 메커니즘 |
-|---|---|
-| `POST /api/line/credentials` 응답 | `CredentialResponse` record에 `valueEnc` / `value` 필드 자체가 없음 — 직렬화 시 노출 불가 |
-| `GET` 응답 (list / single) | 위와 동일 |
-| 표현식 평가 중 평문 | `ProxyObject` 내부 호출 스택에 잠시 존재 → JVM GC가 정리 (Java String은 명시적 wipe 불가 — 구조적 한계) |
-| 평가 실패 errorMessage | `CredentialCryptoException` message에 ciphertext / plaintext 포함 안 함. cause는 보존하되 표시는 generic |
-| Sandbox escape | `ExpressionEvaluator`의 `HostAccess.NONE` — `$credentials.x.getClass()` 등 Java reflection 차단 |
-
-### 회귀 가드
-
-`scripts/scenarios/10-credential-vault-audit.sh` — POST/GET 응답 + 활동 실행 outputData + errorMessage에 등록한 평문이 등장 0건임을 grep 기반으로 검증. 매 릴리즈 전 1회 실행 권장.
-
-### 비범위
-
-- **inputData**: 표현식이 `{{ $credentials.x.value }}`를 inputParams에 쓰면 평문이 `U_LINE_ACTIVITY.INPUT_DATA`에 그대로 박힘. 이건 expression engine 설계 의도 — 활동 메서드가 받는 input은 평문이어야 동작 가능. 운영 측면에서는 inputData가 노출되는 채널(DB 접근, 운영 UI)에 별도 ACL 필요
-- **앱 stdout/파일 로그**: 컨테이너/실행 형태마다 위치가 달라 audit 스크립트가 직접 scan 안 함. 운영자가 사이트별로 `grep <sentinel> /var/log/...`로 확인
-- **메모리 dump**: heap dump에 평문 존재 — JVM 표준 한계. dump 채취 권한을 vault 운영자와 분리하는 ACL이 우선
-
----
-
-## 관련 이슈
-
-- [#248](https://github.com/devyoon91/station8/issues/248) — M17 epic
-- [#270](https://github.com/devyoon91/station8/issues/270) — Credential 엔티티 + AES-GCM crypto
-- [#271](https://github.com/devyoon91/station8/issues/271) — CRUD API
-- [#272](https://github.com/devyoon91/station8/issues/272) — `$credentials` polyglot binding
-- [#273](https://github.com/devyoon91/station8/issues/273) — 본 문서 + audit 스크립트
-- [#112](https://github.com/devyoon91/station8/issues/112) — DataSource 비번 보안 (별도 layer)
+- inputData에는 평문이 박힌다. 표현식이 `{{ $credentials.x.value }}`를 inputParams에 쓰면 평가 결과가 `U_LINE_ACTIVITY.INPUT_DATA`에 그대로 저장된다. 이건 expression engine의 설계 의도다 — 활동 메서드가 받는 input은 평문이어야 동작 가능. 운영 측면에서는 inputData에 접근하는 채널(DB, 운영 UI)에 별도 ACL이 필요하다
+- 앱 표준출력과 파일 로그는 audit 스크립트가 직접 검사하지 않는다. 컨테이너냐 jar 직접 실행이냐에 따라 위치가 달라서 — 사이트별로 운영자가 `grep <sentinel> /var/log/...` 같이 확인
+- 메모리 dump(heap dump)에는 평문이 존재할 수 있다. 위 GC 한계와 같은 이유다. dump 채취 권한을 vault 운영 권한과 분리하는 ACL이 우선이다
