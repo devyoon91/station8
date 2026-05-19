@@ -8,12 +8,18 @@ import com.station8.engine.repository.LineDefinitionRepository;
 import com.station8.engine.repository.LineScheduleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -25,11 +31,15 @@ import java.util.function.Supplier;
  *   <li>{@code DemoMigrationFlow} — 단일 역 ``MIGRATION_WRITE`` + 5분 cron</li>
  *   <li>{@code DemoHttpInbound} — {@code http.request} → {@code MIGRATION_WRITE} (cron 없음, 수동 run-now)</li>
  *   <li>{@code DemoHttpOutbound} — {@code NOOP} → {@code http.request} POST (cron 없음, 수동 run-now)</li>
+ *   <li>{@code DemoFileInbound} — {@code file.read} → {@code MIGRATION_WRITE} (cron 없음, 수동 run-now)</li>
+ *   <li>{@code DemoFileOutbound} — {@code NOOP} → {@code file.write} (cron 없음, 수동 run-now)</li>
+ *   <li>{@code ${java.io.tmpdir}/station8-demo/inbox} 디렉토리 + {@code order.json} 샘플 파일</li>
+ *   <li>{@code ${java.io.tmpdir}/station8-demo/outbox} 디렉토리</li>
  * </ul>
  *
- * <p>HTTP 데모 라인은 외부 인터넷 없이도 동작하도록 자체 endpoint {@link DemoEchoController}
- * (`/api/demo/echo/...`)를 부른다. demo 프로파일에 {@code station8.http.allowlist=localhost,127.0.0.1}이
- * 설정돼 있어 NetworkPolicy 기본 차단을 우회한다.</p>
+ * <p>HTTP 데모는 자체 endpoint {@link DemoEchoController}, 파일 데모는 OS tempdir 안 inbox/outbox를
+ * 부른다 — 둘 다 외부 인프라 의존 0. demo 프로파일의 {@code station8.http.allowlist} +
+ * {@code station8.file.local.allowed-roots} 가 NetworkPolicy / FilePathPolicy 기본 차단을 우회한다.</p>
  *
  * <p>멱등성: 라인별로 같은 이름이 이미 존재하면 그 라인만 skip. 한 라인이 실패해도 다른 라인은 계속.</p>
  *
@@ -50,10 +60,22 @@ public class DemoSeedRunner implements ApplicationRunner {
     /** 데모 데이터를 끌어올 자체 endpoint. demo 프로파일 한정. */
     private static final String DEMO_ECHO_BASE = "http://localhost:8080/api/demo/echo";
 
+    private static final String DEMO_FILE_INBOUND_NM = "DemoFileInbound";
+    private static final String DEMO_FILE_OUTBOUND_NM = "DemoFileOutbound";
+    /** inbox에 자동 시드되는 샘플 파일 이름. DemoFileInbound가 이걸 읽는다. */
+    private static final String DEMO_INBOX_FILE = "order.json";
+
     private final LineDefinitionService definitionService;
     private final ScheduleService scheduleService;
     private final LineDefinitionRepository definitionRepository;
     private final LineScheduleRepository scheduleRepository;
+
+    /**
+     * application-demo.properties의 {@code station8.file.local.allowed-roots}는 csv —
+     * inbox / outbox 두 path가 들어있다. 여기서는 첫 두 항목을 inbox / outbox로 가정해 시드.
+     */
+    @Value("${station8.file.local.allowed-roots:}")
+    private String fileAllowedRoots;
 
     public DemoSeedRunner(LineDefinitionService definitionService,
                           ScheduleService scheduleService,
@@ -91,6 +113,47 @@ public class DemoSeedRunner implements ApplicationRunner {
 
         seedIfMissing(DEMO_HTTP_INBOUND_NM, this::seedHttpInbound);
         seedIfMissing(DEMO_HTTP_OUTBOUND_NM, this::seedHttpOutbound);
+
+        // 파일 데모는 디렉토리 + 샘플 파일 시드도 같이.
+        DemoFilePaths paths = resolveFilePaths();
+        if (paths != null) {
+            bootstrapDemoFiles(paths);
+            seedIfMissing(DEMO_FILE_INBOUND_NM, () -> seedFileInbound(paths));
+            seedIfMissing(DEMO_FILE_OUTBOUND_NM, () -> seedFileOutbound(paths));
+        } else {
+            log.warn("[DemoSeed] station8.file.local.allowed-roots 미설정 — 파일 데모 라인 skip");
+        }
+    }
+
+    /** allowed-roots csv를 inbox/outbox로 해석. 항목이 부족하면 null. */
+    private DemoFilePaths resolveFilePaths() {
+        if (fileAllowedRoots == null || fileAllowedRoots.isBlank()) {
+            return null;
+        }
+        String[] parts = fileAllowedRoots.split(",");
+        if (parts.length < 2) {
+            log.warn("[DemoSeed] allowed-roots 항목 부족 ({}) — 파일 데모 skip", parts.length);
+            return null;
+        }
+        return new DemoFilePaths(
+                Paths.get(parts[0].trim()),
+                Paths.get(parts[1].trim()));
+    }
+
+    /** inbox / outbox 디렉토리 + 샘플 파일 1건을 부팅 시 자동 생성. 이미 있으면 그대로. */
+    private void bootstrapDemoFiles(DemoFilePaths paths) {
+        try {
+            Files.createDirectories(paths.inbox);
+            Files.createDirectories(paths.outbox);
+            Path sample = paths.inbox.resolve(DEMO_INBOX_FILE);
+            if (!Files.exists(sample)) {
+                String body = "{\"orderId\":\"demo-1\",\"title\":\"Sample inbox order\"}";
+                Files.writeString(sample, body, StandardCharsets.UTF_8);
+                log.info("[DemoSeed] inbox 샘플 파일 생성: {}", sample);
+            }
+        } catch (IOException ex) {
+            log.warn("[DemoSeed] inbox/outbox bootstrap 실패 — 파일 데모 동작 안 할 수 있음", ex);
+        }
     }
 
     /**
@@ -179,4 +242,87 @@ public class DemoSeedRunner implements ApplicationRunner {
                         "e-prep-post", "n-prep", "n-post", null)))
                 .build());
     }
+
+    /**
+     * 데모 3 — inbox JSON 파일을 읽어 DB insert. file.read → MIGRATION_WRITE.
+     *
+     * <p>{@code order.json}이 {@code {"orderId":"demo-1", "title":"..."}}이라
+     * 다음 노드는 {@code $prev.json.content.orderId} / {@code .title}로 끌어와 매핑.</p>
+     */
+    private String seedFileInbound(DemoFilePaths paths) {
+        Path samplePath = paths.inbox.resolve(DEMO_INBOX_FILE);
+        String readInput = "{"
+                + "\"uri\":\"" + uriString(samplePath) + "\","
+                + "\"format\":\"json\""
+                + "}";
+        // file.read 응답: { uri, format, sizeBytes, content: {...} }
+        // content.orderId / title을 꺼냄.
+        String migrateInput = "{"
+                + "\"id\":\"file-{{ $prev.json.content.orderId }}\","
+                + "\"content\":\"{{ $prev.json.content.title }}\""
+                + "}";
+
+        return definitionService.createDefinition(DagDefinitionRequest.builder()
+                .definitionNm(DEMO_FILE_INBOUND_NM)
+                .description("데모: inbox 파일 → DB insert (수동 run-now). 샘플 파일: " + DEMO_INBOX_FILE)
+                .nodes(List.of(
+                        new DagDefinitionRequest.NodeDef(
+                                "n-read", "Read", "file.read",
+                                readInput, 100, 100, null),
+                        new DagDefinitionRequest.NodeDef(
+                                "n-write", "Write", "MIGRATION_WRITE",
+                                migrateInput, 350, 100, null)))
+                .edges(List.of(new DagDefinitionRequest.EdgeDef(
+                        "e-read-write", "n-read", "n-write", null)))
+                .build());
+    }
+
+    /**
+     * 데모 4 — payload 준비 후 outbox에 결과 파일 write. NOOP → file.write.
+     *
+     * <p>출력 파일 이름은 {@code $ctx.run.id}로 인스턴스마다 unique 하게.</p>
+     */
+    private String seedFileOutbound(DemoFilePaths paths) {
+        String noopInput = "{"
+                + "\"user\":\"{{ $ctx.input.user }}\","
+                + "\"line\":\"{{ $ctx.line.name }}\""
+                + "}";
+        // outbox path는 outbox/result-{run.id}.json — 매 인스턴스 unique
+        String outPath = paths.outbox.toString().replace("\\", "/")
+                + "/result-{{ $ctx.run.id }}.json";
+        String writeInput = "{"
+                + "\"uri\":\"file://" + outPath + "\","
+                + "\"format\":\"json\","
+                + "\"content\":{"
+                +     "\"user\":\"{{ $prev.json.user }}\","
+                +     "\"from\":\"{{ $prev.json.line }}\","
+                +     "\"writtenBy\":\"DemoFileOutbound\""
+                + "}"
+                + "}";
+
+        return definitionService.createDefinition(DagDefinitionRequest.builder()
+                .definitionNm(DEMO_FILE_OUTBOUND_NM)
+                .description("데모: payload 준비 후 outbox에 JSON write — outbox path는 인스턴스마다 unique")
+                .nodes(List.of(
+                        new DagDefinitionRequest.NodeDef(
+                                "n-prep", "Prep", "NOOP",
+                                noopInput, 100, 100, null),
+                        new DagDefinitionRequest.NodeDef(
+                                "n-write", "Write", "file.write",
+                                writeInput, 350, 100, null)))
+                .edges(List.of(new DagDefinitionRequest.EdgeDef(
+                        "e-prep-write", "n-prep", "n-write", null)))
+                .build());
+    }
+
+    /**
+     * Path를 file:// URI string으로. Windows path의 backslash는 forward로 정규화 (URI 표준).
+     * Paths.toUri()는 자동으로 처리하지만 인스턴스 인터폴레이션 path는 수동 구성이라 여기서.
+     */
+    private static String uriString(Path path) {
+        return path.toUri().toString();
+    }
+
+    /** inbox / outbox 두 path를 묶음. allowed-roots 첫 두 항목을 받아 채움. */
+    private record DemoFilePaths(Path inbox, Path outbox) {}
 }

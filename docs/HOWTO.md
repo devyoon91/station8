@@ -878,21 +878,43 @@ engine.dlq.webhook-url=https://hooks.slack.com/services/T00/B00/XXXX
 { "uri": "file:///...", "sizeBytes": 1234 }
 ```
 
-라인 예시 — inbox 디렉토리의 JSON 한 건을 읽어 다음 노드로:
+#### 데모 라인 (demo 프로파일)
+
+[`DemoSeedRunner`](../station8-app/src/main/java/com/station8/app/demo/DemoSeedRunner.java)가 부팅 시 두 라인을 자동 시드. 시드 직전에 `${java.io.tmpdir}/station8-demo/inbox`에 `order.json` 샘플 파일도 같이 만들어 둔다 (외부 인프라 의존 0).
+
+**파일 → DB 패턴** (`DemoFileInbound`):
 
 ```json
 {
   "nodes": [
     {"nodeId": "n-read", "activityNm": "file.read", "inputParams":
-      "{\"uri\":\"file:///var/station8/inbox/order.json\",\"format\":\"json\"}"},
-    {"nodeId": "n-process", "activityNm": "...", "inputParams":
-      "{\"id\":\"{{ $prev.json.content.orderId }}\",...}"}
+      "{\"uri\":\"file:///tmp/station8-demo/inbox/order.json\",\"format\":\"json\"}"},
+    {"nodeId": "n-write", "activityNm": "MIGRATION_WRITE", "inputParams":
+      "{\"id\":\"file-{{ $prev.json.content.orderId }}\",\"content\":\"{{ $prev.json.content.title }}\"}"}
   ],
-  "edges": [{"edgeId": "e1", "fromNodeId": "n-read", "toNodeId": "n-process"}]
+  "edges": [{"edgeId": "e1", "fromNodeId": "n-read", "toNodeId": "n-write"}]
 }
 ```
 
-데모 라인 자동 시드는 별도 sub-issue로 (`scripts/scenarios/12-...` 와 같이). 현재는 라인 빌더에서 직접 노드를 끌어다 만들면 된다.
+`file.read` 응답은 `{uri, format, sizeBytes, content}` 형태라 다음 노드는 `$prev.json.content.<field>`로 접근.
+
+**내부 → 파일 write 패턴** (`DemoFileOutbound`):
+
+```json
+{
+  "nodes": [
+    {"nodeId": "n-prep", "activityNm": "NOOP", "inputParams":
+      "{\"user\":\"{{ $ctx.input.user }}\"}"},
+    {"nodeId": "n-write", "activityNm": "file.write", "inputParams":
+      "{\"uri\":\"file:///tmp/station8-demo/outbox/result-{{ $ctx.run.id }}.json\",\"format\":\"json\",\"content\":{\"user\":\"{{ $prev.json.user }}\"}}"}
+  ],
+  "edges": [{"edgeId": "e1", "fromNodeId": "n-prep", "toNodeId": "n-write"}]
+}
+```
+
+출력 파일 이름에 `$ctx.run.id`를 박으면 인스턴스마다 unique — outbox 충돌 회피의 흔한 패턴.
+
+회귀 가드: `scripts/scenarios/12-file-connector-demo.sh` — 두 라인 run-now + 인스턴스 ID 인터폴레이션 확인.
 
 CSV / SFTP / S3 / 큰 파일 streaming은 모두 별도 sub-issue로 진행 — 단순 read/write가 우선.
 
