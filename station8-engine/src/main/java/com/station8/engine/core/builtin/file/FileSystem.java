@@ -12,6 +12,11 @@ import java.net.URI;
  * <p>byte 단위 contract만 정의 — encoding/format 해석은 활동 layer({@code FileReadActivity})의
  * 책임. 백엔드는 raw bytes만 주고받는다.</p>
  *
+ * <h3>credentialId</h3>
+ * 활동 입력의 {@code credentialId} (vault 등록 이름)가 그대로 전달된다. local backend는
+ * 보통 무시(null이 와도 OK), SFTP/S3는 vault에서 자격증명을 해소해 인증에 사용. backend가
+ * 자격증명을 필요로 하는데 {@code credentialId == null}이면 그 backend가 적절한 예외로 격하.
+ *
  * <p>스레드 안전성: 구현체는 thread-safe해야 한다 (활동 호출이 여러 워커 스레드에서 동시에 들어옴).
  * 내부 connection은 호출 단위로 열고 닫거나, 풀링을 자체 동기화로 처리.</p>
  */
@@ -28,19 +33,21 @@ public interface FileSystem {
     /**
      * 파일을 byte 배열로 읽음. 호출자(활동 layer)가 encoding/format에 따라 디코드.
      *
-     * @param uri 읽을 파일 URI
+     * @param uri          읽을 파일 URI
+     * @param credentialId 활동 입력의 vault credential 이름. local은 보통 무시, SFTP/S3는 인증에 사용
      * @return 파일 내용. 빈 파일이면 빈 배열
      * @throws RuntimeException I/O 실패, 경로 미존재, 권한 부족 등
      */
-    byte[] read(URI uri);
+    byte[] read(URI uri, String credentialId);
 
     /**
      * byte 배열을 파일로 씀. 부모 디렉토리가 없으면 만들고, 같은 path가 있으면 덮어쓴다 — atomic
      * 보장은 backend 구현 재량.
      *
-     * @param uri     쓸 파일 URI
-     * @param content 파일 내용 (null/empty 허용 — 빈 파일 생성)
+     * @param uri          쓸 파일 URI
+     * @param content      파일 내용 (null/empty 허용 — 빈 파일 생성)
+     * @param credentialId 활동 입력의 vault credential 이름. local은 보통 무시, SFTP/S3는 인증에 사용
      * @throws RuntimeException I/O 실패, 권한 부족, 디스크 부족 등
      */
-    void write(URI uri, byte[] content);
+    void write(URI uri, byte[] content, String credentialId);
 }

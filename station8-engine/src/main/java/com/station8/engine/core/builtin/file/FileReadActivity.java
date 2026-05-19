@@ -49,7 +49,7 @@ public class FileReadActivity {
         FileReadInput input = parseInput(inputJson);
         validate(input);
 
-        byte[] bytes = registry.read(input.uri());
+        byte[] bytes = registry.read(input.uri(), input.credentialId());
         String format = input.effectiveFormat();
         Object content = decode(bytes, format, input.effectiveEncoding());
 

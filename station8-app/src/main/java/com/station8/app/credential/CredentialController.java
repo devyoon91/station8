@@ -42,9 +42,17 @@ import java.util.UUID;
 @RequestMapping("/api/line/credentials")
 public class CredentialController {
 
-    /** M17 (#270 acceptance) — 초기 type 화이트리스트. 미지원 type은 400. */
+    /**
+     * 초기 type 화이트리스트. 미지원 type은 400.
+     *
+     * <ul>
+     *   <li>{@code http_basic} / {@code http_bearer} / {@code api_key} / {@code generic} — M17 (#270)</li>
+     *   <li>{@code sftp_password} / {@code sftp_key} — M19 SFTP backend (#296)</li>
+     * </ul>
+     */
     static final Set<String> SUPPORTED_TYPES = Set.of(
-            "http_basic", "http_bearer", "api_key", "generic");
+            "http_basic", "http_bearer", "api_key", "generic",
+            "sftp_password", "sftp_key");
 
     private final CredentialRepository repository;
     private final CredentialCrypto crypto;

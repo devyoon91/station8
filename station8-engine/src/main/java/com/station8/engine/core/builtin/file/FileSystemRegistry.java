@@ -46,18 +46,20 @@ public class FileSystemRegistry {
     /**
      * URI를 처리할 backend를 찾고 read 위임. backend 없으면 {@link NoRetryException}.
      *
-     * @param uriString 활동 입력 URI 또는 raw absolute path
+     * @param uriString    활동 입력 URI 또는 raw absolute path
+     * @param credentialId 활동 입력의 vault credential 이름. null/blank이면 자격증명 없이 호출
+     *                     (local은 무시, SFTP/S3는 적절 예외)
      * @return 파일 byte 내용
      */
-    public byte[] read(String uriString) {
+    public byte[] read(String uriString, String credentialId) {
         URI uri = normalize(uriString);
-        return dispatch(uri).read(uri);
+        return dispatch(uri).read(uri, credentialId);
     }
 
     /** URI를 처리할 backend로 write 위임. */
-    public void write(String uriString, byte[] content) {
+    public void write(String uriString, byte[] content, String credentialId) {
         URI uri = normalize(uriString);
-        dispatch(uri).write(uri, content);
+        dispatch(uri).write(uri, content, credentialId);
     }
 
     private FileSystem dispatch(URI uri) {
