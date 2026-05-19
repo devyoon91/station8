@@ -126,8 +126,11 @@ public class LineContextBindings {
      *   <li>Number / Boolean / null → as-is</li>
      *   <li>그 외 Java 객체 → {@code String.valueOf} (reflection escape 차단)</li>
      * </ul>
+     *
+     * <p>public — 표현식 dry-run endpoint(#306)가 사용자 dummy JSON을 같은 sandbox 보호 정책으로
+     * 감싸기 위해 호출. 운영 binding 생성 경로({@link #from})와 같은 변환을 보장.</p>
      */
-    Object toJsExposable(Object value) {
+    public Object toJsExposable(Object value) {
         if (value == null) return null;
         if (value instanceof String s) {
             String trimmed = s.trim();
