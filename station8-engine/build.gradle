@@ -15,12 +15,20 @@ dependencies {
     implementation 'org.apache.sshd:sshd-core:2.13.2'
     implementation 'org.apache.sshd:sshd-sftp:2.13.2'
 
+    // M19 (#297) — S3 backend. AWS SDK v2 (Apache 2.0).
+    // S3-compatible(MinIO, Ceph) endpoint override 지원. 단일 jar 약 +25MB —
+    // GraalVM 다음으로 큰 의존성. 폐쇄망에서 객체저장소 안 쓰는 사이트엔 순수 부담이지만
+    // M19 epic 일관성(local/sftp/s3 같은 contract)이 더 가치 있다는 판단.
+    implementation 'software.amazon.awssdk:s3:2.28.16'
+
     testImplementation 'org.testcontainers:mariadb'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'com.h2database:h2'
     // SFTP 테스트용 임베디드 server
     testImplementation 'org.apache.sshd:sshd-core:2.13.2'
     testImplementation 'org.apache.sshd:sshd-sftp:2.13.2'
+    // S3 테스트용 — MinIO 컨테이너로 실제 S3-호환 endpoint
+    testImplementation 'org.testcontainers:minio'
 }
 
 // 기본 :test에선 @Tag("perf") 마이크로벤치 (#261)는 제외 — 시간 보호.
