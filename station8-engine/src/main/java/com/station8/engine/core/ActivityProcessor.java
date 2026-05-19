@@ -167,8 +167,15 @@ public class ActivityProcessor {
         int maxRetry = metadata.annotation().retryCount();
         long baseBackoff = metadata.annotation().backoffSeconds();
 
-        if (retryPolicy.isExceeded(attempt, maxRetry)) {
-            log.error("Max retry count exceeded for activity: {}. Mark as FAILED_FINAL.", activity.id());
+        // NoRetryException — 재시도 무의미한 실패(HTTP 4xx, 입력 검증 등)는 즉시 final-fail.
+        boolean skipRetry = cause instanceof NoRetryException
+                || (cause != null && cause.getCause() instanceof NoRetryException);
+        if (skipRetry || retryPolicy.isExceeded(attempt, maxRetry)) {
+            if (skipRetry) {
+                log.error("NoRetryException — skipping retry, mark as FAILED_FINAL: {}", activity.id());
+            } else {
+                log.error("Max retry count exceeded for activity: {}. Mark as FAILED_FINAL.", activity.id());
+            }
             taskExecutor.fail(context, cause, null); // 더 이상 재시도 없음
             // DLQ 적재 — instance webhook override 우선 적용 (#134 D8)
             moveToDlq(activity, context, cause, maxRetry, options.notificationWebhookUrl());
