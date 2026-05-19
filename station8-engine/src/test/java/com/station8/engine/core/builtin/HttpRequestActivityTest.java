@@ -2,6 +2,8 @@ package com.station8.engine.core.builtin;
 
 import com.station8.engine.core.CredentialResolver;
 import com.station8.engine.core.NoRetryException;
+import com.station8.engine.core.builtin.network.HostResolver;
+import com.station8.engine.core.builtin.network.NetworkPolicy;
 import com.station8.engine.util.JsonUtil;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -50,10 +52,14 @@ class HttpRequestActivityTest {
 
         jsonUtil = new JsonUtil();
         credentialResolver = new StubCredentialResolver(jsonUtil);
+        // 본 테스트는 활동 로직 자체에 집중 — SSRF 정책은 #289 별도 테스트가 cover.
+        // 여기선 permissive 모드로 127.0.0.1 fixture 호출이 통과되게.
+        NetworkPolicy permissive = new NetworkPolicy("permissive", "", false, HostResolver.DEFAULT);
+        permissive.init();
         HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(2))
                 .build();
-        activity = new HttpRequestActivity(jsonUtil, credentialResolver, client);
+        activity = new HttpRequestActivity(jsonUtil, credentialResolver, permissive, client);
     }
 
     @AfterEach
@@ -303,6 +309,27 @@ class HttpRequestActivityTest {
                 "credentialId", "nope"))))
                 .isInstanceOf(NoRetryException.class)
                 .hasMessageContaining("credentialId not found");
+    }
+
+    // ============ NetworkPolicy 통합 (#289) ============
+
+    @Test
+    void networkPolicyViolation_failsAsNoRetry() {
+        // 활동을 blocklist 정책으로 교체. 127.0.0.1 fixture는 loopback이라 차단되어야.
+        NetworkPolicy blockLoopback = new NetworkPolicy("", "", false, HostResolver.DEFAULT);
+        blockLoopback.init();
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(2))
+                .build();
+        HttpRequestActivity blocked = new HttpRequestActivity(
+                jsonUtil, credentialResolver, blockLoopback, client);
+
+        // fixture endpoint는 안 만들어도 됨 — 정책 검증이 실제 호출 전에 throw하므로
+        assertThatThrownBy(() -> blocked.request(jsonUtil.toJson(Map.of(
+                "method", "GET",
+                "url", "http://127.0.0.1:" + port + "/anything"))))
+                .isInstanceOf(NoRetryException.class)
+                .hasMessageContaining("loopback");
     }
 
     @Test
