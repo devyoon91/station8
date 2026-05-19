@@ -563,7 +563,9 @@ curl -X POST http://localhost:8080/api/line/schedules \
 - 405 — `allowedMethods` 위반
 - 500 — config malformed 또는 vault credential 미존재
 
-CRUD UI / rate limit / replay 방어는 별도 sub-issue로.
+trigger 등록은 `/line/triggers` 페이지에서 — webhook URL preview + curl 사용 예시까지 같이 표시. ADMIN 권한 필요. REST는 `/api/line/triggers` CRUD.
+
+rate limit / replay 방어는 별도 sub-issue (#312)로.
 
 ---
 
