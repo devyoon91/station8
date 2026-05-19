@@ -48,11 +48,13 @@ public class CredentialController {
      * <ul>
      *   <li>{@code http_basic} / {@code http_bearer} / {@code api_key} / {@code generic} — M17 (#270)</li>
      *   <li>{@code sftp_password} / {@code sftp_key} — M19 SFTP backend (#296)</li>
+     *   <li>{@code s3_access_key} — M19 S3 backend (#297). schema: accessKeyId/endpoint/region/pathStyle, value: SecretAccessKey</li>
      * </ul>
      */
     static final Set<String> SUPPORTED_TYPES = Set.of(
             "http_basic", "http_bearer", "api_key", "generic",
-            "sftp_password", "sftp_key");
+            "sftp_password", "sftp_key",
+            "s3_access_key");
 
     private final CredentialRepository repository;
     private final CredentialCrypto crypto;

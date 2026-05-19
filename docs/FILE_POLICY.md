@@ -93,6 +93,44 @@ network slow / 큰 SFTP 서버에서는 늘리는 게 안전. 큰 파일 transfe
 - **SFTP 서버측 권한**: 본 layer는 인증과 host key만. 실제 read/write 권한은 서버 OS 사용자 권한에 좌우. 서버에 chroot jail이나 사용자 격리가 별도로 필요한 사이트는 SFTP 서버 측에서 설정
 - **HostKey 알고리즘 정책**: 현재 SSHD default (RSA / ECDSA / Ed25519 등 다 허용). 사이트가 알고리즘 제한이 필요하면 SshClient 생성 시 정책 주입 — 현재는 노출 안 함, 운영 보고 후 도입 검토
 
+## S3 backend (S3-compatible 포함)
+
+`s3://bucket/key/path` 형태. AWS S3 외에 같은 API를 구현한 self-hosted 제품(MinIO, Ceph RadosGW 등)도 같은 코드로 cover — credential schema의 `endpoint` 만 사이트 endpoint로 override 하면 된다. 폐쇄망 사이트에서는 거의 항상 MinIO 같은 사내 객체저장소를 가리킨다.
+
+### credential type
+
+**`s3_access_key`** 한 가지. schema 필드:
+
+| 필드 | 필수 | 비고 |
+|---|---|---|
+| `accessKeyId` | yes | AWS / MinIO Access Key ID |
+| `endpoint` | (MinIO/Ceph) | `https://minio.internal:9000` 같은 사이트 endpoint. 비우면 AWS 표준 endpoint (region 기반) |
+| `region` | recommended | `us-east-1` default. MinIO에선 임의 region OK (보통 `us-east-1`로) |
+| `pathStyle` | (MinIO/Ceph) | true면 `endpoint/bucket/key` 형식. virtual-host style 안 받는 self-hosted는 반드시 true |
+
+credential value = SecretAccessKey.
+
+AWS EC2 instance profile / EKS Pod Identity로 자동 인증하는 시나리오(access key를 vault에 안 둠)는 본 sub-issue 비범위. 별도 follow-up.
+
+### URI 처리
+
+- `s3://bucket/key/path` — bucket은 URI host, key는 path (leading slash 제거)
+- bucket 또는 key 누락 시 즉시 `NoRetryException`
+- S3 key는 prefix 개념 — `s3://bucket/inbox/orders/2025-01-15.json` 같이 깊은 path OK. 디렉토리 list는 본 sub-issue 비범위 (단일 객체만)
+
+### 재시도 / 예외 분류
+
+- HTTP 4xx (`NoSuchBucket`, `NoSuchKey`, `AccessDenied` 등) → `NoRetryException`
+- HTTP 5xx → 일반 RuntimeException, 엔진 재시도
+- 네트워크 timeout / connection failure → 일반 RuntimeException, 재시도 대상
+
+### 잔여 위험
+
+- **S3Client per call**: 활동 호출마다 새 `S3Client` 생성 + close. 작은 객체는 OK지만 잦은 호출은 client lifecycle 비용 있음. credential별 캐싱은 별도 follow-up
+- **multipart upload**: 큰 파일(>100MB)은 `RequestBody.fromBytes`로 통째로 메모리에 들어가서 OOM 위험. multipart streaming은 M22와 묶여서 별도 sub-issue
+- **객체 list / prefix dispatch**: `s3://bucket/inbox/` (trailing slash)로 prefix 아래 list하는 모드 미구현. 사용자는 외부에서 key 목록을 받아 단일 객체 호출을 반복하는 게 현재 패턴
+- **server-side encryption / KMS**: 별도 sub-issue. 현재 객체는 sever-side default 정책 따름 (보통 AES256)
+
 ## 관련 파일
 
 - 정책 구현: [`station8-engine/.../core/builtin/file/FilePathPolicy.java`](../station8-engine/src/main/java/com/station8/engine/core/builtin/file/FilePathPolicy.java)
