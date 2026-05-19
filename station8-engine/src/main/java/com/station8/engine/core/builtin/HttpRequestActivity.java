@@ -4,6 +4,7 @@ import com.station8.engine.annotation.Activity;
 import com.station8.engine.annotation.LineDefinition;
 import com.station8.engine.core.CredentialResolver;
 import com.station8.engine.core.NoRetryException;
+import com.station8.engine.core.builtin.network.NetworkPolicy;
 import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,18 +75,25 @@ public class HttpRequestActivity {
 
     private final JsonUtil jsonUtil;
     private final CredentialResolver credentialResolver;
+    private final NetworkPolicy networkPolicy;
     private final HttpClient httpClient;
 
     /** 운영 코드 — 모든 의존성 주입. */
     @Autowired
-    public HttpRequestActivity(JsonUtil jsonUtil, CredentialResolver credentialResolver) {
-        this(jsonUtil, credentialResolver, defaultHttpClient());
+    public HttpRequestActivity(JsonUtil jsonUtil,
+                               CredentialResolver credentialResolver,
+                               NetworkPolicy networkPolicy) {
+        this(jsonUtil, credentialResolver, networkPolicy, defaultHttpClient());
     }
 
     /** 테스트 — HttpClient를 외부에서 주입. 로컬 fixture server로 교체용. */
-    HttpRequestActivity(JsonUtil jsonUtil, CredentialResolver credentialResolver, HttpClient httpClient) {
+    HttpRequestActivity(JsonUtil jsonUtil,
+                        CredentialResolver credentialResolver,
+                        NetworkPolicy networkPolicy,
+                        HttpClient httpClient) {
         this.jsonUtil = jsonUtil;
         this.credentialResolver = credentialResolver;
+        this.networkPolicy = networkPolicy;
         this.httpClient = httpClient;
     }
 
@@ -105,6 +113,10 @@ public class HttpRequestActivity {
 
         String method = input.method().toUpperCase(Locale.ROOT);
         URI uri = parseUri(input.url());
+
+        // SSRF 방어 (#289) — 호출 직전에 정책 검증. 위반 시 NetworkPolicyViolationException
+        // (NoRetryException 상속) → 엔진이 즉시 final-fail.
+        networkPolicy.check(uri);
 
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(uri)
