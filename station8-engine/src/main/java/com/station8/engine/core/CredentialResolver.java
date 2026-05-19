@@ -83,6 +83,49 @@ public class CredentialResolver {
         return c == null ? null : new SingleCredential(c);
     }
 
+    /**
+     * Java 호출자용 — 이름으로 credential을 찾아 평문/메타까지 해소해서 반환.
+     *
+     * <p>JS 표현식 경로는 {@link #topLevelBinding()}로 ProxyObject를 받지만, built-in 활동
+     * 같은 Java 코드는 ProxyObject reflection이 막혀있어 못 쓴다. 본 메서드가 그 자리를 채운다.</p>
+     *
+     * <p>호출 즉시 decrypt를 수행한다 — lazy 경로(JS proxy)와 다르게 Java 호출은 보통 평문을
+     * 바로 쓰므로 게으른 패턴이 의미가 없다. 호출부는 반환된 {@link Resolved#value()}를 절대
+     * 응답/로그에 노출하지 말 것.</p>
+     *
+     * @param name 등록된 credential 이름 (대소문자 정확히)
+     * @return 못 찾으면 null. 찾으면 모든 필드(평문 포함) 채워진 record
+     */
+    public Resolved resolveByName(String name) {
+        Credential c = repository.findByName(name);
+        if (c == null) return null;
+        String value = crypto.decrypt(c.valueEnc());
+        Map<String, Object> schema = parseSchemaSafely(c.schemaJson());
+        return new Resolved(c.name(), c.type(), value, schema);
+    }
+
+    /** schemaJson을 Map으로 안전 파싱 — null/blank/오류 모두 빈 Map. */
+    private Map<String, Object> parseSchemaSafely(String schemaJson) {
+        if (schemaJson == null || schemaJson.isBlank()) return Map.of();
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> parsed = jsonUtil.fromJson(schemaJson, Map.class);
+            return parsed != null ? parsed : Map.of();
+        } catch (Exception ex) {
+            return Map.of();
+        }
+    }
+
+    /**
+     * Java 호출자에게 노출하는 해소된 credential.
+     *
+     * @param name   등록 이름
+     * @param type   타입 (http_basic / http_bearer / api_key / generic)
+     * @param value  복호화된 평문 — 응답/로그 노출 금지
+     * @param schema schemaJson을 Map으로 파싱한 결과 (없으면 빈 Map)
+     */
+    public record Resolved(String name, String type, String value, Map<String, Object> schema) {}
+
     /** 등록된 credential 전체 이름 (active만). 표현식이 {@code Object.keys($credentials)} 같은 enumeration할 때 사용. */
     private List<String> activeNames() {
         return repository.findAllActive().stream().map(Credential::name).toList();
