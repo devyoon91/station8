@@ -773,6 +773,86 @@ POST /line/instance/{id}/activity/{execId}/retry   # 활동 단건 retry
 engine.dlq.webhook-url=https://hooks.slack.com/services/T00/B00/XXXX
 ```
 
+### 6.5. HTTP 호출 노드 — `http.request`
+
+빌트인 `http.request` 활동으로 라인 안에서 외부 API를 직접 부른다. plugin 없이 호스트가 등록한 노드라 `/line/activities`에서 바로 보인다.
+
+입력 파라미터(JSON):
+
+| 키 | 필수 | 비고 |
+|---|---|---|
+| `method` | yes | `GET` / `POST` / `PUT` / `DELETE` / `PATCH` |
+| `url` | yes | 절대 URL. 표현식으로 동적 구성 가능 (`http://api.example.com/{{ $ctx.input.id }}`) |
+| `headers` | no | object. credential 자동 헤더와 충돌 시 본 값이 win |
+| `body` | no | string이면 그대로, object/array면 JSON serialize (Content-Type 자동) |
+| `timeoutMs` | no | default 30000, max 300000 |
+| `credentialId` | no | `/admin/credentials` 등록 이름. type별로 Authorization 등 자동 주입 |
+
+응답은 다음 노드의 `$prev.json`으로 흘러간다:
+
+```json
+{
+  "status": 200,
+  "headers": {"content-type": "application/json"},
+  "body": {...}
+}
+```
+
+`application/json` 응답은 자동 parse — `$prev.json.body.<field>`로 바로 접근.
+
+#### 데모 라인 (demo 프로파일)
+
+[`DemoSeedRunner`](../station8-app/src/main/java/com/station8/app/demo/DemoSeedRunner.java)가 부팅 시 자동 시드하는 두 라인을 그대로 복사해서 시작점으로 쓸 수 있다.
+
+**HTTP → DB 패턴** (`DemoHttpInbound`):
+
+```json
+{
+  "nodes": [
+    {"nodeId": "n-fetch", "activityNm": "http.request", "inputParams":
+      "{\"method\":\"GET\",\"url\":\"http://localhost:8080/api/demo/echo/post\"}"},
+    {"nodeId": "n-write", "activityNm": "MIGRATION_WRITE", "inputParams":
+      "{\"id\":\"http-{{ $prev.json.body.id }}\",\"content\":\"{{ $prev.json.body.title }}\"}"}
+  ],
+  "edges": [{"edgeId": "e1", "fromNodeId": "n-fetch", "toNodeId": "n-write"}]
+}
+```
+
+**DB/내부 → HTTP webhook 패턴** (`DemoHttpOutbound`):
+
+```json
+{
+  "nodes": [
+    {"nodeId": "n-prep", "activityNm": "NOOP", "inputParams":
+      "{\"user\":\"{{ $ctx.input.user }}\",\"line\":\"{{ $ctx.line.name }}\"}"},
+    {"nodeId": "n-post", "activityNm": "http.request", "inputParams":
+      "{\"method\":\"POST\",\"url\":\"http://localhost:8080/api/demo/echo/sink\",\"body\":{\"user\":\"{{ $prev.json.user }}\"}}"}
+  ],
+  "edges": [{"edgeId": "e1", "fromNodeId": "n-prep", "toNodeId": "n-post"}]
+}
+```
+
+데모는 자체 endpoint(`/api/demo/echo/...`)를 부르므로 폐쇄망에서도 동작. 운영 라인에서는 같은 패턴으로 실제 외부 URL을 박으면 된다.
+
+#### credential 자동 헤더
+
+`credentialId`만 박으면 vault에 등록된 타입에 따라 헤더가 알아서 들어간다:
+
+| credential type | 주입되는 헤더 |
+|---|---|
+| `http_bearer` | `Authorization: Bearer <value>` |
+| `http_basic` | `Authorization: Basic base64(schema.username:value)` |
+| `api_key` | `schema.header`가 지정한 헤더에 `<value>` |
+| `generic` | 자동 주입 0 — `headers`에 직접 `{"X-Token": "{{ $credentials.<name>.value }}"}` |
+
+표현식으로 직접 박는 패턴이 필요할 때(여러 헤더 동시, 또는 query string에 토큰 등)는 `generic` 타입을 쓰면 된다.
+
+#### SSRF 정책
+
+기본은 blocklist 모드 — loopback / RFC1918 / metadata endpoint(`169.254.169.254`) 등이 차단된다. 폐쇄망에서 사내 API만 부르는 사이트는 allowlist 모드 권장. 자세한 것은 [HTTP_POLICY.md](HTTP_POLICY.md).
+
+회귀 가드: `scripts/scenarios/11-http-connector-demo.sh` — 두 데모 라인이 끝-까지 굴러 COMPLETED + outputData round-trip 검증.
+
 ---
 
 ## 7. 트러블슈팅
