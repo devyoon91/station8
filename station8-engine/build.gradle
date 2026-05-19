@@ -9,9 +9,18 @@ dependencies {
     implementation 'org.graalvm.polyglot:polyglot:24.1.1'
     implementation 'org.graalvm.polyglot:js-community:24.1.1'
 
+    // M19 (#296) — SFTP backend. Apache MINA SSHD 2.x (Apache 2.0).
+    // sshd-core: SSH 클라이언트 base. sshd-sftp: SFTP subsystem.
+    // 테스트 fixture로 sshd-server를 testImplementation으로.
+    implementation 'org.apache.sshd:sshd-core:2.13.2'
+    implementation 'org.apache.sshd:sshd-sftp:2.13.2'
+
     testImplementation 'org.testcontainers:mariadb'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'com.h2database:h2'
+    // SFTP 테스트용 임베디드 server
+    testImplementation 'org.apache.sshd:sshd-core:2.13.2'
+    testImplementation 'org.apache.sshd:sshd-sftp:2.13.2'
 }
 
 // 기본 :test에선 @Tag("perf") 마이크로벤치 (#261)는 제외 — 시간 보호.

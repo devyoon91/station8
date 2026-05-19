@@ -40,7 +40,8 @@ public class LocalFileSystem implements FileSystem {
     }
 
     @Override
-    public byte[] read(URI uri) {
+    public byte[] read(URI uri, String credentialId) {
+        // local backend는 credentialId 무시 — OS 파일 권한이 인증의 전부.
         Path path = toPath(uri);
         pathPolicy.check(path);
         try {
@@ -52,7 +53,8 @@ public class LocalFileSystem implements FileSystem {
     }
 
     @Override
-    public void write(URI uri, byte[] content) {
+    public void write(URI uri, byte[] content, String credentialId) {
+        // local backend는 credentialId 무시.
         Path path = toPath(uri);
         pathPolicy.check(path);
         try {

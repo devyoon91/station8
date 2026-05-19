@@ -48,7 +48,7 @@ public class FileWriteActivity {
         validate(input);
 
         byte[] bytes = encode(input);
-        registry.write(input.uri(), bytes);
+        registry.write(input.uri(), bytes, input.credentialId());
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("uri", input.uri());

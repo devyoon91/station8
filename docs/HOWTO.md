@@ -916,7 +916,23 @@ engine.dlq.webhook-url=https://hooks.slack.com/services/T00/B00/XXXX
 
 회귀 가드: `scripts/scenarios/12-file-connector-demo.sh` — 두 라인 run-now + 인스턴스 ID 인터폴레이션 확인.
 
-CSV / SFTP / S3 / 큰 파일 streaming은 모두 별도 sub-issue로 진행 — 단순 read/write가 우선.
+#### SFTP URI
+
+같은 `file.read` / `file.write` 활동이 `sftp://` URI도 받는다 — 사내 SFTP 서버에서 파일 끌어다 라인에 흘리는 시나리오.
+
+```json
+{
+  "uri": "sftp://etl-user@sftp.internal.com:22/inbox/orders.json",
+  "format": "json",
+  "credentialId": "etl-sftp"
+}
+```
+
+`credentialId`는 vault에 등록된 `sftp_password` 또는 `sftp_key` 타입을 가리킨다. URI에 평문 password 절대 박지 말 것 — 라인 정의·로그·inputData 어디에든 노출될 수 있다. 사용자 이름은 URI나 credential schema 둘 다에서 받음.
+
+운영 시작 전에 `station8.file.sftp.known-hosts` 설정 + 사이트 SFTP 서버 fingerprint 등록 필요. 기본값은 fail-closed라 known_hosts 미설정 시 모든 연결 거부 — 자세한 운영 가이드는 [FILE_POLICY.md](FILE_POLICY.md).
+
+S3 / 큰 파일 streaming / CSV format은 별도 sub-issue로 진행.
 
 ---
 
@@ -990,6 +1006,11 @@ station8.http.allow-private=false          # true면 RFC1918 통과 (loopback/me
 
 # 로컬 파일 접근 정책 (#295) — 자세한 가이드는 docs/FILE_POLICY.md
 station8.file.local.allowed-roots=         # csv. 비우면 local file 활동 자체 비활성 (fail-closed)
+
+# SFTP backend (#296)
+station8.file.sftp.known-hosts=            # OpenSSH known_hosts 파일 path. 비우면 모든 SFTP 연결 거부 (fail-closed)
+station8.file.sftp.connect-timeout-ms=10000
+station8.file.sftp.auth-timeout-ms=10000
 
 # Spring Batch
 spring.batch.job.enabled=false             # 부팅 시 Job 자동 실행 차단 (필수)

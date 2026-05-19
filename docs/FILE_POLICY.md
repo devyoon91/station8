@@ -49,7 +49,49 @@ csv. trim 처리되고 빈 항목은 무시. 각 경로는 절대 path여야 한
 
 - **TOCTOU**: 검증 시점에 path가 안전해도 그 직후 누군가가 root 안에 symlink를 만들어 외부로 가리키면 우회 가능. 운영 환경의 디렉토리 권한 관리로 방어 (root만 쓰기 가능 + sticky bit 등)
 - **상대 경로 모호함**: 본 정책은 절대 path만 받는다. 라인 정의에서 `subdir/file.txt` 같은 상대 path를 주면 `FileSystemRegistry`가 거부 (어떤 디렉토리 기준인지 ambiguous)
-- **SFTP / S3는 본 정책 적용 안 됨** — 별도 backend의 자체 권한 모델. 본 정책은 `file://` 한정. SFTP/S3는 [#296](https://github.com/devyoon91/station8/issues/296) / [#297](https://github.com/devyoon91/station8/issues/297)에서 같은 패턴으로 추가될 예정
+- **SFTP / S3는 본 정책(`file://` 한정) 적용 안 됨** — 각자 자기 backend의 권한/인증 모델. SFTP는 아래 별도 섹션, S3는 후속 sub-issue
+
+## SFTP backend
+
+`sftp://user@host:port/abs/path` 형태. 인증은 활동 입력의 `credentialId`로 vault에서 조회 — URI에 평문 password 절대 박지 말 것 (라인 정의, 로그, inputData 등 여러 경로에 URI가 노출됨).
+
+### credential type
+
+두 가지:
+
+- **`sftp_password`** — schema는 비어도 됨 (또는 `{"username":"..."}` 로 URI user override). credential value = password
+- **`sftp_key`** — schema에 `{"privateKey":"-----BEGIN OPENSSH PRIVATE KEY-----..."}`. credential value = passphrase (선택 — unencrypted key면 빈 값)
+
+URI user → schema.username 순서로 SSH 사용자 결정. 둘 다 없으면 거부.
+
+### known_hosts — fail-closed default
+
+서버 host key를 검증하는 OpenSSH 표준 파일 위치를 `station8.file.sftp.known-hosts` 로 명시. 빈 값이면 **모든 SFTP 연결 거부** — TOFU (Trust On First Use) 우회를 막기 위해 명시적으로 fail-closed.
+
+운영자가 사이트별 SFTP 서버 fingerprint를 미리 박아둬야 한다:
+
+```
+[sftp.internal.com]:22 ssh-rsa AAAAB3NzaC1yc2EAAAAD...
+```
+
+서버 fingerprint를 모르면 한 번 수동으로 `ssh-keyscan -p 22 sftp.internal.com` 같이 떠서 박을 것. fingerprint가 바뀌면 (서버 교체 / 키 교체) 본 정책상 자동으로 차단된다 — 운영자가 의식하지 않은 서버 교체는 보통 사고이므로 의도된 차단.
+
+### timeout
+
+- `station8.file.sftp.connect-timeout-ms` — TCP 연결 + SSH 핸드셰이크. default 10000
+- `station8.file.sftp.auth-timeout-ms` — 인증 완료까지. default 10000
+
+network slow / 큰 SFTP 서버에서는 늘리는 게 안전. 큰 파일 transfer 자체에는 SftpClient가 자체 timeout 관리.
+
+### 연결 lifecycle
+
+현재 활동 호출마다 connect + auth + transfer + disconnect. 작은 파일에는 충분하지만 잦은 호출에서는 connection 비용이 보임. connection pooling은 별도 follow-up.
+
+### 잔여 위험
+
+- **passphrase가 메모리에 평문**: vault에서 해소 → `FilePasswordProvider` 람다에 들어감 → MINA SSHD가 키 로드에 사용. Java String은 명시적 wipe 불가 (M17과 같은 한계)
+- **SFTP 서버측 권한**: 본 layer는 인증과 host key만. 실제 read/write 권한은 서버 OS 사용자 권한에 좌우. 서버에 chroot jail이나 사용자 격리가 별도로 필요한 사이트는 SFTP 서버 측에서 설정
+- **HostKey 알고리즘 정책**: 현재 SSHD default (RSA / ECDSA / Ed25519 등 다 허용). 사이트가 알고리즘 제한이 필요하면 SshClient 생성 시 정책 주입 — 현재는 노출 안 함, 운영 보고 후 도입 검토
 
 ## 관련 파일
 
