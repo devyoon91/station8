@@ -522,6 +522,49 @@ curl -X POST http://localhost:8080/api/line/schedules \
 
 폴러가 30초마다(``workflow.scheduler.interval-ms``) 만료된 cron을 가져갑니다. 폴링이 늦어 ``NEXT_RUN_DT``가 과거가 되어도 단 1회만 트리거. ``NEXT_RUN_DT``는 ``now`` 기준 ``cron.next(now)``로 갱신되어 누락 1회로 한정.
 
+### 3.4. Webhook 트리거
+
+외부 시스템이 라인을 시작하게 만들고 싶을 때. cron 외 첫 trigger 타입 — `POST /api/triggers/webhook/{key}` 한 번에 라인 인스턴스가 새로 뜬다.
+
+기본 흐름:
+
+1. `webhook_hmac` credential을 vault에 등록 — value = 발신자와 공유할 HMAC secret
+2. `U_LINE_TRIGGER`에 webhook trigger 한 줄 추가 (등록 UI는 별도 sub-issue. 현재는 SQL 직접):
+   ```json
+   {
+     "definitionId": "<라인 정의 ID>",
+     "triggerType": "webhook",
+     "triggerKey": "incoming-orders",
+     "configJson": "{\"hmacSecret\":\"<credential 이름>\"}",
+     "activeFl": "Y"
+   }
+   ```
+3. 외부 발신자는 매 호출마다 raw body에 대해 HMAC-SHA256을 계산해서 `X-Signature` 헤더로 박아 보낸다:
+   ```bash
+   BODY='{"orderId":"42"}'
+   SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^.* //')
+   curl -X POST http://station8/api/triggers/webhook/incoming-orders \
+     -H "X-Signature: $SIG" \
+     -H "Content-Type: application/json" \
+     -d "$BODY"
+   ```
+4. 본 endpoint가 같은 HMAC을 계산해서 비교 — 일치하면 body를 `$ctx.input`으로 라인 시작, 응답 `{ instanceId, started, definitionId }`. 불일치면 401
+
+설정 옵션 (`configJson`):
+
+- `hmacSecret` (필수) — vault credential 이름. type=`webhook_hmac`. 평문 secret은 vault 안에만
+- `allowedMethods` (선택) — HTTP method 화이트리스트. 비우면 POST만 허용 (현재 POST 외 미지원)
+
+상태 코드:
+- 200 — 정상 launch, 응답 body에 `instanceId`
+- 202 — 동시성 정책에 막힘 (`SKIP_IF_RUNNING` 등). `skipReason` / `conflictingInstanceId` 응답
+- 401 — `X-Signature` 누락 또는 불일치
+- 404 — 등록 안 된 / 비활성 trigger key
+- 405 — `allowedMethods` 위반
+- 500 — config malformed 또는 vault credential 미존재
+
+CRUD UI / rate limit / replay 방어는 별도 sub-issue로.
+
 ---
 
 ## 4. Spring Batch Job 통합

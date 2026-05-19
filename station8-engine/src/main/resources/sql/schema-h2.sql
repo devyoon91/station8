@@ -205,6 +205,31 @@ CREATE INDEX IF NOT EXISTS U_LINE_SCHEDULE_IDX01 ON U_LINE_SCHEDULE (PAUSED_FL, 
 CREATE INDEX IF NOT EXISTS U_LINE_SCHEDULE_IDX02 ON U_LINE_SCHEDULE (DEFINITION_ID);
 
 -- ============================================================================
+-- Triggers (#310) — cron 외 trigger 타입. webhook이 첫 구현
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS U_LINE_TRIGGER (
+    ID VARCHAR(50),
+    DEFINITION_ID VARCHAR(50) NOT NULL,
+    TRIGGER_TYPE VARCHAR(32) NOT NULL,                      -- webhook (현재). 향후 kafka 등
+    TRIGGER_KEY VARCHAR(128) NOT NULL,                      -- webhook의 URL path key. unique
+    CONFIG_JSON CLOB,                                       -- type별 config (hmacSecret, allowedMethods 등)
+    ACTIVE_FL VARCHAR(1) DEFAULT 'Y' NOT NULL,
+    DEL_FL VARCHAR(1) DEFAULT 'N' NOT NULL,
+    REG_DT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    REG_ID VARCHAR(32),
+    EDIT_DT TIMESTAMP,
+    EDIT_ID VARCHAR(32),
+    CONSTRAINT U_LINE_TRIGGER_PK PRIMARY KEY (ID),
+    CONSTRAINT U_LINE_TRIGGER_U01 UNIQUE (TRIGGER_KEY),
+    CONSTRAINT U_LINE_TRIGGER_FK01 FOREIGN KEY (DEFINITION_ID) REFERENCES U_LINE_DEFINITION(ID)
+);
+
+-- webhook lookup용 (key 기반 조회)
+CREATE INDEX IF NOT EXISTS U_LINE_TRIGGER_IDX01 ON U_LINE_TRIGGER (TRIGGER_KEY, ACTIVE_FL);
+CREATE INDEX IF NOT EXISTS U_LINE_TRIGGER_IDX02 ON U_LINE_TRIGGER (DEFINITION_ID);
+
+-- ============================================================================
 -- Users + Roles (#121) — Spring Security 사용자/역할 테이블
 -- ============================================================================
 
