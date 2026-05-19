@@ -853,6 +853,49 @@ engine.dlq.webhook-url=https://hooks.slack.com/services/T00/B00/XXXX
 
 회귀 가드: `scripts/scenarios/11-http-connector-demo.sh` — 두 데모 라인이 끝-까지 굴러 COMPLETED + outputData round-trip 검증.
 
+### 6.6. 파일 read / write 노드 — `file.read` / `file.write`
+
+빌트인 활동으로 라인 안에서 파일을 직접 읽고 쓴다. 현재는 `file://` (local) 한 backend만, SFTP/S3는 별도 sub-issue로 들어올 예정. 사용 전에 `station8.file.local.allowed-roots`를 명시하지 않으면 활동 자체가 비활성 (fail-closed) — 자세한 정책은 [FILE_POLICY.md](FILE_POLICY.md).
+
+입력 파라미터:
+
+| 키 | 활동 | 비고 |
+|---|---|---|
+| `uri` | read/write | `file:///abs/path` 또는 절대 path |
+| `format` | read/write | `text` (default) / `json` / `binary` |
+| `encoding` | read/write | text 모드에서 charset. default `UTF-8` |
+| `content` | write | format별 타입 — text는 String, json은 Object, binary는 Base64 String |
+
+응답 (read):
+
+```json
+{ "uri": "file:///...", "format": "json", "sizeBytes": 1234, "content": {...} }
+```
+
+응답 (write):
+
+```json
+{ "uri": "file:///...", "sizeBytes": 1234 }
+```
+
+라인 예시 — inbox 디렉토리의 JSON 한 건을 읽어 다음 노드로:
+
+```json
+{
+  "nodes": [
+    {"nodeId": "n-read", "activityNm": "file.read", "inputParams":
+      "{\"uri\":\"file:///var/station8/inbox/order.json\",\"format\":\"json\"}"},
+    {"nodeId": "n-process", "activityNm": "...", "inputParams":
+      "{\"id\":\"{{ $prev.json.content.orderId }}\",...}"}
+  ],
+  "edges": [{"edgeId": "e1", "fromNodeId": "n-read", "toNodeId": "n-process"}]
+}
+```
+
+데모 라인 자동 시드는 별도 sub-issue로 (`scripts/scenarios/12-...` 와 같이). 현재는 라인 빌더에서 직접 노드를 끌어다 만들면 된다.
+
+CSV / SFTP / S3 / 큰 파일 streaming은 모두 별도 sub-issue로 진행 — 단순 read/write가 우선.
+
 ---
 
 ## 7. 트러블슈팅
@@ -923,6 +966,9 @@ station8.http.policy=                      # permissive 명시 시 모든 검증
 station8.http.allowlist=                   # csv. 비어있지 않으면 allowlist 모드 — 명시 host만 통과
 station8.http.allow-private=false          # true면 RFC1918 통과 (loopback/metadata는 여전히 차단)
 
+# 로컬 파일 접근 정책 (#295) — 자세한 가이드는 docs/FILE_POLICY.md
+station8.file.local.allowed-roots=         # csv. 비우면 local file 활동 자체 비활성 (fail-closed)
+
 # Spring Batch
 spring.batch.job.enabled=false             # 부팅 시 Job 자동 실행 차단 (필수)
 spring.batch.jdbc.initialize-schema=embedded  # H2 모드에서 BATCH_* 메타 자동 생성
@@ -940,4 +986,5 @@ spring.datasource.password=wfpw
 - [DATABASE_RULE.md](DATABASE_RULE.md) — 명명 규칙
 - [ERROR_CODES.md](ERROR_CODES.md) — 에러 코드 카탈로그
 - [HTTP_POLICY.md](HTTP_POLICY.md) — `http.request` 같은 외부 호출 SSRF 방어
+- [FILE_POLICY.md](FILE_POLICY.md) — `file.read` / `file.write` path traversal 방어
 - [SECRETS.md](SECRETS.md) — credential vault 운영 가이드
