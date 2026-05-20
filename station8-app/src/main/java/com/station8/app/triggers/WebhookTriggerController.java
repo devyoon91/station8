@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * M20 (#310) — webhook trigger endpoint.
+ * M20 (#310, #312) — webhook trigger endpoint.
  *
  * <p>외부 시스템이 {@code POST /api/triggers/webhook/{key}} 를 호출하면 해당 key의
  * {@link LineTrigger} 설정을 보고 HMAC 검증 후 {@link TriggerLauncher#launch}로 라인 시작.</p>
@@ -40,16 +40,25 @@ import java.util.Map;
  * <ol>
  *   <li>key로 trigger 조회. 없거나 비활성/삭제이면 404</li>
  *   <li>{@code triggerType != "webhook"} 이면 404 (잘못된 endpoint 호출)</li>
- *   <li>configJson 파싱 — {@code hmacSecret} 필드 필수</li>
- *   <li>{@code allowedMethods}에 POST 있는지 — 없으면 405 (현재 POST만 지원, 향후 GET/PUT 등)</li>
- *   <li>{@code X-Signature} 헤더 검증 — HMAC-SHA256(body, secret), hex encoding</li>
+ *   <li>configJson 파싱 — {@code hmacSecret} 필수, {@code rateLimit} 선택 (#312)</li>
+ *   <li>{@code allowedMethods}에 POST 있는지 — 없으면 405</li>
+ *   <li>rate limit 통과 (#312) — 초과 시 429</li>
+ *   <li>replay defense 활성 시 (#312):
+ *     <ul>
+ *       <li>{@code X-Timestamp} 헤더 필수 (epoch millis)</li>
+ *       <li>현재 시각 ± {@code station8.webhook.replay-window-seconds} 안이어야 통과</li>
+ *       <li>HMAC payload = {@code timestamp + "\n" + body}</li>
+ *       <li>같은 (key, timestamp, signature) 튜플은 window 내 1회만 통과</li>
+ *     </ul>
+ *   </li>
+ *   <li>{@code X-Signature} 헤더 검증 — HMAC-SHA256(payload, secret), hex encoding</li>
  *   <li>body를 inputData로 {@link TriggerLauncher#launch} 호출</li>
  *   <li>응답 {@code { instanceId, started, definitionId }}</li>
  * </ol>
  *
  * <h3>HMAC 계산</h3>
- * 외부 발신자는 raw body 바이트를 secret으로 HMAC-SHA256, hex string으로 인코딩해
- * {@code X-Signature: <hex>} 헤더에 박는다. 본 endpoint가 같은 계산으로 비교 — 일치하지 않으면 401.
+ * <p>replay defense 활성 (default): {@code HMAC-SHA256(timestamp + "\n" + body, secret)}, hex.<br>
+ * 비활성 (legacy): {@code HMAC-SHA256(body, secret)}, hex.</p>
  *
  * <p>secret은 vault credential ({@code webhook_hmac} type) 에서 lookup — config에는
  * credential 이름만 박힘. URI/config에 평문 secret 절대 없음.</p>
@@ -64,20 +73,27 @@ public class WebhookTriggerController {
     private final CredentialResolver credentialResolver;
     private final TriggerLauncher triggerLauncher;
     private final ObjectMapper objectMapper;
+    private final WebhookRateLimiter rateLimiter;
+    private final WebhookReplayGuard replayGuard;
 
     public WebhookTriggerController(LineTriggerRepository triggerRepository,
                                     CredentialResolver credentialResolver,
                                     TriggerLauncher triggerLauncher,
-                                    ObjectMapper objectMapper) {
+                                    ObjectMapper objectMapper,
+                                    WebhookRateLimiter rateLimiter,
+                                    WebhookReplayGuard replayGuard) {
         this.triggerRepository = triggerRepository;
         this.credentialResolver = credentialResolver;
         this.triggerLauncher = triggerLauncher;
         this.objectMapper = objectMapper;
+        this.rateLimiter = rateLimiter;
+        this.replayGuard = replayGuard;
     }
 
     @PostMapping(value = "/api/triggers/webhook/{key}", consumes = MediaType.ALL_VALUE)
     public ResponseEntity<?> trigger(@PathVariable("key") String key,
                                      @RequestHeader(value = "X-Signature", required = false) String signature,
+                                     @RequestHeader(value = "X-Timestamp", required = false) String timestampHeader,
                                      @RequestBody(required = false) byte[] body) {
         LineTrigger trigger = triggerRepository.findByKey(key);
         if (trigger == null || !trigger.isActive() || !"webhook".equals(trigger.triggerType())) {
@@ -99,10 +115,36 @@ public class WebhookTriggerController {
                     Map.of("error", "method not allowed", "allowed", config.allowedMethods()));
         }
 
-        // HMAC 검증
+        // Rate limit — config에 rateLimit 있으면 적용
+        RateLimit rl = config.rateLimit();
+        if (rl != null && !rateLimiter.tryAcquire(key, rl.maxPerMinute(), rl.burstSize())) {
+            log.info("webhook trigger '{}' rate limit 초과 — 429", key);
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(
+                    Map.of("error", "rate limit exceeded",
+                            "maxPerMinute", rl.maxPerMinute()));
+        }
+
         if (signature == null || signature.isBlank()) {
             return unauthorized("X-Signature header required");
         }
+
+        // Replay defense — 활성 시 timestamp 헤더 검증
+        if (replayGuard.isEnabled()) {
+            WebhookReplayGuard.TimestampCheck tsCheck = replayGuard.checkTimestamp(timestampHeader);
+            switch (tsCheck) {
+                case MISSING -> {
+                    return badRequest("X-Timestamp header required");
+                }
+                case INVALID -> {
+                    return badRequest("X-Timestamp must be epoch millis");
+                }
+                case OUT_OF_WINDOW -> {
+                    return unauthorized("X-Timestamp outside replay window");
+                }
+                case OK -> { /* proceed */ }
+            }
+        }
+
         String secret = lookupSecret(config.hmacSecret());
         if (secret == null) {
             log.warn("webhook trigger '{}' hmacSecret '{}' not in vault", key, config.hmacSecret());
@@ -110,9 +152,18 @@ public class WebhookTriggerController {
                     Map.of("error", "hmacSecret credential not found"));
         }
         byte[] effectiveBody = body == null ? new byte[0] : body;
-        String expected = computeHmac(effectiveBody, secret);
+        byte[] hmacPayload = replayGuard.isEnabled()
+                ? buildTimestampedPayload(timestampHeader, effectiveBody)
+                : effectiveBody;
+        String expected = computeHmac(hmacPayload, secret);
         if (!constantTimeEquals(expected, signature)) {
             return unauthorized("invalid signature");
+        }
+
+        // Replay dedup — signature 검증 이후 (외부에서 보낸 random signature로 cache 오염 방지)
+        if (replayGuard.isEnabled()
+                && !replayGuard.recordOnce(key, timestampHeader, signature)) {
+            return unauthorized("replay detected");
         }
 
         // 라인 시작 — body를 inputData로
@@ -128,7 +179,6 @@ public class WebhookTriggerController {
         }
 
         if (!result.started()) {
-            // 동시성 정책 차단 — 의도된 동작이므로 202 Accepted with skip 사유
             return ResponseEntity.accepted().body(Map.of(
                     "started", false,
                     "definitionId", trigger.definitionId(),
@@ -143,7 +193,15 @@ public class WebhookTriggerController {
                 "workflowName", result.workflowName()));
     }
 
-    /** config는 schemaJson과 동일한 평문 JSON. {@code hmacSecret} 필드 필수. */
+    private static byte[] buildTimestampedPayload(String timestamp, byte[] body) {
+        byte[] prefix = (timestamp + "\n").getBytes(StandardCharsets.UTF_8);
+        byte[] combined = new byte[prefix.length + body.length];
+        System.arraycopy(prefix, 0, combined, 0, prefix.length);
+        System.arraycopy(body, 0, combined, prefix.length, body.length);
+        return combined;
+    }
+
+    /** config는 schemaJson과 동일한 평문 JSON. {@code hmacSecret} 필수, {@code rateLimit} 선택. */
     private WebhookConfig parseConfig(String configJson) throws Exception {
         if (configJson == null || configJson.isBlank()) {
             throw new IllegalArgumentException("webhook config is empty");
@@ -156,7 +214,19 @@ public class WebhookTriggerController {
         }
         @SuppressWarnings("unchecked")
         List<String> methods = (List<String>) parsed.get("allowedMethods");
-        return new WebhookConfig(secret.toString(), methods);
+        RateLimit rl = parseRateLimit(parsed.get("rateLimit"));
+        return new WebhookConfig(secret.toString(), methods, rl);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static RateLimit parseRateLimit(Object raw) {
+        if (!(raw instanceof Map<?, ?> m)) return null;
+        Object max = m.get("maxPerMinute");
+        Object burst = m.get("burstSize");
+        if (!(max instanceof Number maxNum)) return null;
+        int maxPerMinute = maxNum.intValue();
+        int burstSize = burst instanceof Number burstNum ? burstNum.intValue() : 0;
+        return new RateLimit(maxPerMinute, burstSize);
     }
 
     /** vault에서 webhook_hmac credential lookup. 평문 secret 반환. 없으면 null. */
@@ -170,12 +240,12 @@ public class WebhookTriggerController {
         return cred.value();
     }
 
-    /** HMAC-SHA256(body, secret) → hex string. */
-    private static String computeHmac(byte[] body, String secret) {
+    /** HMAC-SHA256(payload, secret) → hex string. */
+    private static String computeHmac(byte[] payload, String secret) {
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
             mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
-            byte[] digest = mac.doFinal(body);
+            byte[] digest = mac.doFinal(payload);
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException | InvalidKeyException ex) {
             throw new RuntimeException("HMAC computation failed", ex);
@@ -200,11 +270,23 @@ public class WebhookTriggerController {
                 Map.of("error", reason));
     }
 
+    private static ResponseEntity<Map<String, Object>> badRequest(String reason) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                Map.of("error", reason));
+    }
+
     /**
      * webhook trigger config.
      *
      * @param hmacSecret      vault credential 이름 (type=webhook_hmac)
      * @param allowedMethods  허용 HTTP method 화이트리스트 (null/empty면 POST 허용)
+     * @param rateLimit       per-trigger rate limit (null이면 비활성)
      */
-    private record WebhookConfig(String hmacSecret, List<String> allowedMethods) {}
+    private record WebhookConfig(String hmacSecret, List<String> allowedMethods, RateLimit rateLimit) {}
+
+    /**
+     * @param maxPerMinute 분당 허용 호출 수. &lt;= 0 이면 비활성
+     * @param burstSize    버킷 capacity. &lt;= 0 이면 maxPerMinute로 대체
+     */
+    private record RateLimit(int maxPerMinute, int burstSize) {}
 }

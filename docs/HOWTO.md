@@ -539,11 +539,15 @@ curl -X POST http://localhost:8080/api/line/schedules \
      "activeFl": "Y"
    }
    ```
-3. 외부 발신자는 매 호출마다 raw body에 대해 HMAC-SHA256을 계산해서 `X-Signature` 헤더로 박아 보낸다:
+3. 외부 발신자는 매 호출마다 epoch ms 타임스탬프와 `timestamp + "\n" + body`에 대한 HMAC-SHA256을 계산해서 `X-Timestamp` / `X-Signature` 헤더로 박아 보낸다:
    ```bash
    BODY='{"orderId":"42"}'
-   SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^.* //')
+   TS=$(date +%s%3N)
+   PAYLOAD="${TS}
+${BODY}"
+   SIG=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^.* //')
    curl -X POST http://station8/api/triggers/webhook/incoming-orders \
+     -H "X-Timestamp: $TS" \
      -H "X-Signature: $SIG" \
      -H "Content-Type: application/json" \
      -d "$BODY"
@@ -554,18 +558,52 @@ curl -X POST http://localhost:8080/api/line/schedules \
 
 - `hmacSecret` (필수) — vault credential 이름. type=`webhook_hmac`. 평문 secret은 vault 안에만
 - `allowedMethods` (선택) — HTTP method 화이트리스트. 비우면 POST만 허용 (현재 POST 외 미지원)
+- `rateLimit` (선택, #312) — `{maxPerMinute, burstSize}`. 명시 안 하면 무제한
 
 상태 코드:
 - 200 — 정상 launch, 응답 body에 `instanceId`
 - 202 — 동시성 정책에 막힘 (`SKIP_IF_RUNNING` 등). `skipReason` / `conflictingInstanceId` 응답
-- 401 — `X-Signature` 누락 또는 불일치
+- 400 — `X-Timestamp` 누락 또는 숫자 아님 (replay defense 활성 시)
+- 401 — `X-Signature` 누락/불일치, timestamp 윈도우 밖, replay 감지
 - 404 — 등록 안 된 / 비활성 trigger key
 - 405 — `allowedMethods` 위반
+- 429 — `rateLimit` 초과
 - 500 — config malformed 또는 vault credential 미존재
 
 trigger 등록은 `/line/triggers` 페이지에서 — webhook URL preview + curl 사용 예시까지 같이 표시. ADMIN 권한 필요. REST는 `/api/line/triggers` CRUD.
 
-rate limit / replay 방어는 별도 sub-issue (#312)로.
+#### Rate limit + replay 방어 (#312)
+
+webhook은 외부 노출이라 baseline 두 가지 보호가 켜져 있다. 폐쇄망/단일 노드 가정 — 분산 환경(Redis bucket 등)은 비범위.
+
+**Rate limit** (per-trigger token bucket). trigger config의 `rateLimit`이 있는 트리거에만 적용 — 부담 큰 트리거에 선별 적용 가능:
+
+```json
+{
+  "hmacSecret": "incoming-orders-secret",
+  "rateLimit": {
+    "maxPerMinute": 60,
+    "burstSize": 10
+  }
+}
+```
+
+burst 소진 시 429. 시간 경과로 분당 `maxPerMinute` 만큼 자연 refill. `burstSize` 생략 시 `maxPerMinute`로 대체.
+
+**Replay 방어**. 발신자는 epoch ms 타임스탬프를 `X-Timestamp` 헤더로 박고, HMAC은 `timestamp + "\n" + body`에 대해 계산. endpoint는 두 가지 확인:
+
+- timestamp가 현재 시각 ± `station8.webhook.replay-window-seconds` (기본 300초) 안인지 — 시계 어긋남 5분까지 허용
+- 같은 (key, timestamp, signature) 튜플은 윈도우 내 1회만 통과 — dedup cache
+
+전역 토글 (`application.properties`):
+
+```properties
+station8.webhook.rate-limit.enabled=true        # config에 rateLimit 있는 트리거만 적용
+station8.webhook.replay-defense.enabled=true    # false면 legacy 모드 (body-only HMAC, timestamp 불필요)
+station8.webhook.replay-window-seconds=300
+```
+
+legacy 발신자가 `X-Timestamp`를 못 박는 환경에선 `replay-defense.enabled=false`로 비활성. 단 baseline 보안이 약해지므로 권장하지 않음.
 
 ---
 
