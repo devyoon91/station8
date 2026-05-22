@@ -38,12 +38,27 @@ javadoc {
 
 // #283 — RFC `engine-artifact-distribution.md` 결정 반영.
 // SDK는 station8-engine-api 좌표로 publish — 0.1.0이 분리 시작 버전 (RFC "버전 정책" 참조).
-// 단, OSSRH 등록과 group 변경은 별도 sub-issue로 분리 — 본 PR에서는 mavenLocal까지만 검증.
+// 단, OSSRH 등록과 group 변경은 #318로 분리 — 본 시점은 mavenLocal + GitHub Packages SNAPSHOT.
 //
 // 실제 publish:
-//   ./gradlew :station8-engine-api:publishToMavenLocal
+//   로컬:   ./gradlew :station8-engine-api:publishToMavenLocal
+//   원격(SNAPSHOT, #317): ./gradlew :station8-engine-api:publish
+//     - 인증: GITHUB_ACTOR / GITHUB_TOKEN 환경변수 (GitHub Actions 자동 제공),
+//       로컬에서는 ~/.gradle/gradle.properties에 gpr.user / gpr.token (read:packages 권한 PAT)
 //
 publishing {
+    repositories {
+        // #317 — GitHub Packages는 SDK SNAPSHOT 보조 채널 (RFC engine-artifact-distribution.md 참조).
+        // GITHUB_TOKEN은 Actions에서 자동 주입, 로컬 publish가 필요한 경우 gpr.user/gpr.token fallback.
+        maven {
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/devyoon91/station8')
+            credentials {
+                username = System.getenv('GITHUB_ACTOR') ?: (findProperty('gpr.user') ?: '')
+                password = System.getenv('GITHUB_TOKEN') ?: (findProperty('gpr.token') ?: '')
+            }
+        }
+    }
     publications {
         mavenJava(MavenPublication) {
             artifactId = 'station8-engine-api'
