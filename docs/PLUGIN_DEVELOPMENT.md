@@ -247,9 +247,26 @@ Plugin reload jar my-plugin-0.1.0.jar: added=1, conflicts=0
 
 ## 호환성과 버전
 
-지금 본 저장소는 v0.0.1이라 안정 commitment 없이 가고 있다. `@Activity`의 시그니처나 `LineContext` 인터페이스가 마이너 릴리스에서 바뀔 수 있고, 그 경우 release note에 적힌다. 1.0이 나오면 그때 SemVer 정식 적용 예정.
+#283 기준으로 SDK는 별도 모듈(`station8-engine-api`)로 분리되어 있다. 플러그인 작성자는 호스트 엔진 전체가 아닌 이 모듈만 `compileOnly`로 잡으면 된다.
 
-지금 시점에서는 엔진 0.0.x ↔ 플러그인 0.0.x 매트릭스만 신경 쓰면 된다. 엔진을 올릴 때 본인 플러그인도 같이 다시 빌드한다고 생각하는 게 가장 안전하다.
+```groovy
+compileOnly 'com.station8:station8-engine-api:0.0.1-SNAPSHOT'
+```
+
+지금 본 저장소는 0.0.x라 안정 commitment 없이 가고 있다. `@Activity` 시그니처나 `LineContext` 인터페이스가 마이너 릴리스에서 바뀔 수 있고, 그 경우 release note에 적힌다. **0.1.0이 분리된 SDK의 첫 정식 버전 예정** — 그 시점부터 SemVer(MAJOR=breaking, MINOR=additive, PATCH=비기능)가 적용된다.
+
+### 호환 매트릭스
+
+```
+| host engine | compatible plugin API |
+|---|---|
+| 0.0.x       | 0.0.x (best-effort)   |
+| 0.1.x       | 0.1.0+                |
+| 0.2.x       | 0.1.0+ (additive only) |
+| 1.0.x       | 1.0.0+                |
+```
+
+**중요한 제약** — 플러그인이 호스트보다 **높은** SDK 버전을 사용하면 런타임에 `NoSuchMethodError` 가 날 수 있다 (호스트가 새 인터페이스 메서드를 갖고 있지 않으므로). 가장 안전한 운용은 호스트 버전 ≥ 플러그인 SDK 버전. 호스트 부팅 시 jar의 `MANIFEST.MF` 검사로 친절한 거부 메시지를 띄우는 가드는 후속 sub-issue.
 
 ## 보안
 
@@ -272,9 +289,11 @@ Plugin reload jar my-plugin-0.1.0.jar: added=1, conflicts=0
 - [line-engine-spec.md](line-engine-spec.md) — 엔진 전체 아키텍처
 - [`examples/plugin-starter/`](../examples/plugin-starter/) — 컴파일·테스트·업로드 사이클이 통째로 들어있는 최소 예제
 
-코드에서 자세히 보고 싶으면:
-- [`Activity.java`](../station8-engine/src/main/java/com/station8/engine/annotation/Activity.java)
-- [`BoundDataSource.java`](../station8-engine/src/main/java/com/station8/engine/annotation/BoundDataSource.java)
-- [`ActivityArgumentResolver.java`](../station8-engine/src/main/java/com/station8/engine/core/ActivityArgumentResolver.java) — 파라미터를 어떻게 채우는지 한 파일에 다 있다
-- [`LineContext.java`](../station8-engine/src/main/java/com/station8/engine/core/LineContext.java)
+코드에서 자세히 보고 싶으면 (#283 — SDK는 station8-engine-api 모듈):
+- [`Activity.java`](../station8-engine-api/src/main/java/com/station8/engine/annotation/Activity.java)
+- [`BoundDataSource.java`](../station8-engine-api/src/main/java/com/station8/engine/annotation/BoundDataSource.java)
+- [`LineContext.java`](../station8-engine-api/src/main/java/com/station8/engine/core/LineContext.java)
+- [`ActivityArgumentResolver.java`](../station8-engine/src/main/java/com/station8/engine/core/ActivityArgumentResolver.java) — 파라미터를 어떻게 채우는지 한 파일에 다 있다 (호스트 쪽 구현)
+
+배포 채널/버전 정책 관련 결정사항: [`docs/decisions/engine-artifact-distribution.md`](decisions/engine-artifact-distribution.md)
 - [`PluginLoader.java`](../station8-engine/src/main/java/com/station8/engine/plugin/PluginLoader.java) — jar 스캔과 등록 흐름

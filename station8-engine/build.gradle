@@ -1,4 +1,13 @@
+// #283 — api 구성으로 station8-engine-api SDK 타입을 트랜지티브 노출하기 위해 java-library 적용.
+// 단일 모듈 시절에는 java 만으로 충분했으나 SDK 분리로 api/implementation 구분이 필요해짐.
+apply plugin: 'java-library'
+
 dependencies {
+    // #283 — 플러그인 SDK 모듈. 어노테이션과 LineContext 인터페이스가 여기에 있음.
+    // api 구성으로 노출해서 station8-engine을 의존하는 station8-app도 SDK 타입을
+    // 트랜지티브로 그대로 본다 (기존 import 경로 보존).
+    api project(':station8-engine-api')
+
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'com.fasterxml.jackson.core:jackson-databind'

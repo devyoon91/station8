@@ -19,12 +19,14 @@ Station8 플러그인을 처음 만들 때 그대로 복사해서 시작할 수 
 
 ## 빌드
 
-먼저 본 저장소의 엔진 jar를 로컬 Maven에 publish해둔다. 한 번만 하면 된다.
+먼저 본 저장소의 SDK 모듈(`station8-engine-api`)을 로컬 Maven에 publish해둔다. 한 번만 하면 된다.
 
 ```bash
 # 루트에서
-./gradlew :station8-engine:publishToMavenLocal
+./gradlew :station8-engine-api:publishToMavenLocal
 ```
+
+> #283 — SDK는 호스트 엔진(`station8-engine`)에서 분리된 별도 경량 모듈. compileOnly로 잡는 contract만 들어있고 Spring/Jackson/GraalVM 같은 무거운 의존성은 포함되지 않는다 (jar 크기 ≈ 5KB).
 
 그 뒤 starter 빌드:
 
@@ -35,10 +37,10 @@ gradle build
 
 `build/libs/plugin-starter-0.1.0.jar`가 산출물. 테스트는 build 안에 포함된다 (`gradle test`로 따로 돌려도 됨).
 
-엔진을 publish하기 귀찮으면 `build.gradle`의 `compileOnly` 라인을 다음처럼 바꿔도 된다:
+SDK를 publish하기 귀찮으면 `build.gradle`의 `compileOnly` 라인을 다음처럼 바꿔도 된다:
 
 ```groovy
-compileOnly files('../../station8-engine/build/libs/station8-engine-0.0.1-SNAPSHOT.jar')
+compileOnly files('../../station8-engine-api/build/libs/station8-engine-api-0.0.1-SNAPSHOT.jar')
 ```
 
 ## 호스트에 올리기
