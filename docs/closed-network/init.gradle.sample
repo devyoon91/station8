@@ -1,0 +1,44 @@
+// #322 — 폐쇄망 사이트에서 Gradle 의존성 해소를 사내 Nexus mirror로 강제.
+//
+// 사용: ~/.gradle/init.gradle 로 복사 후 nexus URL을 사이트 표준에 맞게 수정.
+// 본 init script가 활성화되면 모든 프로젝트의 mavenCentral() / GitHub Packages 참조가
+// 사내 group repo 단일 URL로 치환된다.
+//
+// 자세한 가이드는 docs/PLUGIN_DEVELOPMENT.md 의 "폐쇄망 사이트에서 빌드하기" 절.
+
+def nexusUrl = System.getenv('STATION8_REPO_URL') ?: 'https://nexus.example.com/repository/maven-public/'
+
+allprojects {
+    repositories {
+        // 기존 외부 repo 제거 — 사이트 외부 망으로 나가는 모든 maven URL을 닫는다.
+        all { ArtifactRepository repo ->
+            if (repo instanceof MavenArtifactRepository) {
+                def url = repo.url.toString()
+                def externalPrefixes = [
+                        'https://repo1.maven.org/',
+                        'https://repo.maven.apache.org/',
+                        'https://maven.pkg.github.com/',
+                        'https://jitpack.io/',
+                        'https://plugins.gradle.org/'
+                ]
+                if (externalPrefixes.any { url.startsWith(it) }) {
+                    remove repo
+                }
+            }
+        }
+        // 사내 mirror 한 곳으로 통일. group repository로 묶여있다고 가정.
+        maven {
+            name = 'nexus-internal'
+            url = nexusUrl
+            // 인증이 필요하다면 사이트 표준에 맞춰 추가:
+            // credentials {
+            //     username = providers.gradleProperty('nexus.user').get()
+            //     password = providers.gradleProperty('nexus.token').get()
+            // }
+        }
+    }
+}
+
+// Gradle plugin portal도 별도 mirror가 있으면 settingsEvaluated에서 갈아끼우기.
+// 본 init script는 dependencyResolutionManagement / pluginManagement는 손대지 않으므로
+// settings.gradle의 pluginManagement {} 블록은 사이트 표준에 맞게 수동으로 갱신.
