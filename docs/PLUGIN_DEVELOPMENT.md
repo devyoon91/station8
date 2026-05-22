@@ -305,7 +305,36 @@ compileOnly 'com.station8:station8-engine-api:0.0.1-SNAPSHOT'
 | 1.0.x       | 1.0.0+                |
 ```
 
-**중요한 제약** — 플러그인이 호스트보다 **높은** SDK 버전을 사용하면 런타임에 `NoSuchMethodError` 가 날 수 있다 (호스트가 새 인터페이스 메서드를 갖고 있지 않으므로). 가장 안전한 운용은 호스트 버전 ≥ 플러그인 SDK 버전. 호스트 부팅 시 jar의 `MANIFEST.MF` 검사로 친절한 거부 메시지를 띄우는 가드는 후속 sub-issue.
+**중요한 제약** — 플러그인이 호스트보다 **높은** SDK 버전을 사용하면 런타임에 `NoSuchMethodError` 가 날 수 있다 (호스트가 새 인터페이스 메서드를 갖고 있지 않으므로). 가장 안전한 운용은 호스트 버전 ≥ 플러그인 SDK 버전.
+
+### MANIFEST 헤더로 호환성 가드 (#320)
+
+플러그인 jar의 `MANIFEST.MF` 에 `Station8-Engine-Api-Version` 헤더를 박으면 호스트의 `PluginLoader` 가 부팅/리로드 시점에 호환성을 검증하고, 비호환이면 친절한 거부 메시지로 차단한다 — `NoSuchMethodError` 가 운영 시간에 떨어지는 대신.
+
+starter `build.gradle` 패턴:
+
+```groovy
+def pluginApiVersion = '0.1.0'  // compileOnly로 잡은 SDK 버전과 동일하게
+
+tasks.jar {
+    manifest {
+        attributes(
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version,
+                'Station8-Engine-Api-Version': pluginApiVersion
+        )
+    }
+}
+```
+
+검증 규칙:
+- 헤더 없음 → 통과 (기존 plugin jar backward compat, WARN 로그만)
+- 호스트가 `0.0.x` (분리 전 best-effort) → 통과 (검증 생략)
+- plugin major ≠ host major → **거부** (breaking change)
+- plugin minor > host minor (같은 major) → **거부** (호스트 업그레이드 필요)
+- 그 외 → 통과
+
+거부된 jar은 호스트 로그에 `Plugin <name> 거부 (SDK 비호환): ...` 로 떨어지고, `/admin/plugins` 의 reload 응답 `failedJars` 에 사유가 분류된다.
 
 ## 폐쇄망 사이트에서 빌드하기
 
