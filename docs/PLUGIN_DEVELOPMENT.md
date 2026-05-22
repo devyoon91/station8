@@ -307,6 +307,87 @@ compileOnly 'com.station8:station8-engine-api:0.0.1-SNAPSHOT'
 
 **중요한 제약** — 플러그인이 호스트보다 **높은** SDK 버전을 사용하면 런타임에 `NoSuchMethodError` 가 날 수 있다 (호스트가 새 인터페이스 메서드를 갖고 있지 않으므로). 가장 안전한 운용은 호스트 버전 ≥ 플러그인 SDK 버전. 호스트 부팅 시 jar의 `MANIFEST.MF` 검사로 친절한 거부 메시지를 띄우는 가드는 후속 sub-issue.
 
+## 폐쇄망 사이트에서 빌드하기
+
+인터넷에 직접 못 나가는 사이트에서는 Gradle 의존성 해소가 막힌다. `mavenCentral()` / GitHub Packages를 직접 보면 timeout이 떨어진다. 표준 해법은 **사내 Nexus/Artifactory를 Central proxy로 띄우고, starter `build.gradle`의 repositories를 그쪽으로 돌리는 것**.
+
+본 절은 [`#322`](https://github.com/devyoon91/station8/issues/322)의 가이드로, 시크릿 운반 가이드인 [`#112`](https://github.com/devyoon91/station8/issues/112) 와 같은 톤 — "사이트에 표준이 있으면 그 위에 얹는다, 본 저장소가 인프라를 강제하지 않는다".
+
+### 1) 사이트 관리자 — Nexus를 Central proxy로
+
+새 Nexus repo를 만든다 (이미 있으면 재사용):
+
+| 필드 | 값 |
+|---|---|
+| Type | `proxy` |
+| Remote storage | `https://repo1.maven.org/maven2/` |
+| Name | 예: `maven-central-proxy` |
+| Auth | none (Central은 anonymous read) |
+
+GitHub Packages SNAPSHOT (#317) 도 추가로 mirror하고 싶다면 별도 proxy repo:
+
+| 필드 | 값 |
+|---|---|
+| Type | `proxy` |
+| Remote storage | `https://maven.pkg.github.com/devyoon91/station8` |
+| Auth | username/PAT(`read:packages`) — Nexus 측에 박음 |
+
+마지막으로 group repository로 두 proxy를 묶어 단일 URL로 노출 (`https://nexus.example.com/repository/maven-public/`).
+
+### 2) 플러그인 개발자 — starter `build.gradle` 수정
+
+가장 가벼운 패턴은 `gradle.properties` 의 변수로 분기:
+
+```groovy
+// examples/plugin-starter/build.gradle 의 repositories 블록을 다음처럼
+repositories {
+    if (providers.gradleProperty('station8.repo').isPresent()) {
+        maven { url = providers.gradleProperty('station8.repo').get() }
+    } else {
+        mavenLocal()
+        mavenCentral()
+    }
+}
+```
+
+`gradle.properties` 또는 `~/.gradle/gradle.properties` 에:
+
+```properties
+station8.repo=https://nexus.example.com/repository/maven-public/
+```
+
+사이트 외(개발자 본인 노트북 등)에서는 위 property를 안 두면 평소처럼 `mavenLocal + mavenCentral`. 사내 빌드 서버에서는 표준 init script로 위 property를 자동 주입할 수도 있다 (다음 절).
+
+### 3) `~/.gradle/init.gradle` 로 사이트 전체에 강제
+
+빌드 서버 / CI 머신에 한해 사이트 전체 빌드의 repositories를 묶어 미러로 보내고 싶다면 `~/.gradle/init.gradle` 한 줄:
+
+```groovy
+allprojects {
+    repositories {
+        all { ArtifactRepository repo ->
+            if (repo instanceof MavenArtifactRepository) {
+                def url = repo.url.toString()
+                if (url.startsWith('https://repo1.maven.org/')
+                        || url.startsWith('https://repo.maven.apache.org/')
+                        || url.startsWith('https://maven.pkg.github.com/')) {
+                    remove repo
+                }
+            }
+        }
+        maven { url = 'https://nexus.example.com/repository/maven-public/' }
+    }
+}
+```
+
+기존 `mavenCentral()` / GitHub Packages를 모두 제거하고 사내 group repo로 대체한다. starter `build.gradle` 자체는 손대지 않아도 됨. 단점은 init script가 사이트별로 다르므로 컨트리뷰터가 본인 머신을 임시로 사이트 모드로 둘 때 활용.
+
+복사해서 쓸 수 있는 샘플: [`docs/closed-network/init.gradle.sample`](closed-network/init.gradle.sample). `nexusUrl` 한 줄만 사이트 표준에 맞게 바꿔서 `~/.gradle/init.gradle` 로 복사.
+
+### 4) 폐쇄망 USB 운반 (Central / Nexus 도 못 쓸 때)
+
+극단적인 폐쇄망(Nexus도 외부 망 못 봄)에서는 GitHub Release jar 첨부를 USB로 운반하는 길이 있다 — RFC [`engine-artifact-distribution.md`](decisions/engine-artifact-distribution.md) 의 "GitHub Release jar 첨부" fallback. 받은 jar를 사이트 안에서 Nexus에 manual upload 하면 그 뒤는 위 1~3과 동일.
+
 ## 보안
 
 플러그인은 호스트 JVM과 같은 권한으로 돈다. Java 17부터 `SecurityManager`가 deprecated라서 코드 레벨 샌드박싱은 사실상 불가능하고, 본 엔진도 시도하지 않는다.
