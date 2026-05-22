@@ -91,7 +91,9 @@ public String migrate(String input,
 @Activity("DAILY_REPORT")
 public String run(String input, LineContext ctx) {
     var date = ctx.runtimeParams().getOrDefault("date", LocalDate.now().toString());
-    // ctx.attempt() == 2 라면 첫 시도가 실패한 재시도 호출
+    if (ctx.isRetry()) {
+        // 첫 시도가 실패한 재시도 호출 — idempotency 가드 등
+    }
     // ctx.instanceId() 로 인스턴스 UUID 확인
 }
 ```
@@ -100,8 +102,9 @@ public String run(String input, LineContext ctx) {
 
 - `runtimeParams()` — Builder의 "Run now" 모달에서 입력한 옵션 맵. 같은 라인을 날짜만 바꿔 돌리는 식의 패턴에 핵심.
 - `attempt()` — 1부터 시작. 재시도 횟수에 따라 동작을 바꾸고 싶을 때.
+- `isRetry()` (#321) — `attempt() > 1` 의 가독성 alias. 매직 넘버 없이 재시도 분기 표현.
 - `instanceId()`, `workflowName()`, `currentActivityName()` — 로깅/추적용.
-- `setNext(name, input)` — 다음 액티비티를 코드에서 동적으로 지정. 보통은 빌더의 엣지 조건으로 처리하지만 필요할 때 사용.
+- `setNext(name, input)` — 다음 액티비티를 코드에서 동적으로 지정. 보통은 빌더의 엣지 조건으로 처리하지만 필요할 때 사용. 마지막 호출이 이긴다.
 - `saveState(obj)` / `loadState()` — 체크포인트. 긴 처리 중간에 진행 상태를 JSON으로 저장.
 
 ### `DataSourceRegistry`
