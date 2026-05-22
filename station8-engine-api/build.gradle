@@ -22,6 +22,19 @@ dependencies {
 
 // 본 모듈은 contract만 보유 — 통합 테스트는 station8-engine 쪽에서 수행.
 
+// #320 — jar MANIFEST.MF에 SDK 버전 헤더 박기. 호스트는 Activity.class.getPackage()
+// .getImplementationVersion() 으로 자신의 SDK 버전을 알 수 있고, 플러그인 jar의 동일 헤더와
+// 비교해 호환성 검증 가능 (PluginLoader 진입점에서).
+jar {
+    manifest {
+        attributes(
+                'Implementation-Title': 'station8-engine-api',
+                'Implementation-Version': project.version,
+                'Station8-Engine-Api-Version': project.version
+        )
+    }
+}
+
 // #283 — SDK 모듈은 source/javadoc jar을 함께 publish해야 IDE 자동완성/문서 점프가 동작.
 java {
     withSourcesJar()

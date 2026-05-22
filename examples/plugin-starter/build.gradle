@@ -27,8 +27,22 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.0'
 }
 
+// #320 — 플러그인 jar MANIFEST에 SDK 버전 헤더를 박아 PluginLoader가 호환성을 검증할 수 있게 한다.
+// 호스트와 plugin major가 다르거나 plugin minor가 더 높으면 런타임 NoSuchMethodError 대신
+// 부팅 시점에 친절한 거부 메시지로 차단된다.
+//
+// pluginApiVersion 변수는 본인이 compileOnly로 잡은 SDK 버전과 일치시켜야 한다.
+def pluginApiVersion = '0.0.1-SNAPSHOT'
+
 tasks.jar {
     archiveBaseName = 'plugin-starter'
+    manifest {
+        attributes(
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version,
+                'Station8-Engine-Api-Version': pluginApiVersion
+        )
+    }
 }
 
 test {

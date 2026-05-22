@@ -10,6 +10,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -125,8 +126,21 @@ public class PluginLoader {
             return new ReloadResult(added, conflicts, skippedJars, failedJars);
         }
 
+        String hostApiVersion = VersionCompatibility.hostApiVersion();
         for (File jar : jars) {
             try {
+                // #320 — scanAndRegister 진입 전에 SDK 버전 호환성 검사. REJECTED면 친절한 거부 메시지로
+                // failedJars에 분류, NoSuchMethodError가 런타임에 떨어지기 전에 차단.
+                VersionCompatibility.Check check = checkVersion(jar, hostApiVersion);
+                if (check.result() == VersionCompatibility.Result.REJECTED) {
+                    log.warn("Plugin {} 거부 (SDK 비호환): {}", jar.getName(), check.message());
+                    failedJars.add(new FailedJar(jar.getName(), "SDK 비호환: " + check.message()));
+                    continue;
+                }
+                if (check.result() == VersionCompatibility.Result.UNSPECIFIED) {
+                    log.warn("Plugin {} SDK 호환성 미확정: {}", jar.getName(), check.message());
+                }
+
                 JarScanResult r = scanAndRegister(jar);
                 added.addAll(r.added);
                 conflicts.addAll(r.conflicts);
@@ -219,6 +233,21 @@ public class PluginLoader {
             // keepLoaderOpen=true면 loader는 등록된 활동 인스턴스가 reference 유지 → JVM 종료까지 살아있음
         }
         return new JarScanResult(added, conflicts);
+    }
+
+    /**
+     * #320 — jar의 MANIFEST.MF에서 SDK 버전 헤더 읽어 호스트와 호환성 검증.
+     *
+     * @param jar            플러그인 jar 파일
+     * @param hostApiVersion 호스트 SDK 버전 (null 가능)
+     * @return 호환성 결과
+     * @throws IOException MANIFEST 읽기 실패 시
+     */
+    VersionCompatibility.Check checkVersion(File jar, String hostApiVersion) throws IOException {
+        try (JarFile jf = new JarFile(jar)) {
+            String pluginVersion = VersionCompatibility.readPluginApiVersion(jf);
+            return VersionCompatibility.check(hostApiVersion, pluginVersion);
+        }
     }
 
     private List<String> listClassNames(File jar) throws Exception {
