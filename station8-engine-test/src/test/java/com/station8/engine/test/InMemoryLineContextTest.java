@@ -111,4 +111,19 @@ class InMemoryLineContextTest {
         LineContext asInterface = LineContextBuilder.create().build();
         assertNotNull(asInterface.instanceId());
     }
+
+    @Test
+    void isRetry_falseOnFirstAttempt() {
+        InMemoryLineContext ctx = LineContextBuilder.create().attempt(1).build();
+        assertFalse(ctx.isRetry(), "attempt=1은 최초 호출이므로 isRetry=false");
+    }
+
+    @Test
+    void isRetry_trueOnRetries() {
+        InMemoryLineContext ctx = LineContextBuilder.create().attempt(2).build();
+        assertTrue(ctx.isRetry(), "attempt=2는 재시도이므로 isRetry=true");
+
+        InMemoryLineContext ctx5 = LineContextBuilder.create().attempt(5).build();
+        assertTrue(ctx5.isRetry());
+    }
 }
