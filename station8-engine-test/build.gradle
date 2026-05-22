@@ -1,0 +1,74 @@
+// station8-engine-test — 플러그인 SDK 테스트 fixture 모듈 (#319).
+//
+// 플러그인 작성자가 testImplementation으로 잡아 InMemoryLineContext / LineContextBuilder /
+// AssertionsForActivities 를 사용한다. Mockito 만으로는 검증 못 하는 setNext/saveState 등
+// 컨텍스트 사이드 이펙트도 단언 가능.
+//
+// 본 모듈은 SDK contract(station8-engine-api)만 의존하고 host runtime은 끌고 오지 않는다 —
+// 플러그인 테스트의 빠른 실행과 가벼운 의존성이 목표.
+
+apply plugin: 'java-library'
+apply plugin: 'maven-publish'
+
+dependencies {
+    // api 구성으로 노출 — testImplementation 측에서 InMemoryLineContext가 LineContext를 implements한다는 사실이 보여야 함.
+    api project(':station8-engine-api')
+}
+
+// #319 — fixture/단언 helper가 외부에 노출되므로 sources/javadoc jar 동봉.
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+javadoc {
+    options.addStringOption('Xdoclint:none', '-quiet')
+    options.encoding = 'UTF-8'
+}
+
+publishing {
+    repositories {
+        // #317과 동일 패턴 — GitHub Packages SNAPSHOT 보조 채널.
+        maven {
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/devyoon91/station8')
+            credentials {
+                username = System.getenv('GITHUB_ACTOR') ?: (findProperty('gpr.user') ?: '')
+                password = System.getenv('GITHUB_TOKEN') ?: (findProperty('gpr.token') ?: '')
+            }
+        }
+    }
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'station8-engine-test'
+            from components.java
+            versionMapping {
+                usage('java-api') { fromResolutionResult() }
+                usage('java-runtime') { fromResolutionResult() }
+            }
+            pom {
+                name = 'Station8 Engine Test Fixtures'
+                description = 'Test fixtures (InMemoryLineContext, builders, assertions) for Station8 plugin developers.'
+                url = 'https://github.com/devyoon91/station8'
+                licenses {
+                    license {
+                        name = 'Apache License 2.0'
+                        url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'devyoon91'
+                        name = 'Byungyoon Kim'
+                        url = 'https://github.com/devyoon91'
+                    }
+                }
+                scm {
+                    url = 'https://github.com/devyoon91/station8'
+                    connection = 'scm:git:https://github.com/devyoon91/station8.git'
+                    developerConnection = 'scm:git:git@github.com:devyoon91/station8.git'
+                }
+            }
+        }
+    }
+}

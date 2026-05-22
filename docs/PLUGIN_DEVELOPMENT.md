@@ -198,17 +198,56 @@ class HelloPluginTest {
 }
 ```
 
-`LineContext`를 받는 메서드는 Mockito로 한 줄짜리 mock을 만들면 된다.
+`LineContext`를 받는 메서드는 두 가지 길이 있다 — Mockito mock이거나, `station8-engine-test` 모듈의 fixture를 잡는 것. 후자가 권장이다 — `setNext` / `saveState` 같은 사이드 이펙트도 단언 가능하고 SDK가 default 메서드를 추가할 때 mock 갱신 부담이 없다.
+
+### 권장: `station8-engine-test` fixture (#319)
+
+```groovy
+// build.gradle
+testImplementation 'com.station8:station8-engine-test:0.0.1-SNAPSHOT'
+```
 
 ```java
+import com.station8.engine.test.InMemoryLineContext;
+import com.station8.engine.test.LineContextBuilder;
+import static com.station8.engine.test.ActivityOutputAssertions.assertActivityOutput;
+
 @Test
 void run_usesDateFromRuntimeParams() {
-    LineContext ctx = mock(LineContext.class);
-    when(ctx.runtimeParams()).thenReturn(Map.of("date", "2026-05-01"));
+    InMemoryLineContext ctx = LineContextBuilder.create()
+            .runtimeParam("date", "2026-05-22")
+            .attempt(2)                                  // 재시도 케이스
+            .build();
 
     String out = new ReportPlugin().run("{}", ctx);
 
-    assertTrue(out.contains("\"date\":\"2026-05-01\""));
+    assertActivityOutput(out).hasFieldValue("date", "2026-05-22");
+}
+
+@Test
+void run_setsNextActivityOnSuccess() {
+    InMemoryLineContext ctx = LineContextBuilder.create().build();
+
+    new ReportPlugin().run("{}", ctx);
+
+    // setNext 사이드 이펙트 단언
+    assertEquals("SEND_EMAIL", ctx.capturedNextActivityName().orElseThrow());
+}
+```
+
+### 대안: Mockito mock
+
+가벼운 케이스(getter만 호출되고 사이드 이펙트 단언이 불필요)는 mock도 OK:
+
+```java
+@Test
+void run_quickCheck() {
+    LineContext ctx = mock(LineContext.class);
+    when(ctx.runtimeParams()).thenReturn(Map.of("date", "2026-05-22"));
+
+    String out = new ReportPlugin().run("{}", ctx);
+
+    assertTrue(out.contains("\"date\":\"2026-05-22\""));
 }
 ```
 

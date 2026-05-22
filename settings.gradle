@@ -1,5 +1,6 @@
 rootProject.name = 'station8'
 include 'station8-engine-api'
+include 'station8-engine-test'
 include 'station8-engine'
 include 'station8-app'
 include 'e2e-tests'
