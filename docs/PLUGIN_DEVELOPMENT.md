@@ -207,7 +207,7 @@ class HelloPluginTest {
 
 ```groovy
 // build.gradle
-testImplementation 'com.station8:station8-engine-test:0.0.1-SNAPSHOT'
+testImplementation 'io.github.devyoon91:station8-engine-test:0.1.0-SNAPSHOT'
 ```
 
 ```java
@@ -292,7 +292,7 @@ Plugin reload jar my-plugin-0.1.0.jar: added=1, conflicts=0
 #283 기준으로 SDK는 별도 모듈(`station8-engine-api`)로 분리되어 있다. 플러그인 작성자는 호스트 엔진 전체가 아닌 이 모듈만 `compileOnly`로 잡으면 된다.
 
 ```groovy
-compileOnly 'com.station8:station8-engine-api:0.0.1-SNAPSHOT'
+compileOnly 'io.github.devyoon91:station8-engine-api:0.1.0-SNAPSHOT'
 ```
 
 지금 본 저장소는 0.0.x라 안정 commitment 없이 가고 있다. `@Activity` 시그니처나 `LineContext` 인터페이스가 마이너 릴리스에서 바뀔 수 있고, 그 경우 release note에 적힌다. **0.1.0이 분리된 SDK의 첫 정식 버전 예정** — 그 시점부터 SemVer(MAJOR=breaking, MINOR=additive, PATCH=비기능)가 적용된다.

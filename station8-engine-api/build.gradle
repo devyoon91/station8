@@ -14,6 +14,13 @@
 // 같은 패키지의 다른 클래스(예: DefaultLineContext)를 가질 뿐. 기존 import 호환 보존.
 
 apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+// #318 — Central 정식 release 좌표. 호스트 모듈(station8-engine/app)은 외부 publish 대상이 아니라
+// 루트 group(com.station8) 그대로 두고, 외부 노출 면인 SDK 모듈만 io.github.devyoon91 로 분리.
+// 버전은 SDK 자체 semver — 호스트 0.0.1-SNAPSHOT 과 무관하게 0.1.0 부터 정식 시작.
+group = 'io.github.devyoon91'
+version = '0.1.0-SNAPSHOT'
 
 dependencies {
     // 의도적으로 비움. slf4j-api는 루트 build.gradle의 subprojects {}에서 자동 주입되지만
@@ -71,6 +78,23 @@ publishing {
                 password = System.getenv('GITHUB_TOKEN') ?: (findProperty('gpr.token') ?: '')
             }
         }
+        // #318 — Maven Central staging (Sonatype Central Portal).
+        // 인증/서명은 GitHub Actions secret 또는 ~/.gradle/gradle.properties:
+        //   ORG_GRADLE_PROJECT_ossrhUsername / ORG_GRADLE_PROJECT_ossrhPassword
+        //   ORG_GRADLE_PROJECT_signingKey   (ASCII-armored)
+        //   ORG_GRADLE_PROJECT_signingPassword
+        // 누락 시 publish 시도가 401/서명 실패로 떨어진다 — release 워크플로우에서만 사용.
+        maven {
+            name = 'CentralStaging'
+            // SNAPSHOT은 Sonatype Snapshots, release는 Central staging로 분리 라우팅.
+            def releasesUrl = uri('https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/')
+            def snapshotsUrl = uri('https://central.sonatype.com/repository/maven-snapshots/')
+            url = version.toString().endsWith('SNAPSHOT') ? snapshotsUrl : releasesUrl
+            credentials {
+                username = findProperty('ossrhUsername') ?: ''
+                password = findProperty('ossrhPassword') ?: ''
+            }
+        }
     }
     publications {
         mavenJava(MavenPublication) {
@@ -105,5 +129,17 @@ publishing {
                 }
             }
         }
+    }
+}
+
+// #318 — Maven Central 요구사항: GPG signing. signingKey가 없으면 (개발자 머신 / SNAPSHOT publish)
+// signing task는 자동 skip — env 기반 release 워크플로우에서만 발동.
+signing {
+    def signingKey = findProperty('signingKey')
+    def signingPassword = findProperty('signingPassword')
+    required { gradle.taskGraph.hasTask("publishMavenJavaPublicationToCentralStagingRepository") }
+    if (signingKey) {
+        useInMemoryPgpKeys(signingKey.toString(), (signingPassword ?: '').toString())
+        sign publishing.publications.mavenJava
     }
 }
