@@ -1,11 +1,12 @@
 # #317 — station8-engine-api SDK SNAPSHOT 자동 publish.
+# #319 — station8-engine-test fixture 모듈도 같이 publish.
 #
-# main에 push (보통 PR 머지)될 때, SDK 모듈만 GitHub Packages로 publish한다.
+# main에 push (보통 PR 머지)될 때, SDK + 테스트 fixture 모듈을 GitHub Packages로 publish한다.
 # 외부 컨트리뷰터/플러그인 개발자가 저장소 클론 없이 starter 한 줄로 SDK를 잡을 수 있게 하는
 # Central 등록 (#318) 전 단계 채널.
 #
-# - 트리거: SDK 관련 파일이 main에 들어올 때만 (불필요한 publish 줄이기)
-# - 좌표: com.station8:station8-engine-api:0.0.1-SNAPSHOT (group/버전은 #318에서 조정 예정)
+# - 트리거: SDK / fixture 관련 파일이 main에 들어올 때만 (불필요한 publish 줄이기)
+# - 좌표: com.station8:station8-engine-api / com.station8:station8-engine-test (group/버전은 #318에서 조정 예정)
 # - 인증: GITHUB_TOKEN (Actions 자동 제공) — 별도 secret 등록 불요
 
 name: Publish SDK SNAPSHOT
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - 'station8-engine-api/**'
+      - 'station8-engine-test/**'
       - '.github/workflows/publish-sdk-snapshot.yml'
       - 'build.gradle'
       - 'settings.gradle'
@@ -46,8 +48,8 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      - name: Publish station8-engine-api SNAPSHOT to GitHub Packages
+      - name: Publish SDK + test fixtures SNAPSHOT to GitHub Packages
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gradlew :station8-engine-api:publish --no-daemon
+        run: ./gradlew :station8-engine-api:publish :station8-engine-test:publish --no-daemon
