@@ -17,13 +17,15 @@ repositories {
 }
 
 dependencies {
-    // #283 — 플러그인 SDK는 별도 모듈 station8-engine-api 로 분리됨.
+    // #283/#318 — 플러그인 SDK는 별도 모듈 station8-engine-api 로 분리, group은 io.github.devyoon91.
     // 코어는 compileOnly — 호스트 런타임이 제공. jar에 포함하지 말 것.
-    compileOnly 'com.station8:station8-engine-api:0.0.1-SNAPSHOT'
+    compileOnly 'io.github.devyoon91:station8-engine-api:0.1.0-SNAPSHOT'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.mockito:mockito-core:5.10.0'
-    testImplementation 'com.station8:station8-engine-api:0.0.1-SNAPSHOT'
+    testImplementation 'io.github.devyoon91:station8-engine-api:0.1.0-SNAPSHOT'
+    // #319 — LineContext 테스트 fixture (선택 — Mockito 대신).
+    // testImplementation 'io.github.devyoon91:station8-engine-test:0.1.0-SNAPSHOT'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.0'
 }
 
@@ -32,7 +34,7 @@ dependencies {
 // 부팅 시점에 친절한 거부 메시지로 차단된다.
 //
 // pluginApiVersion 변수는 본인이 compileOnly로 잡은 SDK 버전과 일치시켜야 한다.
-def pluginApiVersion = '0.0.1-SNAPSHOT'
+def pluginApiVersion = '0.1.0-SNAPSHOT'
 
 tasks.jar {
     archiveBaseName = 'plugin-starter'

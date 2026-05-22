@@ -9,6 +9,11 @@
 
 apply plugin: 'java-library'
 apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+// #318 — SDK 모듈은 외부 publish 좌표를 호스트와 분리. station8-engine-api와 같은 group/version 라이프사이클.
+group = 'io.github.devyoon91'
+version = '0.1.0-SNAPSHOT'
 
 dependencies {
     // api 구성으로 노출 — testImplementation 측에서 InMemoryLineContext가 LineContext를 implements한다는 사실이 보여야 함.
@@ -35,6 +40,17 @@ publishing {
             credentials {
                 username = System.getenv('GITHUB_ACTOR') ?: (findProperty('gpr.user') ?: '')
                 password = System.getenv('GITHUB_TOKEN') ?: (findProperty('gpr.token') ?: '')
+            }
+        }
+        // #318 — Maven Central staging. station8-engine-api 와 동일 패턴.
+        maven {
+            name = 'CentralStaging'
+            def releasesUrl = uri('https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/')
+            def snapshotsUrl = uri('https://central.sonatype.com/repository/maven-snapshots/')
+            url = version.toString().endsWith('SNAPSHOT') ? snapshotsUrl : releasesUrl
+            credentials {
+                username = findProperty('ossrhUsername') ?: ''
+                password = findProperty('ossrhPassword') ?: ''
             }
         }
     }
@@ -70,5 +86,16 @@ publishing {
                 }
             }
         }
+    }
+}
+
+// #318 — GPG signing. station8-engine-api 와 동일 패턴.
+signing {
+    def signingKey = findProperty('signingKey')
+    def signingPassword = findProperty('signingPassword')
+    required { gradle.taskGraph.hasTask("publishMavenJavaPublicationToCentralStagingRepository") }
+    if (signingKey) {
+        useInMemoryPgpKeys(signingKey.toString(), (signingPassword ?: '').toString())
+        sign publishing.publications.mavenJava
     }
 }

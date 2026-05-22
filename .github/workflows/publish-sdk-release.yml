@@ -1,0 +1,68 @@
+# #318 — station8-engine-api / station8-engine-test 정식 release publish (Maven Central).
+#
+# 트리거: 수동 (workflow_dispatch) 또는 'sdk-vX.Y.Z' 태그.
+# 인증: GitHub Actions repository secrets로 주입 (PR 본문 가이드 참조).
+# 서명: 키 없으면 build.gradle의 signing 블록이 자동 skip → publish는 401/checksum 누락으로 fail.
+#       즉 OSSRH 등록 + GPG 키 셋업 전까지는 워크플로우를 실행해도 안전하게 실패한다.
+
+name: Publish SDK Release
+
+on:
+  push:
+    tags:
+      - 'sdk-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'true면 jar/pom만 생성하고 실제 publish는 skip'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  publish-central:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', 'gradle/**', 'gradle.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      # Dry-run: build artifacts + GPG signing 검증 (실제 publish 안 함).
+      - name: Build + sign (dry-run)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
+        env:
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew :station8-engine-api:build :station8-engine-api:generatePomFileForMavenJavaPublication \
+                    :station8-engine-test:build :station8-engine-test:generatePomFileForMavenJavaPublication \
+                    --no-daemon
+
+      # 실제 publish: 태그 push 또는 dry_run=false 수동 트리거.
+      - name: Publish to Maven Central Staging
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true') }}
+        env:
+          ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.OSSRH_USERNAME }}
+          ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.OSSRH_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew :station8-engine-api:publishMavenJavaPublicationToCentralStagingRepository \
+                    :station8-engine-test:publishMavenJavaPublicationToCentralStagingRepository \
+                    --no-daemon

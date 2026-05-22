@@ -40,7 +40,7 @@ gradle build
 SDK를 publish하기 귀찮으면 `build.gradle`의 `compileOnly` 라인을 다음처럼 바꿔도 된다:
 
 ```groovy
-compileOnly files('../../station8-engine-api/build/libs/station8-engine-api-0.0.1-SNAPSHOT.jar')
+compileOnly files('../../station8-engine-api/build/libs/station8-engine-api-0.1.0-SNAPSHOT.jar')
 ```
 
 ### GitHub Packages SNAPSHOT 사용 (저장소 클론 없이)
