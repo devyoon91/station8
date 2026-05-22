@@ -12,17 +12,18 @@ java {
 }
 
 repositories {
-    mavenLocal()       // ../../gradlew :station8-engine:publishToMavenLocal로 미리 publish
+    mavenLocal()       // ../../gradlew :station8-engine-api:publishToMavenLocal로 미리 publish (#283)
     mavenCentral()
 }
 
 dependencies {
+    // #283 — 플러그인 SDK는 별도 모듈 station8-engine-api 로 분리됨.
     // 코어는 compileOnly — 호스트 런타임이 제공. jar에 포함하지 말 것.
-    compileOnly 'com.station8:station8-engine:0.0.1-SNAPSHOT'
+    compileOnly 'com.station8:station8-engine-api:0.0.1-SNAPSHOT'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.mockito:mockito-core:5.10.0'
-    testImplementation 'com.station8:station8-engine:0.0.1-SNAPSHOT'
+    testImplementation 'com.station8:station8-engine-api:0.0.1-SNAPSHOT'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.0'
 }
 
