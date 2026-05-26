@@ -20,7 +20,7 @@ apply plugin: 'signing'
 // 루트 group(com.station8) 그대로 두고, 외부 노출 면인 SDK 모듈만 io.github.devyoon91 로 분리.
 // 버전은 SDK 자체 semver — 호스트 0.0.1-SNAPSHOT 과 무관하게 0.1.0 부터 정식 시작.
 group = 'io.github.devyoon91'
-version = '0.1.0-SNAPSHOT'
+version = '0.1.0'
 
 dependencies {
     // 의도적으로 비움. slf4j-api는 루트 build.gradle의 subprojects {}에서 자동 주입되지만
