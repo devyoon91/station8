@@ -13,7 +13,7 @@ apply plugin: 'signing'
 
 // #318 — SDK 모듈은 외부 publish 좌표를 호스트와 분리. station8-engine-api와 같은 group/version 라이프사이클.
 group = 'io.github.devyoon91'
-version = '0.1.0-SNAPSHOT'
+version = '0.1.0'
 
 dependencies {
     // api 구성으로 노출 — testImplementation 측에서 InMemoryLineContext가 LineContext를 implements한다는 사실이 보여야 함.
