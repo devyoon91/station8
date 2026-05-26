@@ -43,16 +43,37 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # Dry-run: build artifacts + GPG signing 검증 (실제 publish 안 함).
-      - name: Build + sign (dry-run)
+      # Dry-run: mavenLocal publish — 네트워크 호출 없이 signing task를 실제 발동시킨다.
+      # :build + generatePom만 돌리면 signing이 publish task graph 밖이라 .asc가 생성되지 않음 (#329).
+      - name: Build + sign + publish to mavenLocal (dry-run)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./gradlew :station8-engine-api:build :station8-engine-api:generatePomFileForMavenJavaPublication \
-                    :station8-engine-test:build :station8-engine-test:generatePomFileForMavenJavaPublication \
+          ./gradlew :station8-engine-api:publishMavenJavaPublicationToMavenLocal \
+                    :station8-engine-test:publishMavenJavaPublicationToMavenLocal \
                     --no-daemon
+
+      # mavenLocal에 jar/pom/sources/javadoc + 각 .asc 가 모두 생성됐는지 검증.
+      # 누락되면 서명 task가 silent skip 된 것 — secret 누락/잘못된 키 형식 등을 잡아낸다.
+      - name: Verify GPG signatures (dry-run)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
+        run: |
+          set -euo pipefail
+          REPO="$HOME/.m2/repository/io/github/devyoon91"
+          for module in station8-engine-api station8-engine-test; do
+            dir="$REPO/$module/0.1.0-SNAPSHOT"
+            echo "=== $module ==="
+            ls -la "$dir"
+            asc_count=$(find "$dir" -maxdepth 1 -name '*.asc' | wc -l)
+            echo "Signatures: $asc_count"
+            if [ "$asc_count" -lt 4 ]; then
+              echo "ERROR: expected ≥4 .asc files (jar/pom/sources/javadoc); got $asc_count"
+              exit 1
+            fi
+          done
+          echo "All GPG signatures verified."
 
       # 실제 publish: 태그 push 또는 dry_run=false 수동 트리거.
       - name: Publish to Maven Central Staging
