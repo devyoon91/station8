@@ -19,6 +19,8 @@ import java.util.Map;
  * @param systemPrompt system 메시지 (prompt 모드에서만 사용)
  * @param temperature  샘플링 온도. null이면 provider 기본값
  * @param maxTokens    응답 최대 토큰. null이면 provider 기본값
+ * @param tools        모델에 노출할 도구 목록 (#340). 모델이 호출을 요청하면 응답 toolCalls로 반환.
+ *                     실제 실행/되먹임 반복은 AgenticLoop(#341) 담당 — 본 활동은 한 턴만
  */
 public record LlmChatInput(
         String credentialId,
@@ -27,5 +29,6 @@ public record LlmChatInput(
         String prompt,
         String systemPrompt,
         Double temperature,
-        Integer maxTokens
+        Integer maxTokens,
+        List<ToolDefinition> tools
 ) {}

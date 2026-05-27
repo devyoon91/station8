@@ -189,6 +189,38 @@ class LlmChatActivityTest {
         assertThat(parsed).containsEntry("content", "still ok");
     }
 
+    @Test
+    void chat_passesToolsAndReturnsToolCalls() {
+        registerOpenAiCred("openai", "https://api.openai.com/v1");
+        provider.next = new LlmResponse("", new LlmUsage(20, 8), "tool_calls",
+                List.of(new ToolCall("call_1", "get_weather", Map.of("city", "Seoul"))));
+
+        String out = activity.chat(jsonUtil.toJson(Map.of(
+                "credentialId", "openai",
+                "model", "gpt-4o",
+                "prompt", "weather in Seoul?",
+                "tools", List.of(Map.of(
+                        "name", "get_weather",
+                        "description", "현재 날씨 조회",
+                        "parameters", Map.of("type", "object",
+                                "properties", Map.of("city", Map.of("type", "string"))))))),
+                new FakeLineContext());
+
+        // provider가 tools를 받았는지
+        assertThat(provider.lastRequest.tools()).hasSize(1);
+        assertThat(provider.lastRequest.tools().get(0).name()).isEqualTo("get_weather");
+        assertThat(provider.lastRequest.tools().get(0).parameters()).containsKey("properties");
+
+        // 출력에 toolCalls 정규화 결과
+        @SuppressWarnings("unchecked")
+        Map<String, Object> parsed = jsonUtil.fromJson(out, Map.class);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) parsed.get("toolCalls");
+        assertThat(toolCalls).hasSize(1);
+        assertThat(toolCalls.get(0)).containsEntry("name", "get_weather");
+        assertThat(toolCalls.get(0)).containsEntry("id", "call_1");
+    }
+
     // ---- 스텁들 ----
 
     /** chat()를 override해 네트워크 없이 canned 응답. */

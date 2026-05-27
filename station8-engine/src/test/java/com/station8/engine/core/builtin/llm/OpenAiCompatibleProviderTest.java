@@ -145,4 +145,49 @@ class OpenAiCompatibleProviderTest {
                 .isInstanceOf(NoRetryException.class)
                 .hasMessageContaining("baseUrl");
     }
+
+    @Test
+    void chat_withTools_serializesAndParsesToolCalls() {
+        AtomicReference<String> captured = new AtomicReference<>();
+        server.createContext("/v1/chat/completions", ex -> {
+            captured.set(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] body = ("""
+                    {"choices":[{"message":{"role":"assistant","content":null,
+                     "tool_calls":[{"id":"call_1","type":"function",
+                       "function":{"name":"get_weather","arguments":"{\\"city\\":\\"Seoul\\"}"}}]},
+                     "finish_reason":"tool_calls"}],
+                     "usage":{"prompt_tokens":20,"completion_tokens":8}}
+                    """).getBytes(StandardCharsets.UTF_8);
+            ex.getResponseHeaders().add("Content-Type", "application/json");
+            ex.sendResponseHeaders(200, body.length);
+            try (OutputStream os = ex.getResponseBody()) { os.write(body); }
+        });
+
+        LlmRequest req = new LlmRequest("gpt-4o", List.of(LlmMessage.user("weather in Seoul?")),
+                null, null,
+                List.of(new ToolDefinition("get_weather", "현재 날씨 조회",
+                        Map.of("type", "object",
+                                "properties", Map.of("city", Map.of("type", "string")),
+                                "required", List.of("city")))));
+
+        LlmResponse response = provider.chat(req, config());
+
+        // content null → 빈 문자열로 코어싱
+        assertThat(response.content()).isEmpty();
+        assertThat(response.finishReason()).isEqualTo("tool_calls");
+        assertThat(response.toolCalls()).hasSize(1);
+        ToolCall call = response.toolCalls().get(0);
+        assertThat(call.id()).isEqualTo("call_1");
+        assertThat(call.name()).isEqualTo("get_weather");
+        assertThat(call.arguments()).containsEntry("city", "Seoul");
+
+        // 요청 본문에 tools 직렬화 확인
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sent = jsonUtil.fromJson(captured.get(), Map.class);
+        assertThat(sent).containsKey("tools");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> tools = (List<Map<String, Object>>) sent.get("tools");
+        assertThat(tools).hasSize(1);
+        assertThat(tools.get(0)).containsEntry("type", "function");
+    }
 }

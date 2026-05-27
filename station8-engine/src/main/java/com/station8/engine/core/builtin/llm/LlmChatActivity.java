@@ -80,7 +80,9 @@ public class LlmChatActivity {
                 @ActivityParam(name = "temperature", kind = Kind.NUMBER,
                         description = "샘플링 온도. 비우면 provider 기본값."),
                 @ActivityParam(name = "maxTokens", kind = Kind.NUMBER,
-                        description = "응답 최대 토큰. 비우면 provider 기본값.")
+                        description = "응답 최대 토큰. 비우면 provider 기본값."),
+                @ActivityParam(name = "tools", kind = Kind.OBJECT,
+                        description = "[{name, description, parameters(JSON Schema)}] 도구 목록. 모델이 호출 요청 시 outputData.toolCalls로 반환.")
             })
     public String chat(String inputJson, LineContext ctx) {
         LlmChatInput input = parseInput(inputJson);
@@ -88,7 +90,7 @@ public class LlmChatActivity {
 
         LlmProviderConfig config = resolveProviderConfig(input.credentialId());
         LlmRequest request = new LlmRequest(
-                input.model(), buildMessages(input), input.temperature(), input.maxTokens());
+                input.model(), buildMessages(input), input.temperature(), input.maxTokens(), input.tools());
 
         LlmResponse response = provider.chat(request, config);
 
@@ -97,7 +99,7 @@ public class LlmChatActivity {
 
         LlmChatResult result = new LlmChatResult(
                 response.content(), input.model(), provider.name(),
-                response.usage(), cost, response.finishReason());
+                response.usage(), cost, response.finishReason(), response.toolCalls());
         return jsonUtil.toJson(result);
     }
 
@@ -207,12 +209,13 @@ public class LlmChatActivity {
     /**
      * llm.chat outputData shape.
      *
-     * @param content          모델 생성 텍스트
+     * @param content          모델 생성 텍스트 (도구만 호출하면 빈 문자열일 수 있음)
      * @param model            요청 모델
      * @param provider         provider 식별자
      * @param usage            토큰 사용량
      * @param estimatedCostUsd 추정 비용 (단가 미상 모델이면 null)
      * @param finishReason     종료 사유
+     * @param toolCalls        모델이 요청한 도구 호출 목록 (#340). 없으면 빈 목록
      */
     public record LlmChatResult(
             String content,
@@ -220,6 +223,7 @@ public class LlmChatActivity {
             String provider,
             LlmUsage usage,
             BigDecimal estimatedCostUsd,
-            String finishReason
+            String finishReason,
+            List<ToolCall> toolCalls
     ) {}
 }
