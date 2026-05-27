@@ -87,3 +87,28 @@ jobs:
           ./gradlew :station8-engine-api:publishMavenJavaPublicationToCentralStagingRepository \
                     :station8-engine-test:publishMavenJavaPublicationToCentralStagingRepository \
                     --no-daemon
+
+      # OSSRH-compat staging API는 deploy로 끝나지 않는다 — 업로드된 파일은 namespace별
+      # "default repository"(업로더 IP별로 분리)에 쌓이기만 하고, finalize 호출 전엔
+      # Central Portal Deployment로 승격되지 않는다. finalize는 deploy와 동일 IP에서
+      # 해야 하므로 반드시 같은 job(같은 러너) 안에서 호출한다 (#336).
+      - name: Finalize staging → Central Portal deployment
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true') }}
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          token=$(printf '%s:%s' "$OSSRH_USERNAME" "$OSSRH_PASSWORD" | base64 -w0)
+          # user_managed: 검증 통과 후 Portal에서 Publish 버튼 수동 클릭. 안정화되면 automatic 전환 검토.
+          code=$(curl -sS -o /tmp/finalize.out -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $token" \
+            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.devyoon91?publishing_type=user_managed")
+          echo "HTTP $code"
+          cat /tmp/finalize.out 2>/dev/null || true
+          echo
+          if [ "$code" -ge 300 ]; then
+            echo "ERROR: finalize 실패 — default repository가 Central Portal로 승격되지 않음"
+            exit 1
+          fi
+          echo "Finalize OK — Central Portal Deployments에서 VALIDATING → VALIDATED 후 Publish 클릭"
