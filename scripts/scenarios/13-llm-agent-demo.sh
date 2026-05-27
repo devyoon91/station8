@@ -52,7 +52,10 @@ poll_instance() {
 }
 
 step "DemoLlmAgent 실행"
-out=$(http POST "/api/line/definitions/$AGENT_ID/run" '{"input":"{}"}')
+# run input을 비워 보낸다(빈 객체). DagInterpreter.mergeInput은 instanceInput이 non-blank면
+# 시작 노드의 inputParams를 통째로 덮어쓰므로, '{"input":"{}"}'를 보내면 노드에 박아둔 agent
+# config(credentialId/model/prompt/tools)가 "{}"로 사라져 실패한다. config 그대로 쓰려면 input 생략.
+out=$(http POST "/api/line/definitions/$AGENT_ID/run" '{}')
 status=$(echo "$out" | head -1)
 if [[ "$status" != "201" ]]; then
   fail "run status $status — $(echo "$out" | tail -n +2)"
