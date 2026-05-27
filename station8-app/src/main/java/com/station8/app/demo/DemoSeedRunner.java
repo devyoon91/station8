@@ -3,7 +3,10 @@ package com.station8.app.demo;
 import com.station8.app.definition.DagDefinitionRequest;
 import com.station8.app.definition.LineDefinitionService;
 import com.station8.app.schedule.ScheduleService;
+import com.station8.engine.crypto.CredentialCrypto;
+import com.station8.engine.entity.Credential;
 import com.station8.engine.entity.LineSchedule;
+import com.station8.engine.repository.CredentialRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
 import com.station8.engine.repository.LineScheduleRepository;
 import org.slf4j.Logger;
@@ -33,6 +36,8 @@ import java.util.function.Supplier;
  *   <li>{@code DemoHttpOutbound} — {@code NOOP} → {@code http.request} POST (cron 없음, 수동 run-now)</li>
  *   <li>{@code DemoFileInbound} — {@code file.read} → {@code MIGRATION_WRITE} (cron 없음, 수동 run-now)</li>
  *   <li>{@code DemoFileOutbound} — {@code NOOP} → {@code file.write} (cron 없음, 수동 run-now)</li>
+ *   <li>{@code DemoLlmAgent} — 단일 {@code llm.agent} + {@code get_weather} 도구 (#345, 수동 run-now)</li>
+ *   <li>{@code demo-llm} credential — {@link DemoChatController} endpoint를 baseUrl로</li>
  *   <li>{@code ${java.io.tmpdir}/station8-demo/inbox} 디렉토리 + {@code order.json} 샘플 파일</li>
  *   <li>{@code ${java.io.tmpdir}/station8-demo/outbox} 디렉토리</li>
  * </ul>
@@ -65,10 +70,17 @@ public class DemoSeedRunner implements ApplicationRunner {
     /** inbox에 자동 시드되는 샘플 파일 이름. DemoFileInbound가 이걸 읽는다. */
     private static final String DEMO_INBOX_FILE = "order.json";
 
+    private static final String DEMO_LLM_AGENT_NM = "DemoLlmAgent";
+    /** agent 데모 credential 이름 — DemoChatController endpoint를 baseUrl로. */
+    private static final String DEMO_LLM_CREDENTIAL = "demo-llm";
+    private static final String DEMO_LLM_BASE_URL = "http://localhost:8080/api/demo/llm/v1";
+
     private final LineDefinitionService definitionService;
     private final ScheduleService scheduleService;
     private final LineDefinitionRepository definitionRepository;
     private final LineScheduleRepository scheduleRepository;
+    private final CredentialRepository credentialRepository;
+    private final CredentialCrypto credentialCrypto;
 
     /**
      * application-demo.properties의 {@code station8.file.local.allowed-roots}는 csv —
@@ -80,11 +92,15 @@ public class DemoSeedRunner implements ApplicationRunner {
     public DemoSeedRunner(LineDefinitionService definitionService,
                           ScheduleService scheduleService,
                           LineDefinitionRepository definitionRepository,
-                          LineScheduleRepository scheduleRepository) {
+                          LineScheduleRepository scheduleRepository,
+                          CredentialRepository credentialRepository,
+                          CredentialCrypto credentialCrypto) {
         this.definitionService = definitionService;
         this.scheduleService = scheduleService;
         this.definitionRepository = definitionRepository;
         this.scheduleRepository = scheduleRepository;
+        this.credentialRepository = credentialRepository;
+        this.credentialCrypto = credentialCrypto;
     }
 
     @Override
@@ -123,6 +139,55 @@ public class DemoSeedRunner implements ApplicationRunner {
         } else {
             log.warn("[DemoSeed] station8.file.local.allowed-roots 미설정 — 파일 데모 라인 skip");
         }
+
+        // AI agent 데모 (#345) — DemoChatController(자체 LLM endpoint) + get_weather 도구.
+        seedDemoLlmCredentialIfMissing();
+        seedIfMissing(DEMO_LLM_AGENT_NM, this::seedLlmAgent);
+    }
+
+    /**
+     * agent 데모용 credential 시드 — DemoChatController endpoint를 baseUrl로. 이미 있으면 skip.
+     * STATION8_CREDENTIAL_KEY 미설정 시 암호화 실패 → WARN 후 skip (agent 데모만 비활성, 부팅 영향 X).
+     */
+    private void seedDemoLlmCredentialIfMissing() {
+        if (credentialRepository.findByName(DEMO_LLM_CREDENTIAL) != null) {
+            log.info("[DemoSeed] credential '{}' already exists, skipping", DEMO_LLM_CREDENTIAL);
+            return;
+        }
+        try {
+            String schemaJson = "{\"baseUrl\":\"" + DEMO_LLM_BASE_URL + "\"}";
+            credentialRepository.insert(new Credential(
+                    java.util.UUID.randomUUID().toString(), DEMO_LLM_CREDENTIAL, "openai_compatible",
+                    credentialCrypto.encrypt("demo-key"), schemaJson, "N", null, "demo-seed", null, null));
+            log.info("[DemoSeed] credential '{}' 시드 완료 (baseUrl={})", DEMO_LLM_CREDENTIAL, DEMO_LLM_BASE_URL);
+        } catch (Exception ex) {
+            log.warn("[DemoSeed] credential '{}' 시드 실패 — STATION8_CREDENTIAL_KEY 확인. agent 데모 skip",
+                    DEMO_LLM_CREDENTIAL, ex);
+        }
+    }
+
+    /**
+     * 데모 5 — AI agent 루프. 단일 {@code llm.agent} 노드, {@code get_weather} 도구를 allowlist로.
+     * DemoChatController가 "도구 호출 요청 → (결과 받은 뒤) 최종 답변"을 흉내내 외부 LLM 없이 동작.
+     */
+    private String seedLlmAgent() {
+        String agentInput = "{"
+                + "\"credentialId\":\"" + DEMO_LLM_CREDENTIAL + "\","
+                + "\"model\":\"demo-model\","
+                + "\"prompt\":\"What is the weather in Seoul?\","
+                + "\"tools\":[{"
+                +   "\"name\":\"get_weather\","
+                +   "\"description\":\"도시의 현재 날씨 조회\","
+                +   "\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"]}"
+                + "}]"
+                + "}";
+        return definitionService.createDefinition(DagDefinitionRequest.builder()
+                .definitionNm(DEMO_LLM_AGENT_NM)
+                .description("데모: AI agent 루프 — LLM이 get_weather 도구 호출 후 답변 (수동 run-now). DemoChatController 사용")
+                .nodes(List.of(new DagDefinitionRequest.NodeDef(
+                        "n-agent", "Agent", "llm.agent", agentInput, 150, 100, null)))
+                .edges(List.of())
+                .build());
     }
 
     /** allowed-roots csv를 inbox/outbox로 해석. 항목이 부족하면 null. */
