@@ -126,11 +126,18 @@ public class OpenAiCompatibleProvider implements LlmProvider {
     private Map<String, Object> buildRequestBody(LlmRequest request) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", request.model());
-        List<Map<String, String>> messages = new ArrayList<>();
+        List<Map<String, Object>> messages = new ArrayList<>();
         for (LlmMessage m : request.messages()) {
-            Map<String, String> msg = new LinkedHashMap<>();
+            Map<String, Object> msg = new LinkedHashMap<>();
             msg.put("role", m.role());
             msg.put("content", m.content() == null ? "" : m.content());
+            // 다중 턴 도구 프로토콜 (#341) — assistant 호출 메시지 + tool 결과 메시지
+            if (m.toolCalls() != null && !m.toolCalls().isEmpty()) {
+                msg.put("tool_calls", serializeToolCalls(m.toolCalls()));
+            }
+            if (m.toolCallId() != null) {
+                msg.put("tool_call_id", m.toolCallId());
+            }
             messages.add(msg);
         }
         body.put("messages", messages);
@@ -161,6 +168,24 @@ public class OpenAiCompatibleProvider implements LlmProvider {
             tool.put("type", "function");
             tool.put("function", fn);
             out.add(tool);
+        }
+        return out;
+    }
+
+    /** ToolCall → OpenAI assistant {@code tool_calls} 포맷. arguments는 JSON 문자열로 다시 직렬화 (#341). */
+    private List<Map<String, Object>> serializeToolCalls(List<ToolCall> calls) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (ToolCall c : calls) {
+            Map<String, Object> fn = new LinkedHashMap<>();
+            fn.put("name", c.name());
+            fn.put("arguments", c.arguments() == null ? "{}" : jsonUtil.toJson(c.arguments()));
+            Map<String, Object> tc = new LinkedHashMap<>();
+            if (c.id() != null) {
+                tc.put("id", c.id());
+            }
+            tc.put("type", "function");
+            tc.put("function", fn);
+            out.add(tc);
         }
         return out;
     }
