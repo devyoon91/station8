@@ -4,7 +4,6 @@ import com.station8.engine.annotation.Activity;
 import com.station8.engine.annotation.ActivityParam;
 import com.station8.engine.annotation.ActivityParam.Kind;
 import com.station8.engine.annotation.LineDefinition;
-import com.station8.engine.core.CredentialResolver;
 import com.station8.engine.core.LineContext;
 import com.station8.engine.core.NoRetryException;
 import com.station8.engine.entity.LlmUsageEntry;
@@ -29,9 +28,10 @@ import java.util.Map;
  * 결정 구현. OpenAI Chat Completions wire 포맷({@link OpenAiCompatibleProvider})으로 OpenAI +
  * 로컬 모델(Ollama/vLLM)을 한 경로로 호출하고, 토큰/비용을 H_LINE_LLM_USAGE에 기록한다.</p>
  *
- * <h3>credential</h3>
- * {@code credentialId}는 type {@code openai_compatible} credential을 가리킨다 —
- * {@code value}=apiKey, {@code schema.baseUrl}=endpoint. 로컬 모델은 apiKey 빈 값 허용.
+ * <h3>credential / provider</h3>
+ * {@code credentialId}가 가리키는 credential의 type이 provider를 결정한다 (#342) —
+ * {@code openai_compatible} → OpenAI/Ollama/vLLM, {@code anthropic} → Anthropic.
+ * 해소는 {@link LlmProviderResolver}에 위임.
  *
  * <h3>재시도</h3>
  * 429/5xx/네트워크 → 재시도, context length 초과/인증 오류/입력 오류 → {@link NoRetryException} 즉시 final-fail.
@@ -43,32 +43,27 @@ public class LlmChatActivity {
 
     private static final Logger log = LoggerFactory.getLogger(LlmChatActivity.class);
 
-    private static final String EXPECTED_CREDENTIAL_TYPE = "openai_compatible";
-
     private final JsonUtil jsonUtil;
-    private final CredentialResolver credentialResolver;
-    private final OpenAiCompatibleProvider provider;
+    private final LlmProviderResolver providerResolver;
     private final LlmCostCalculator costCalculator;
     private final LlmUsageRepository usageRepository;
 
     public LlmChatActivity(JsonUtil jsonUtil,
-                           CredentialResolver credentialResolver,
-                           OpenAiCompatibleProvider provider,
+                           LlmProviderResolver providerResolver,
                            LlmCostCalculator costCalculator,
                            LlmUsageRepository usageRepository) {
         this.jsonUtil = jsonUtil;
-        this.credentialResolver = credentialResolver;
-        this.provider = provider;
+        this.providerResolver = providerResolver;
         this.costCalculator = costCalculator;
         this.usageRepository = usageRepository;
     }
 
     @Activity(value = "llm.chat", retryCount = 2, backoffSeconds = 5,
-            description = "LLM 호출 노드 — built-in. OpenAI 호환(OpenAI/Ollama/vLLM). model/prompt/credentialId 입력.",
+            description = "LLM 호출 노드 — built-in. OpenAI 호환(OpenAI/Ollama/vLLM) + Anthropic. model/prompt/credentialId 입력.",
             params = {
                 @ActivityParam(name = "credentialId", kind = Kind.CREDENTIAL, required = true,
-                        description = "provider 접속 credential (type openai_compatible). value=apiKey, schema.baseUrl=endpoint.",
-                        options = {"openai_compatible"}),
+                        description = "provider 접속 credential. type이 provider 결정 — openai_compatible / anthropic.",
+                        options = {"openai_compatible", "anthropic"}),
                 @ActivityParam(name = "model", kind = Kind.STRING, required = true,
                         description = "모델 식별자 (예: gpt-4o, llama3.1). 표현식 사용 가능."),
                 @ActivityParam(name = "prompt", kind = Kind.STRING,
@@ -88,17 +83,17 @@ public class LlmChatActivity {
         LlmChatInput input = parseInput(inputJson);
         validate(input);
 
-        LlmProviderConfig config = resolveProviderConfig(input.credentialId());
+        LlmProviderResolver.Resolved resolved = providerResolver.resolve(input.credentialId());
         LlmRequest request = new LlmRequest(
                 input.model(), buildMessages(input), input.temperature(), input.maxTokens(), input.tools());
 
-        LlmResponse response = provider.chat(request, config);
+        LlmResponse response = resolved.provider().chat(request, resolved.config());
 
         BigDecimal cost = costCalculator.estimate(input.model(), response.usage());
-        recordUsage(ctx, input.model(), response, cost);
+        recordUsage(ctx, resolved.provider().name(), input.model(), response, cost);
 
         LlmChatResult result = new LlmChatResult(
-                response.content(), input.model(), provider.name(),
+                response.content(), input.model(), resolved.provider().name(),
                 response.usage(), cost, response.finishReason(), response.toolCalls());
         return jsonUtil.toJson(result);
     }
@@ -128,24 +123,6 @@ public class LlmChatActivity {
         }
     }
 
-    /** credentialId → provider 접속 config. type/baseUrl 검증. */
-    private LlmProviderConfig resolveProviderConfig(String credentialId) {
-        CredentialResolver.Resolved cred = credentialResolver.resolveByName(credentialId);
-        if (cred == null) {
-            throw new NoRetryException("llm.chat credentialId not found: " + credentialId);
-        }
-        if (!EXPECTED_CREDENTIAL_TYPE.equals(cred.type())) {
-            throw new NoRetryException("llm.chat credential '" + credentialId
-                    + "' must be type " + EXPECTED_CREDENTIAL_TYPE + " (got " + cred.type() + ")");
-        }
-        Object baseUrl = cred.schema().get("baseUrl");
-        if (baseUrl == null || baseUrl.toString().isBlank()) {
-            throw new NoRetryException("llm.chat credential '" + credentialId
-                    + "' missing schema.baseUrl");
-        }
-        return new LlmProviderConfig(baseUrl.toString(), cred.value());
-    }
-
     /** messages 우선, 없으면 systemPrompt + prompt로 구성. */
     private List<LlmMessage> buildMessages(LlmChatInput input) {
         if (input.messages() != null && !input.messages().isEmpty()) {
@@ -169,14 +146,14 @@ public class LlmChatActivity {
     }
 
     /** usage 기록 — 실패해도 활동은 성공 (이중 과금 방지). */
-    private void recordUsage(LineContext ctx, String model, LlmResponse response, BigDecimal cost) {
+    private void recordUsage(LineContext ctx, String providerName, String model, LlmResponse response, BigDecimal cost) {
         try {
             LlmUsageEntry entry = new LlmUsageEntry(
                     null,
                     ctx == null ? null : ctx.instanceId(),
                     ctx == null ? null : ctx.nodeId(),
                     ctx == null ? "llm.chat" : ctx.currentActivityName(),
-                    provider.name(),
+                    providerName,
                     model,
                     response.usage().inputTokens(),
                     response.usage().outputTokens(),

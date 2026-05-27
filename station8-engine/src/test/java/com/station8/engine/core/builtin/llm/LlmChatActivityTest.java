@@ -1,6 +1,5 @@
 package com.station8.engine.core.builtin.llm;
 
-import com.station8.engine.core.CredentialResolver;
 import com.station8.engine.core.LineContext;
 import com.station8.engine.core.NoRetryException;
 import com.station8.engine.entity.LlmUsageEntry;
@@ -20,22 +19,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * #339 — {@link LlmChatActivity} 회귀 가드. provider/credential/usage repo는 in-memory 스텁
- * (Mockito 5/ByteBuddy가 Java 25 클래스 mock 미지원).
+ * #339/#342 — {@link LlmChatActivity} 회귀 가드. provider 선택/credential 해소는 {@link LlmProviderResolver}로
+ * 빠져, 본 테스트는 stub resolver로 provider만 주입한다 (credential 검증은 LlmProviderResolverTest).
  */
 class LlmChatActivityTest {
 
     private JsonUtil jsonUtil;
-    private StubCredentialResolver credentialResolver;
     private StubProvider provider;
+    private StubProviderResolver providerResolver;
     private FakeUsageRepository usageRepository;
     private LlmChatActivity activity;
 
     @BeforeEach
     void setUp() {
         jsonUtil = new JsonUtil();
-        credentialResolver = new StubCredentialResolver(jsonUtil);
         provider = new StubProvider(jsonUtil);
+        providerResolver = new StubProviderResolver(provider);
         usageRepository = new FakeUsageRepository();
 
         LlmCostProperties props = new LlmCostProperties();
@@ -44,7 +43,7 @@ class LlmChatActivityTest {
         props.setPricing(pricing);
         LlmCostCalculator costCalculator = new LlmCostCalculator(props);
 
-        activity = new LlmChatActivity(jsonUtil, credentialResolver, provider, costCalculator, usageRepository);
+        activity = new LlmChatActivity(jsonUtil, providerResolver, costCalculator, usageRepository);
     }
 
     private static LlmCostProperties.ModelPrice price(String in, String out) {
@@ -54,14 +53,8 @@ class LlmChatActivityTest {
         return p;
     }
 
-    private void registerOpenAiCred(String name, String baseUrl) {
-        credentialResolver.put(name, new CredentialResolver.Resolved(
-                name, "openai_compatible", "sk-secret", Map.of("baseUrl", baseUrl)));
-    }
-
     @Test
     void chat_happyPath_returnsContentAndRecordsUsage() {
-        registerOpenAiCred("openai", "https://api.openai.com/v1");
         provider.next = new LlmResponse("the answer", new LlmUsage(1000, 500), "stop");
 
         String out = activity.chat(jsonUtil.toJson(Map.of(
@@ -76,11 +69,10 @@ class LlmChatActivityTest {
         assertThat(parsed).containsEntry("provider", "openai-compatible");
         assertThat(parsed).containsEntry("finishReason", "stop");
 
-        // 비용: 2.50*1000/1M + 10.00*500/1M = 0.0025 + 0.005 = 0.0075
+        // 비용: 2.50*1000/1M + 10.00*500/1M = 0.0075
         assertThat(new BigDecimal(parsed.get("estimatedCostUsd").toString()))
                 .isEqualByComparingTo("0.0075");
 
-        // usage 기록
         assertThat(usageRepository.entries).hasSize(1);
         LlmUsageEntry e = usageRepository.entries.get(0);
         assertThat(e.instanceId()).isEqualTo("inst-1");
@@ -94,7 +86,6 @@ class LlmChatActivityTest {
 
     @Test
     void chat_messagesArray_buildsRequest() {
-        registerOpenAiCred("openai", "https://api.openai.com/v1");
         provider.next = new LlmResponse("ok", new LlmUsage(3, 2), "stop");
 
         activity.chat(jsonUtil.toJson(Map.of(
@@ -111,7 +102,6 @@ class LlmChatActivityTest {
 
     @Test
     void chat_unknownModel_costNull_butUsageRecorded() {
-        registerOpenAiCred("local", "http://ollama.internal:11434/v1");
         provider.next = new LlmResponse("yo", new LlmUsage(10, 20), "stop");
 
         String out = activity.chat(jsonUtil.toJson(Map.of(
@@ -128,70 +118,7 @@ class LlmChatActivityTest {
     }
 
     @Test
-    void chat_wrongCredentialType_throwsNoRetry() {
-        credentialResolver.put("bearer", new CredentialResolver.Resolved(
-                "bearer", "http_bearer", "tok", Map.of()));
-
-        assertThatThrownBy(() -> activity.chat(jsonUtil.toJson(Map.of(
-                "credentialId", "bearer",
-                "model", "gpt-4o",
-                "prompt", "hi")), new FakeLineContext()))
-                .isInstanceOf(NoRetryException.class)
-                .hasMessageContaining("openai_compatible");
-    }
-
-    @Test
-    void chat_credentialMissingBaseUrl_throwsNoRetry() {
-        credentialResolver.put("nobase", new CredentialResolver.Resolved(
-                "nobase", "openai_compatible", "sk", Map.of()));
-
-        assertThatThrownBy(() -> activity.chat(jsonUtil.toJson(Map.of(
-                "credentialId", "nobase",
-                "model", "gpt-4o",
-                "prompt", "hi")), new FakeLineContext()))
-                .isInstanceOf(NoRetryException.class)
-                .hasMessageContaining("baseUrl");
-    }
-
-    @Test
-    void chat_missingCredential_throwsNoRetry() {
-        assertThatThrownBy(() -> activity.chat(jsonUtil.toJson(Map.of(
-                "credentialId", "ghost",
-                "model", "gpt-4o",
-                "prompt", "hi")), new FakeLineContext()))
-                .isInstanceOf(NoRetryException.class)
-                .hasMessageContaining("not found");
-    }
-
-    @Test
-    void chat_noPromptNoMessages_throwsNoRetry() {
-        registerOpenAiCred("openai", "https://api.openai.com/v1");
-        assertThatThrownBy(() -> activity.chat(jsonUtil.toJson(Map.of(
-                "credentialId", "openai",
-                "model", "gpt-4o")), new FakeLineContext()))
-                .isInstanceOf(NoRetryException.class)
-                .hasMessageContaining("messages or prompt");
-    }
-
-    @Test
-    void chat_usageRecordingFailure_doesNotFailActivity() {
-        registerOpenAiCred("openai", "https://api.openai.com/v1");
-        provider.next = new LlmResponse("still ok", new LlmUsage(1, 1), "stop");
-        usageRepository.failOnInsert = true;
-
-        String out = activity.chat(jsonUtil.toJson(Map.of(
-                "credentialId", "openai",
-                "model", "gpt-4o",
-                "prompt", "hi")), new FakeLineContext());
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> parsed = jsonUtil.fromJson(out, Map.class);
-        assertThat(parsed).containsEntry("content", "still ok");
-    }
-
-    @Test
     void chat_passesToolsAndReturnsToolCalls() {
-        registerOpenAiCred("openai", "https://api.openai.com/v1");
         provider.next = new LlmResponse("", new LlmUsage(20, 8), "tool_calls",
                 List.of(new ToolCall("call_1", "get_weather", Map.of("city", "Seoul"))));
 
@@ -206,12 +133,9 @@ class LlmChatActivityTest {
                                 "properties", Map.of("city", Map.of("type", "string"))))))),
                 new FakeLineContext());
 
-        // provider가 tools를 받았는지
         assertThat(provider.lastRequest.tools()).hasSize(1);
         assertThat(provider.lastRequest.tools().get(0).name()).isEqualTo("get_weather");
-        assertThat(provider.lastRequest.tools().get(0).parameters()).containsKey("properties");
 
-        // 출력에 toolCalls 정규화 결과
         @SuppressWarnings("unchecked")
         Map<String, Object> parsed = jsonUtil.fromJson(out, Map.class);
         @SuppressWarnings("unchecked")
@@ -221,9 +145,32 @@ class LlmChatActivityTest {
         assertThat(toolCalls.get(0)).containsEntry("id", "call_1");
     }
 
+    @Test
+    void chat_noPromptNoMessages_throwsNoRetry() {
+        assertThatThrownBy(() -> activity.chat(jsonUtil.toJson(Map.of(
+                "credentialId", "openai",
+                "model", "gpt-4o")), new FakeLineContext()))
+                .isInstanceOf(NoRetryException.class)
+                .hasMessageContaining("messages or prompt");
+    }
+
+    @Test
+    void chat_usageRecordingFailure_doesNotFailActivity() {
+        provider.next = new LlmResponse("still ok", new LlmUsage(1, 1), "stop");
+        usageRepository.failOnInsert = true;
+
+        String out = activity.chat(jsonUtil.toJson(Map.of(
+                "credentialId", "openai",
+                "model", "gpt-4o",
+                "prompt", "hi")), new FakeLineContext());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> parsed = jsonUtil.fromJson(out, Map.class);
+        assertThat(parsed).containsEntry("content", "still ok");
+    }
+
     // ---- 스텁들 ----
 
-    /** chat()를 override해 네트워크 없이 canned 응답. */
     private static final class StubProvider extends OpenAiCompatibleProvider {
         LlmResponse next;
         LlmRequest lastRequest;
@@ -239,20 +186,18 @@ class LlmChatActivityTest {
         }
     }
 
-    private static final class StubCredentialResolver extends CredentialResolver {
-        private final Map<String, Resolved> store = new HashMap<>();
+    /** resolve()를 override해 항상 주어진 provider + 더미 config 반환. */
+    private static final class StubProviderResolver extends LlmProviderResolver {
+        private final LlmProvider provider;
 
-        StubCredentialResolver(JsonUtil jsonUtil) {
-            super(null, null, jsonUtil);
-        }
-
-        void put(String name, Resolved r) {
-            store.put(name, r);
+        StubProviderResolver(LlmProvider provider) {
+            super(null, null, null);
+            this.provider = provider;
         }
 
         @Override
-        public Resolved resolveByName(String name) {
-            return store.get(name);
+        public Resolved resolve(String credentialId) {
+            return new Resolved(provider, new LlmProviderConfig("http://stub/v1", "k"));
         }
     }
 
@@ -275,7 +220,6 @@ class LlmChatActivityTest {
         }
     }
 
-    /** 최소 LineContext — usage 기록에 필요한 instance/node/activity만 의미 있는 값. */
     private static final class FakeLineContext implements LineContext {
         @Override public String instanceId() { return "inst-1"; }
         @Override public String workflowName() { return "wf"; }

@@ -51,6 +51,7 @@ public class CredentialController {
      *   <li>{@code s3_access_key} — M19 S3 backend (#297)</li>
      *   <li>{@code webhook_hmac} — M20 webhook trigger (#310). value: HMAC secret</li>
      *   <li>{@code openai_compatible} — M23 LLM (#339). value: apiKey, schema.baseUrl: endpoint</li>
+     *   <li>{@code anthropic} — M23 LLM (#342). value: apiKey, schema.baseUrl: 선택(기본 api.anthropic.com)</li>
      * </ul>
      */
     static final Set<String> SUPPORTED_TYPES = Set.of(
@@ -58,7 +59,8 @@ public class CredentialController {
             "sftp_password", "sftp_key",
             "s3_access_key",
             "webhook_hmac",
-            "openai_compatible");
+            "openai_compatible",
+            "anthropic");
 
     private final CredentialRepository repository;
     private final CredentialCrypto crypto;
