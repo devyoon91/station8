@@ -140,7 +140,29 @@ public class OpenAiCompatibleProvider implements LlmProvider {
         if (request.maxTokens() != null) {
             body.put("max_tokens", request.maxTokens());
         }
+        if (request.tools() != null && !request.tools().isEmpty()) {
+            body.put("tools", buildTools(request.tools()));
+        }
         return body;
+    }
+
+    /** ToolDefinition → OpenAI tools 포맷 ({@code [{type:function, function:{name, description, parameters}}]}). */
+    private List<Map<String, Object>> buildTools(List<ToolDefinition> tools) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (ToolDefinition t : tools) {
+            Map<String, Object> fn = new LinkedHashMap<>();
+            fn.put("name", t.name());
+            if (t.description() != null) {
+                fn.put("description", t.description());
+            }
+            fn.put("parameters", t.parameters() != null ? t.parameters()
+                    : Map.of("type", "object", "properties", Map.of()));
+            Map<String, Object> tool = new LinkedHashMap<>();
+            tool.put("type", "function");
+            tool.put("function", fn);
+            out.add(tool);
+        }
+        return out;
     }
 
     @SuppressWarnings("unchecked")
@@ -157,15 +179,56 @@ public class OpenAiCompatibleProvider implements LlmProvider {
         }
         Map<String, Object> first = (Map<String, Object>) choices.get(0);
         Map<String, Object> message = (Map<String, Object>) first.get("message");
-        String content = message == null ? "" : String.valueOf(message.getOrDefault("content", ""));
+        // 도구만 호출하는 응답은 content가 null일 수 있다 — "null" 문자열로 새지 않게 코어싱.
+        Object contentObj = message == null ? null : message.get("content");
+        String content = contentObj == null ? "" : String.valueOf(contentObj);
         String finishReason = first.get("finish_reason") == null
                 ? null : String.valueOf(first.get("finish_reason"));
+        List<ToolCall> toolCalls = parseToolCalls(message);
 
         LlmUsage usage = LlmUsage.empty();
         if (root.get("usage") instanceof Map<?, ?> u) {
             usage = new LlmUsage(intValue(u.get("prompt_tokens")), intValue(u.get("completion_tokens")));
         }
-        return new LlmResponse(content, usage, finishReason);
+        return new LlmResponse(content, usage, finishReason, toolCalls);
+    }
+
+    /** OpenAI {@code message.tool_calls[]} → 정규화 {@link ToolCall} 목록. arguments(JSON 문자열)는 object로 파싱. */
+    @SuppressWarnings("unchecked")
+    private List<ToolCall> parseToolCalls(Map<String, Object> message) {
+        if (message == null || !(message.get("tool_calls") instanceof List<?> rawCalls)) {
+            return List.of();
+        }
+        List<ToolCall> calls = new ArrayList<>();
+        for (Object o : rawCalls) {
+            if (!(o instanceof Map<?, ?> call)) {
+                continue;
+            }
+            String id = call.get("id") == null ? null : String.valueOf(call.get("id"));
+            if (!(call.get("function") instanceof Map<?, ?> fn)) {
+                continue;
+            }
+            String name = fn.get("name") == null ? null : String.valueOf(fn.get("name"));
+            calls.add(new ToolCall(id, name, parseArguments(fn.get("arguments"))));
+        }
+        return calls;
+    }
+
+    /** OpenAI는 arguments를 JSON 문자열로 준다 — object로 파싱. 일부 호환 구현은 이미 object. */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseArguments(Object arguments) {
+        if (arguments instanceof Map<?, ?> m) {
+            return (Map<String, Object>) m;
+        }
+        if (arguments instanceof String s && !s.isBlank()) {
+            try {
+                Map<String, Object> parsed = jsonUtil.fromJson(s, Map.class);
+                return parsed != null ? parsed : Map.of();
+            } catch (Exception ignored) {
+                return Map.of();
+            }
+        }
+        return Map.of();
     }
 
     /** status별 예외 매핑. 4xx 중 context length 초과/요청 오류는 NoRetry, 429/5xx는 retry. */
