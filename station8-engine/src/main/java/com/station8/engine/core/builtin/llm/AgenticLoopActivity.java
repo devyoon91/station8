@@ -4,7 +4,6 @@ import com.station8.engine.annotation.Activity;
 import com.station8.engine.annotation.ActivityParam;
 import com.station8.engine.annotation.ActivityParam.Kind;
 import com.station8.engine.annotation.LineDefinition;
-import com.station8.engine.core.CredentialResolver;
 import com.station8.engine.core.LineContext;
 import com.station8.engine.core.NoRetryException;
 import com.station8.engine.entity.LlmUsageEntry;
@@ -42,16 +41,14 @@ import java.util.Set;
  *   <li>각 iteration의 LLM 호출마다 usage 기록 (누적 비용 가시성). 기록 실패는 활동을 죽이지 않음</li>
  * </ul>
  *
- * <p>credential 해소 / usage 기록 / promptHash 로직은 {@link LlmChatActivity}와 의도적으로 동일 —
- * provider 다양화 시 공통 헬퍼로 추출 예정.</p>
+ * <p>credential→provider 해소는 {@link LlmProviderResolver}로 공유 (#342). usage 기록 / promptHash는
+ * {@link LlmChatActivity}와 동일 — 추후 공통 헬퍼로 추출 가능.</p>
  */
 @Component
 @LineDefinition("LlmAgentBuiltin")
 public class AgenticLoopActivity {
 
     private static final Logger log = LoggerFactory.getLogger(AgenticLoopActivity.class);
-
-    private static final String EXPECTED_CREDENTIAL_TYPE = "openai_compatible";
 
     /** maxIterations 미지정 시 기본값. */
     static final int DEFAULT_MAX_ITERATIONS = 10;
@@ -60,21 +57,18 @@ public class AgenticLoopActivity {
     static final int MAX_ITERATIONS_CAP = 50;
 
     private final JsonUtil jsonUtil;
-    private final CredentialResolver credentialResolver;
-    private final OpenAiCompatibleProvider provider;
+    private final LlmProviderResolver providerResolver;
     private final LlmCostCalculator costCalculator;
     private final LlmUsageRepository usageRepository;
     private final AgentToolExecutor toolExecutor;
 
     public AgenticLoopActivity(JsonUtil jsonUtil,
-                               CredentialResolver credentialResolver,
-                               OpenAiCompatibleProvider provider,
+                               LlmProviderResolver providerResolver,
                                LlmCostCalculator costCalculator,
                                LlmUsageRepository usageRepository,
                                AgentToolExecutor toolExecutor) {
         this.jsonUtil = jsonUtil;
-        this.credentialResolver = credentialResolver;
-        this.provider = provider;
+        this.providerResolver = providerResolver;
         this.costCalculator = costCalculator;
         this.usageRepository = usageRepository;
         this.toolExecutor = toolExecutor;
@@ -105,7 +99,7 @@ public class AgenticLoopActivity {
         AgentLoopInput input = parseInput(inputJson);
         validate(input);
 
-        LlmProviderConfig config = resolveProviderConfig(input.credentialId());
+        LlmProviderResolver.Resolved resolved = providerResolver.resolve(input.credentialId());
         int maxIterations = clampIterations(input.maxIterations());
         Set<String> allowed = allowedToolNames(input.tools());
 
@@ -127,10 +121,10 @@ public class AgenticLoopActivity {
             iterations = i;
             LlmRequest request = new LlmRequest(
                     input.model(), messages, input.temperature(), input.maxTokens(), input.tools());
-            LlmResponse response = provider.chat(request, config);
+            LlmResponse response = resolved.provider().chat(request, resolved.config());
 
             BigDecimal cost = costCalculator.estimate(input.model(), response.usage());
-            recordUsage(ctx, input.model(), response, cost);
+            recordUsage(ctx, resolved.provider().name(), input.model(), response, cost);
             totalInputTokens += response.usage().inputTokens();
             totalOutputTokens += response.usage().outputTokens();
             totalCost = addCost(totalCost, cost);
@@ -214,22 +208,6 @@ public class AgenticLoopActivity {
         return names;
     }
 
-    private LlmProviderConfig resolveProviderConfig(String credentialId) {
-        CredentialResolver.Resolved cred = credentialResolver.resolveByName(credentialId);
-        if (cred == null) {
-            throw new NoRetryException("llm.agent credentialId not found: " + credentialId);
-        }
-        if (!EXPECTED_CREDENTIAL_TYPE.equals(cred.type())) {
-            throw new NoRetryException("llm.agent credential '" + credentialId
-                    + "' must be type " + EXPECTED_CREDENTIAL_TYPE + " (got " + cred.type() + ")");
-        }
-        Object baseUrl = cred.schema().get("baseUrl");
-        if (baseUrl == null || baseUrl.toString().isBlank()) {
-            throw new NoRetryException("llm.agent credential '" + credentialId + "' missing schema.baseUrl");
-        }
-        return new LlmProviderConfig(baseUrl.toString(), cred.value());
-    }
-
     private static BigDecimal addCost(BigDecimal total, BigDecimal delta) {
         if (delta == null) {
             return total;
@@ -238,14 +216,14 @@ public class AgenticLoopActivity {
     }
 
     /** usage 기록 — 실패해도 루프는 계속 (이중 과금/중단 방지). */
-    private void recordUsage(LineContext ctx, String model, LlmResponse response, BigDecimal cost) {
+    private void recordUsage(LineContext ctx, String providerName, String model, LlmResponse response, BigDecimal cost) {
         try {
             LlmUsageEntry entry = new LlmUsageEntry(
                     null,
                     ctx == null ? null : ctx.instanceId(),
                     ctx == null ? null : ctx.nodeId(),
                     ctx == null ? "llm.agent" : ctx.currentActivityName(),
-                    provider.name(),
+                    providerName,
                     model,
                     response.usage().inputTokens(),
                     response.usage().outputTokens(),
