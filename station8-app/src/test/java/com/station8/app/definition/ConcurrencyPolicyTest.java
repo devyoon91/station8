@@ -22,6 +22,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * #141 — 동시 실행 정책 (CONCURRENT / SKIP_IF_RUNNING) 통합 테스트.
+ *
+ * <p>instance 상태를 직접 {@code UPDATE}해 동시성 게이트를 검증한다. 백그라운드 워커 폴러는
+ * 테스트 JVM에서 비활성(build.gradle systemProperty, #353)이라 간섭하지 않는다.</p>
  */
 @SpringBootTest(classes = Application.class)
 class ConcurrencyPolicyTest {

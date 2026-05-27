@@ -57,6 +57,12 @@ public class IntegrationLineE2ETest {
         jdbcTemplate.execute("DELETE FROM H_LINE_ACTIVITY_EXECUTION");
         jdbcTemplate.execute("DELETE FROM U_LINE_INSTANCE");
 
+        // #353 — 마이그레이션 타겟/원본을 hermetic하게 초기화. 공유 H2(appdb)에서 다른 컨텍스트
+        // 부팅(MigrationInitializer + @Scheduled 첫 poll)이 DEST_DATA에 id 1/3을 미리 넣으면
+        // migrateItem의 INSERT가 PK 충돌로 실패해 "0 COMPLETED" flaky. 매 테스트 깨끗하게 시작.
+        jdbcTemplate.execute("DELETE FROM DEST_DATA");
+        jdbcTemplate.execute("UPDATE SRC_DATA SET MIGRATED_FL = 'N'");
+
         // Fresh instance
         instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
