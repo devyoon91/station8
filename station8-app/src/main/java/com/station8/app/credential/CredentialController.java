@@ -54,7 +54,7 @@ public class CredentialController {
      *   <li>{@code anthropic} — M23 LLM (#342). value: apiKey, schema.baseUrl: 선택(기본 api.anthropic.com)</li>
      * </ul>
      */
-    static final Set<String> SUPPORTED_TYPES = Set.of(
+    public static final Set<String> SUPPORTED_TYPES = Set.of(
             "http_basic", "http_bearer", "api_key", "generic",
             "sftp_password", "sftp_key",
             "s3_access_key",
