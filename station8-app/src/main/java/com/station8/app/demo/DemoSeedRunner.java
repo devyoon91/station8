@@ -89,6 +89,14 @@ public class DemoSeedRunner implements ApplicationRunner {
     @Value("${station8.file.local.allowed-roots:}")
     private String fileAllowedRoots;
 
+    /**
+     * #359 — DemoMigrationFlow cron 자동등록 게이트. 기본 OFF로 두어 데모 환경에서 5분 cron + retry
+     * 폭주로 인스턴스/활동이 누적되는 것을 방지. {@code true}로 하면 부팅 시 5분 cron 등록 (기존 동작).
+     * 운영자가 schedules 페이지에서 수동 등록도 가능.
+     */
+    @Value("${station8.demo.cron-enabled:false}")
+    private boolean demoCronEnabled;
+
     public DemoSeedRunner(LineDefinitionService definitionService,
                           ScheduleService scheduleService,
                           LineDefinitionRepository definitionRepository,
@@ -108,7 +116,8 @@ public class DemoSeedRunner implements ApplicationRunner {
         seedIfMissing(DEMO_DEFINITION_NM, () -> {
             String defId = definitionService.createDefinition(DagDefinitionRequest.builder()
                     .definitionNm(DEMO_DEFINITION_NM)
-                    .description("데모: MigrationInitializer가 시드한 SRC_DATA에서 한 건씩 마이그레이션 (5분마다)")
+                    .description("데모: MigrationInitializer가 시드한 SRC_DATA에서 한 건씩 마이그레이션 "
+                            + "(수동 run-now 기본. cron은 station8.demo.cron-enabled=true로 활성)")
                     .nodes(List.of(new DagDefinitionRequest.NodeDef(
                             "demo-node-1", "Migrate", "MIGRATION_WRITE",
                             "{\"id\":\"demo-1\",\"content\":\"Auto seeded data\"}",
@@ -116,13 +125,20 @@ public class DemoSeedRunner implements ApplicationRunner {
                     .edges(List.of())
                     .build());
 
-            // DemoMigrationFlow만 cron — HTTP 데모는 수동 run-now (외부 호출 부담 방지)
-            List<LineSchedule> all = scheduleRepository.findAll();
-            boolean already = all.stream().anyMatch(s -> defId.equals(s.definitionId()));
-            if (!already) {
-                String schId = scheduleService.create(defId, DEMO_CRON, null);
-                log.info("[DemoSeed] '{}' 스케줄 등록: id={}, cron='{}'",
-                        DEMO_DEFINITION_NM, schId, DEMO_CRON);
+            // #359 — cron 자동등록은 opt-in. 기본은 수동 run-now (다른 데모 라인과 동일 패턴).
+            // 5분 cron + retry 5회로 백로그 폭주하던 문제 해소.
+            if (demoCronEnabled) {
+                List<LineSchedule> all = scheduleRepository.findAll();
+                boolean already = all.stream().anyMatch(s -> defId.equals(s.definitionId()));
+                if (!already) {
+                    String schId = scheduleService.create(defId, DEMO_CRON, null);
+                    log.info("[DemoSeed] '{}' 스케줄 등록: id={}, cron='{}' (station8.demo.cron-enabled=true)",
+                            DEMO_DEFINITION_NM, schId, DEMO_CRON);
+                }
+            } else {
+                log.info("[DemoSeed] '{}' cron 자동등록 skip (station8.demo.cron-enabled=false) — "
+                        + "수동 run-now로 시연. 활성화하려면 application-demo.properties에서 true",
+                        DEMO_DEFINITION_NM);
             }
             return defId;
         });
