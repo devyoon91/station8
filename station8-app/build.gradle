@@ -20,3 +20,15 @@ dependencies {
     // runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 }
+
+// 테스트 안정화 (#353) — 백그라운드 @Scheduled 폴러(worker/scheduler/SLA)를 사실상 비활성.
+// @SpringBootTest들이 H2 in-memory(appdb)를 한 JVM에서 공유하는데, 1초 워커 폴러가 테스트가
+// 수동 시뮬레이션하는 PENDING 활동을 가로채 instance 상태를 흔들어 flaky 해진다
+// (ConcurrencyPolicyTest / IntegrationLineE2ETest 등). 어떤 테스트도 auto-poll 실행에 의존하지
+// 않으므로(전부 수동 시뮬 또는 활동 직접 호출) 비활성이 안전. systemProperty라 application.properties를
+// shadow하지 않고 전역 적용된다.
+test {
+    systemProperty 'workflow.polling.interval-ms', '3600000'
+    systemProperty 'workflow.scheduler.interval-ms', '3600000'
+    systemProperty 'engine.sla.polling-interval-ms', '3600000'
+}
