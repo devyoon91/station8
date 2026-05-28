@@ -343,18 +343,20 @@ public class DemoSeedRunner implements ApplicationRunner {
                 + "\"content\":\"{{ $prev.json.content.title }}\""
                 + "}";
 
+        // #360 — nodeId(U_LINE_STATION.ID)는 글로벌 unique라 다른 데모 라인과 충돌하면 시드 실패.
+        // DemoHttpInbound가 이미 'n-write'를 쓰고 있어 'file-in-' prefix로 분리.
         return definitionService.createDefinition(DagDefinitionRequest.builder()
                 .definitionNm(DEMO_FILE_INBOUND_NM)
                 .description("데모: inbox 파일 → DB insert (수동 run-now). 샘플 파일: " + DEMO_INBOX_FILE)
                 .nodes(List.of(
                         new DagDefinitionRequest.NodeDef(
-                                "n-read", "Read", "file.read",
+                                "n-file-in-read", "Read", "file.read",
                                 readInput, 100, 100, null),
                         new DagDefinitionRequest.NodeDef(
-                                "n-write", "Write", "MIGRATION_WRITE",
+                                "n-file-in-write", "Write", "MIGRATION_WRITE",
                                 migrateInput, 350, 100, null)))
                 .edges(List.of(new DagDefinitionRequest.EdgeDef(
-                        "e-read-write", "n-read", "n-write", null)))
+                        "e-file-in-read-write", "n-file-in-read", "n-file-in-write", null)))
                 .build());
     }
 
@@ -381,18 +383,19 @@ public class DemoSeedRunner implements ApplicationRunner {
                 + "}"
                 + "}";
 
+        // #360 — DemoHttpOutbound('n-prep') / DemoHttpInbound('n-write')와 충돌 회피.
         return definitionService.createDefinition(DagDefinitionRequest.builder()
                 .definitionNm(DEMO_FILE_OUTBOUND_NM)
                 .description("데모: payload 준비 후 outbox에 JSON write — outbox path는 인스턴스마다 unique")
                 .nodes(List.of(
                         new DagDefinitionRequest.NodeDef(
-                                "n-prep", "Prep", "NOOP",
+                                "n-file-out-prep", "Prep", "NOOP",
                                 noopInput, 100, 100, null),
                         new DagDefinitionRequest.NodeDef(
-                                "n-write", "Write", "file.write",
+                                "n-file-out-write", "Write", "file.write",
                                 writeInput, 350, 100, null)))
                 .edges(List.of(new DagDefinitionRequest.EdgeDef(
-                        "e-prep-write", "n-prep", "n-write", null)))
+                        "e-file-out-prep-write", "n-file-out-prep", "n-file-out-write", null)))
                 .build());
     }
 
