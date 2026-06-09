@@ -233,6 +233,17 @@
             font-size: 13px;
         }
         .drawflow .drawflow-node.selected { border-color: var(--primary); }
+        /* M22 — fan-out / collect 노드 시각 마커 (#372) */
+        .drawflow .drawflow-node.swe-fanout { border-left: 3px solid #2e7d32; }
+        .drawflow .drawflow-node.swe-collect { border-left: 3px solid #1565c0; }
+        .drawflow .drawflow-node.swe-fanout::after,
+        .drawflow .drawflow-node.swe-collect::after {
+            position: absolute; top: 2px; right: 6px;
+            font-size: 9px; font-weight: 600; letter-spacing: 0.04em;
+            padding: 1px 4px; border-radius: var(--radius-sm); line-height: 1.3;
+        }
+        .drawflow .drawflow-node.swe-fanout::after { content: "⑂ FAN-OUT"; color: #2e7d32; background: rgba(46,125,50,0.1); }
+        .drawflow .drawflow-node.swe-collect::after { content: "⊞ COLLECT"; color: #1565c0; background: rgba(21,101,192,0.1); }
         /* #135 — 좌측 stations list 클릭 시 캔버스 노드를 강조 */
         .drawflow .drawflow-node.builder-focused {
             border-color: var(--line-yellow, #FBCA04);

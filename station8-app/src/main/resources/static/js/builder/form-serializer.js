@@ -41,7 +41,8 @@ async function saveDefinition() {
             inputParams: n.data.inputParams || null,
             posX: Math.round(n.pos_x),
             posY: Math.round(n.pos_y),
-            datasourceBindings: bindingsMap
+            datasourceBindings: bindingsMap,
+            streamMode: n.data.streamMode || 'NONE'   // M22 fan-out 모드
         });
     });
 
@@ -143,6 +144,7 @@ function restoreExistingDefinition() {
                 activityNm: n.activityNm,
                 inputParams: n.inputParams || '',
                 datasourceBindings: bindingsJson,
+                streamMode: n.streamMode || 'NONE',  // M22 fan-out 모드
                 originalNodeId: n.nodeId  // 편집 시 reset 후 같은 외부 ID로 다시 저장하기 위함은 아님 (replace는 새로 ID 발급도 OK)
             },
             html
@@ -153,6 +155,8 @@ function restoreExistingDefinition() {
             const labelEl = newNodeEl.querySelector('[data-label-id]');
             if (labelEl) labelEl.textContent = '#' + drawflowId;
         }
+        // M22 — fan-out/collect 노드 시각 마커 복원
+        if (typeof applyStreamModeClass === 'function') applyStreamModeClass(drawflowId, n.streamMode);
         idMap[n.nodeId] = drawflowId;
     });
 

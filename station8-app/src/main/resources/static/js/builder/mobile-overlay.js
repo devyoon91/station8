@@ -48,7 +48,7 @@ function addActivityNodeAtCenter(activity) {
     const html = '<div><strong>' + activity + '</strong>' +
         '<div data-label-id style="font-size:11px; color:var(--body); margin-top:4px; line-height:1; min-height:11px;">&#160;</div></div>';
     const nodeId = editor.addNode(activity, 1, 1, pos_x, pos_y, activity,
-        {activityNm: activity, inputParams: '', datasourceBindings: ''}, html);
+        {activityNm: activity, inputParams: '', datasourceBindings: '', streamMode: 'NONE'}, html);
     const newNodeEl = document.getElementById('node-' + nodeId);
     if (newNodeEl) {
         const labelEl = newNodeEl.querySelector('[data-label-id]');
