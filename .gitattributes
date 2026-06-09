@@ -17,3 +17,7 @@ gradlew.bat text eol=crlf
 *.gif       binary
 *.ico       binary
 *.zip       binary
+
+# Vendored 서드파티 프론트 에셋 — upstream과 byte-identical 유지.
+# line-ending 변환 금지 (CRLF 망가지면 무결성 보증 깨짐, #365).
+**/static/**/vendor/** binary
