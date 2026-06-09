@@ -150,6 +150,37 @@ public interface LineContext {
     default Instant now() { return Instant.now(); }
 
     /**
+     * M22 item-level streaming — 현재 실행이 속한 fan-out 레인 인덱스. 비-fan-out 실행과
+     * 레거시 선형 실행은 0.
+     *
+     * <p>선행 노드 출력이 배열이면 다음 노드가 원소마다 한 번씩 실행되며, 각 실행은 0..K-1의
+     * 인덱스를 갖는다. 표현식 엔진의 {@code $itemIndex} binding이 이 값으로 해소된다.</p>
+     *
+     * @return 레인 인덱스 (≥ 0), 비-fan-out은 0
+     */
+    default int itemIndex() { return 0; }
+
+    /**
+     * M22 — 현재 실행에 할당된 fan-out 원소. 선행 배열 출력의 {@code itemIndex()}번째 원소.
+     * 비-fan-out 실행에서는 empty.
+     *
+     * <p>표현식 엔진의 {@code $item} binding이 이 값으로 해소된다.</p>
+     *
+     * @return 현재 원소 (구현체별 raw POJO 또는 JSON 문자열), 비-fan-out은 empty
+     */
+    default Optional<Object> item() { return Optional.empty(); }
+
+    /**
+     * M22 — 현재 fan-out 레인이 비롯된 전체 배열. 같은 레인의 모든 원소를 한눈에 볼 때.
+     * 비-fan-out 실행에서는 empty.
+     *
+     * <p>표현식 엔진의 {@code $items} binding이 이 값으로 해소된다.</p>
+     *
+     * @return 전체 배열 (구현체별 raw List 또는 JSON 문자열), 비-fan-out은 empty
+     */
+    default Optional<Object> items() { return Optional.empty(); }
+
+    /**
      * 엔진에 다음 활동 실행 의도를 전달한다 — 활동이 정적 DAG 외에 동적으로 다음 단계를 결정할 때.
      *
      * <p>구현체는 본 호출의 사이드 이펙트를 내부에 저장만 하고, 실제 dispatch는 활동 메서드가 정상 종료된 뒤

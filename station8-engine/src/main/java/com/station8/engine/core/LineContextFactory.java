@@ -91,6 +91,9 @@ public class LineContextFactory {
         );
         context.attributes().put("executionId", activity.id());
         context.setRuntimeParams(options.runtimeParams());
+        // M22 — 실행 행의 레인 인덱스를 컨텍스트에 노출 ($itemIndex). $item/$items는 fan-out
+        // materialize(#369)에서 채워지며, 그 전까지 비-fan-out 실행은 0/null로 안전하게 흐른다.
+        context.setItemContext(activity.itemIndex(), null, null);
         return new Bundle(context, options);
     }
 

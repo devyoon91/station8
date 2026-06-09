@@ -40,6 +40,9 @@ public final class InMemoryLineContext implements LineContext {
     private final Map<String, Object> attributes;
     private final Map<String, String> runtimeParams;
     private final Instant now;
+    private final int itemIndex;       // M22 fan-out 레인 인덱스
+    private final Object item;         // M22 현재 원소
+    private final Object items;        // M22 전체 배열
 
     // setNext / saveState로 캡쳐된 사이드 이펙트
     private String capturedNextActivityName;
@@ -57,6 +60,9 @@ public final class InMemoryLineContext implements LineContext {
         this.attributes = new LinkedHashMap<>(b.attributes);
         this.runtimeParams = new LinkedHashMap<>(b.runtimeParams);
         this.now = b.now;
+        this.itemIndex = b.itemIndex;
+        this.item = b.item;
+        this.items = b.items;
     }
 
     @Override public String instanceId() { return instanceId; }
@@ -69,6 +75,9 @@ public final class InMemoryLineContext implements LineContext {
     @Override public Map<String, Object> attributes() { return attributes; }
     @Override public Map<String, String> runtimeParams() { return runtimeParams; }
     @Override public Instant now() { return now; }
+    @Override public int itemIndex() { return itemIndex; }
+    @Override public Optional<Object> item() { return Optional.ofNullable(item); }
+    @Override public Optional<Object> items() { return Optional.ofNullable(items); }
 
     @Override
     public void setNext(String activityName, Object nextInput) {

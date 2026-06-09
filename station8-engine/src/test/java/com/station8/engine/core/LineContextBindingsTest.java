@@ -213,11 +213,43 @@ class LineContextBindingsTest {
     // ---- bindings 구조 자체 확인 (단위 검증) ----
 
     @Test
-    void from_returnsAllThreeBindings() {
+    void from_returnsAllBindings() {
         DefaultLineContext c = ctx(null, null);
         Map<String, Object> b = bindings.from(c);
         assertThat(b).containsOnlyKeys(LineContextBindings.PREV, LineContextBindings.CTX,
-                LineContextBindings.CREDENTIALS);
+                LineContextBindings.CREDENTIALS,
+                LineContextBindings.ITEM, LineContextBindings.ITEMS, LineContextBindings.ITEM_INDEX);
+    }
+
+    // ---- $item / $items / $itemIndex (M22) ----
+
+    @Test
+    void item_nonFanout_defaultsToNullAndZeroIndex() throws Exception {
+        DefaultLineContext c = ctx(null, null);
+        Map<String, Object> b = bindings.from(c);
+        assertThat(evaluator.evaluate("{{ $item }}", b)).isNull();
+        assertThat(evaluator.evaluate("{{ $items }}", b)).isNull();
+        assertThat(evaluator.evaluate("{{ $itemIndex }}", b)).isEqualTo(0L);
+    }
+
+    @Test
+    void item_fanoutLane_exposesElementAndIndex() throws Exception {
+        DefaultLineContext c = ctx(null, null);
+        c.setItemContext(2, Map.of("id", 7, "name", "baz"),
+                List.of(Map.of("id", 5), Map.of("id", 6), Map.of("id", 7)));
+        Map<String, Object> b = bindings.from(c);
+        assertThat(evaluator.evaluate("{{ $item.id }}", b)).isEqualTo(7L);
+        assertThat(evaluator.evaluate("{{ $item.name }}", b)).isEqualTo("baz");
+        assertThat(evaluator.evaluate("{{ $itemIndex }}", b)).isEqualTo(2L);
+        assertThat(evaluator.evaluate("{{ $items.length }}", b)).isEqualTo(3L);
+        assertThat(evaluator.evaluate("{{ $items[0].id }}", b)).isEqualTo(5L);
+    }
+
+    @Test
+    void item_jsonStringElement_parsedToObject() throws Exception {
+        DefaultLineContext c = ctx(null, null);
+        c.setItemContext(0, "{\"sku\":\"A1\"}", null);
+        assertThat(evaluator.evaluate("{{ $item.sku }}", bindings.from(c))).isEqualTo("A1");
     }
 
     @Test
