@@ -5,7 +5,8 @@
     <title>DAG Builder — Line Engine</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="/css/design.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow@0.0.59/dist/drawflow.min.css">
+    <!-- Drawflow 0.0.59 — vendored (폐쇄망 로드 보장, #365). CDN 금지. -->
+    <link rel="stylesheet" href="/css/vendor/drawflow/drawflow.min.css">
     <style>
         /* viewport-locked 빌더: flex 체인으로 chrome 자동 흡수.
            이전 `height: calc(100vh - 56px - 120px)` 하드코딩은 #207에서 h1을 swe-display-lg(56px)로
@@ -610,7 +611,8 @@
 <script id="existing-definition-json" type="application/json">{{{existingDefinitionJson}}}</script>
 {{/existingDefinitionJson}}
 
-<script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow@0.0.59/dist/drawflow.min.js"></script>
+<!-- Drawflow 0.0.59 — vendored (#365). static/js/vendor/drawflow/ -->
+<script src="/js/vendor/drawflow/drawflow.min.js"></script>
 <script src="/js/subway-map.js"></script>
 
 <!-- #181 PR-1 — Builder JS는 /js/builder/index.js로 외부화. 서버 주입값은 data-island 사용. -->
