@@ -97,7 +97,7 @@ canvas.addEventListener('drop', e => {
     // 빈 div와 채워진 div의 height 차이로 Drawflow가 포트 좌표를 잘못 계산하던 회귀 차단.
     const html = '<div><strong>' + activity + '</strong>' +
         '<div data-label-id style="font-size:11px; color:var(--body); margin-top:4px; line-height:1; min-height:11px;">&#160;</div></div>';
-    const nodeId = editor.addNode(activity, 1, 1, pos_x, pos_y, activity, {activityNm: activity, inputParams: '', datasourceBindings: ''}, html);
+    const nodeId = editor.addNode(activity, 1, 1, pos_x, pos_y, activity, {activityNm: activity, inputParams: '', datasourceBindings: '', streamMode: 'NONE'}, html);
     // 동기적으로 라벨 채움 — setTimeout race 회피 (placeholder와 final 모두 1줄 텍스트라 height 변동 zero)
     const newNodeEl = document.getElementById('node-' + nodeId);
     if (newNodeEl) {
@@ -137,6 +137,7 @@ function populateProps(id) {
         '<div><label>Activity</label><input class="swe-input" value="' + node.data.activityNm + '" disabled></div>' +
         paramsBlock +
         '<div><label>DataSource bindings (JSON)</label><textarea class="swe-input" rows="3" id="bindingsInput" style="height: auto; padding: 8px;" placeholder=\'{"source":"oracle-prod","target":"mart"}\'>' + (node.data.datasourceBindings || '') + '</textarea><div class="swe-mute" style="font-size: 11px; margin-top: 4px;">role → DataSource 이름. 액티비티가 <code>@BoundDataSource("role") JdbcTemplate</code>로 받아씀. 비우면 모두 primary fallback.</div></div>' +
+        streamModeBlock(node.data.streamMode) +
         '<button class="swe-btn-tertiary" onclick="updateParams(' + id + ')">Update params + bindings</button>' +
         '<button class="swe-btn-tertiary swe-btn-danger" onclick="deleteNode(' + id + ')">Delete node</button>' +
         '<hr style="border: none; border-top: 1px solid var(--hairline); margin: var(--space-md) 0;">' +
@@ -478,8 +479,36 @@ function updateParams(id) {
     }
     const bindingsEl = document.getElementById('bindingsInput');
     if (bindingsEl) node.data.datasourceBindings = bindingsEl.value;
+    const streamEl = document.getElementById('streamModeInput');
+    if (streamEl) node.data.streamMode = streamEl.value;
     editor.updateNodeDataFromId(id, node.data);
+    applyStreamModeClass(id, node.data.streamMode);
     setStatus('Updated node #' + id);
+}
+
+/** M22 — fan-out 모드에 따라 노드 엘리먼트에 시각 마커 클래스 부여. */
+function applyStreamModeClass(drawflowId, mode) {
+    const el = document.getElementById('node-' + drawflowId);
+    if (!el) return;
+    el.classList.remove('swe-fanout', 'swe-collect');
+    if (mode === 'FAN_OUT') el.classList.add('swe-fanout');
+    else if (mode === 'COLLECT') el.classList.add('swe-collect');
+}
+
+/**
+ * M22 — fan-out 모드 선택 dropdown. NONE(기본)/FAN_OUT/COLLECT.
+ * FAN_OUT: 선행 배열 출력을 원소마다 실행. COLLECT: 선행 fan-out 레인을 배열로 모아 1회.
+ */
+function streamModeBlock(current) {
+    const mode = current || 'NONE';
+    const opt = (v, label) => '<option value="' + v + '"' + (mode === v ? ' selected' : '') + '>' + label + '</option>';
+    return '<div><label>Fan-out 모드 (M22)</label>' +
+        '<select class="swe-input" id="streamModeInput">' +
+        opt('NONE', 'NONE — 선행 출력 통째로 (기본)') +
+        opt('FAN_OUT', 'FAN_OUT — 배열 원소마다 실행 ($item)') +
+        opt('COLLECT', 'COLLECT — 레인 출력을 배열로 모아 1회 ($items)') +
+        '</select>' +
+        '<div class="swe-mute" style="font-size: 11px; margin-top: 4px;">선행 노드 출력이 배열일 때 이 노드를 원소마다 실행하려면 FAN_OUT. 표현식에서 <code>$item</code>/<code>$items</code>/<code>$itemIndex</code> 사용.</div></div>';
 }
 
 /**
