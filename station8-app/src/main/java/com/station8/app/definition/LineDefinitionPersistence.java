@@ -189,7 +189,8 @@ public class LineDefinitionPersistence {
                 nodes.stream().map(n -> new DagDefinitionRequest.NodeDef(
                         n.id(), n.nodeNm(), n.activityNm(), n.inputParams(),
                         n.posXNo(), n.posYNo(),
-                        jsonUtil.fromJsonToStringMap(n.datasourceBindings()))).toList(),
+                        jsonUtil.fromJsonToStringMap(n.datasourceBindings()),
+                        n.streamModeOrDefault())).toList(),
                 edges.stream().map(e -> new DagDefinitionRequest.EdgeDef(
                         e.id(), e.fromNodeId(), e.toNodeId(), e.conditionExpr())).toList()
         );
@@ -200,7 +201,8 @@ public class LineDefinitionPersistence {
         return req.nodes().stream().map(n -> new LineStation(
                 n.nodeId(), definitionId, n.nodeNm(), n.activityNm(), n.inputParams(),
                 serializeBindings(n.datasourceBindings()),
-                n.posX(), n.posY(), "N", null, null, null, null
+                n.posX(), n.posY(), "N", null, null, null, null,
+                n.streamMode()
         )).toList();
     }
 

@@ -23,6 +23,24 @@ public record LineStation(
     LocalDateTime regDt,
     String regId,
     LocalDateTime editDt,
-    String editId
+    String editId,
+    /**
+     * M22 fan-out 모드 — 이 역이 선행 배열 출력을 어떻게 다루는지.
+     * <ul>
+     *   <li>{@code NONE} (기본) — 선행 출력을 통째로 받음. 기존 동작.</li>
+     *   <li>{@code FAN_OUT} — 선행 출력이 배열이면 원소마다 한 번씩 실행 (item-scoped).</li>
+     *   <li>{@code COLLECT} — 선행 fan-out 레인의 모든 원소 출력을 배열로 모아 1회 실행.</li>
+     * </ul>
+     * null이면 {@code NONE}으로 취급.
+     */
+    String streamMode
 ) {
+    public static final String STREAM_NONE = "NONE";
+    public static final String STREAM_FAN_OUT = "FAN_OUT";
+    public static final String STREAM_COLLECT = "COLLECT";
+
+    /** null-safe 조회 — null/빈값이면 NONE. */
+    public String streamModeOrDefault() {
+        return (streamMode == null || streamMode.isBlank()) ? STREAM_NONE : streamMode;
+    }
 }

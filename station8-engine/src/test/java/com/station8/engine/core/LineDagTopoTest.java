@@ -114,7 +114,8 @@ class LineDagTopoTest {
                 /*inputParams*/ null, /*datasourceBindings*/ null,
                 /*posXNo*/ 0, /*posYNo*/ 0,
                 "N",
-                null, null, null, null);
+                null, null, null, null,
+                /*streamMode*/ null);
     }
 
     private static LineTrack edge(String from, String to) {

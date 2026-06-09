@@ -49,6 +49,7 @@ class JdbcLineDefinitionRepositoryStationTest {
                     ACTIVITY_NM VARCHAR(100) NOT NULL,
                     INPUT_PARAMS CLOB,
                     DATASOURCE_BINDINGS CLOB,
+                    STREAM_MODE VARCHAR(20) DEFAULT 'NONE' NOT NULL,
                     POS_X_NO INT,
                     POS_Y_NO INT,
                     DEL_FL VARCHAR(1) DEFAULT 'N' NOT NULL,
@@ -79,7 +80,7 @@ class JdbcLineDefinitionRepositoryStationTest {
                 "{\"limit\":10}",
                 bindingsJson,
                 10, 20,
-                "N", null, "tester", null, null);
+                "N", null, "tester", null, null, "FAN_OUT");
         repository.insertNode(node);
 
         LineStation got = repository.findStationById(stationId);
@@ -90,6 +91,7 @@ class JdbcLineDefinitionRepositoryStationTest {
         assertThat(got.datasourceBindings()).isEqualTo(bindingsJson);
         assertThat(got.posXNo()).isEqualTo(10);
         assertThat(got.posYNo()).isEqualTo(20);
+        assertThat(got.streamMode()).isEqualTo("FAN_OUT");  // M22 round-trip
     }
 
     @Test
@@ -98,7 +100,7 @@ class JdbcLineDefinitionRepositoryStationTest {
         LineStation node = new LineStation(
                 stationId, "def-1", "NoBindings", "NOOP",
                 null, null, 0, 0,
-                "N", null, "tester", null, null);
+                "N", null, "tester", null, null, null);
         repository.insertNode(node);
 
         LineStation got = repository.findStationById(stationId);

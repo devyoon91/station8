@@ -166,9 +166,9 @@ class PauseRetryTest {
                 null, null, null, null,  // #168 projectId
                 "N", null, "test", null, null));
         defRepo.insertNode(new LineStation("n-a", defId, "A", "A", null, null, 0, 0,
-                "N", null, null, null, null));
+                "N", null, null, null, null, null));
         defRepo.insertNode(new LineStation("n-b", defId, "B", "B", null, null, 0, 0,
-                "N", null, null, null, null));
+                "N", null, null, null, null, null));
         defRepo.insertEdge(new LineTrack("e1", defId, "n-a", "n-b", null,
                 "N", null, null, null, null));
 

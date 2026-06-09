@@ -1,0 +1,4 @@
+-- #371 (M22) : U_LINE_STATION.STREAM_MODE 추가 (Oracle)
+-- 노드 fan-out 모드 — NONE(기본)/FAN_OUT/COLLECT. 기존 노드는 DEFAULT 'NONE'으로 흡수(동작 무변).
+-- Oracle은 ADD COLUMN IF NOT EXISTS 미지원 — 재실행 전 컬럼 존재 확인.
+ALTER TABLE U_LINE_STATION ADD (STREAM_MODE VARCHAR2(20) DEFAULT 'NONE' NOT NULL);

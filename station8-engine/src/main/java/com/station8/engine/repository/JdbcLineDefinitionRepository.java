@@ -263,13 +263,13 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_STATION
                   (ID, DEFINITION_ID, NODE_NM, ACTIVITY_NM, INPUT_PARAMS, DATASOURCE_BINDINGS,
-                   POS_X_NO, POS_Y_NO,
+                   STREAM_MODE, POS_X_NO, POS_Y_NO,
                    DEL_FL, REG_DT)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP)
                 """,
                 node.id(), node.definitionId(), node.nodeNm(), node.activityNm(),
                 node.inputParams(), node.datasourceBindings(),
-                node.posXNo(), node.posYNo());
+                node.streamModeOrDefault(), node.posXNo(), node.posYNo());
     }
 
     @Override
@@ -367,7 +367,8 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 rs.getTimestamp("REG_DT") != null ? rs.getTimestamp("REG_DT").toLocalDateTime() : null,
                 rs.getString("REG_ID"),
                 rs.getTimestamp("EDIT_DT") != null ? rs.getTimestamp("EDIT_DT").toLocalDateTime() : null,
-                rs.getString("EDIT_ID")
+                rs.getString("EDIT_ID"),
+                rs.getString("STREAM_MODE")
             );
         }
     }
