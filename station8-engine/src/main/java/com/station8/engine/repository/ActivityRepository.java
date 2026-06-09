@@ -64,14 +64,39 @@ public interface ActivityRepository {
     String createForNode(String instanceId, String nodeId, String activityName, String statusSt, String inputData);
 
     /**
+     * M22 fan-out — 특정 item 레인 인덱스로 역 실행 행을 생성한다. materialize 시 item당 1행.
+     *
+     * @param itemIndex fan-out 레인 인덱스 (0..K-1)
+     * @return 생성된 실행 ID
+     */
+    String createForNodeItem(String instanceId, String nodeId, String activityName, String statusSt,
+                             String inputData, int itemIndex);
+
+    /**
+     * M22 — retry 행이 fan-out 레인을 보존하도록 itemIndex를 명시하는 createPending.
+     * 기존 5-arg는 itemIndex=0으로 위임된다.
+     */
+    String createPending(String instanceId, String nodeId, String activityName, String inputData,
+                         LocalDateTime nextRetryDt, int itemIndex);
+
+    /**
      * 단일 액티비티 실행을 ID로 조회합니다.
      */
     ActivityExecution findById(String executionId);
 
     /**
      * 특정 인스턴스에서 특정 역의 실행을 조회합니다.
+     *
+     * <p>fan-out으로 한 역에 여러 item 행이 있으면 임의의 1행을 반환한다 — 비-fan-out(기존)
+     * 경로의 시맨틱을 보존하기 위함. 전체 item 행이 필요하면 {@link #findAllByInstanceAndNode}.</p>
      */
     ActivityExecution findByInstanceAndNode(String instanceId, String nodeId);
+
+    /**
+     * M22 — 한 (instance, node)에 속한 모든 item 레인 실행 행을 반환한다. fan-in 판정/수집용.
+     * 비-fan-out 노드는 보통 1행.
+     */
+    List<ActivityExecution> findAllByInstanceAndNode(String instanceId, String nodeId);
 
     /**
      * 액티비티 실행을 WAITING_DEPENDENCIES → PENDING 으로 전이시킵니다 (인터프리터용).

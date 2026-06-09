@@ -75,7 +75,7 @@ class DagInterpreterConditionTest {
             @Override public Set<String> getActivityNames() { return Set.of("A", "B", "C"); }
         };
         interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry,
-                evaluator, lineExecutor);
+                evaluator, lineExecutor, new JsonUtil());
     }
 
     @BeforeEach

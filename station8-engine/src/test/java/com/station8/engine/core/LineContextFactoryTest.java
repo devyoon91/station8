@@ -289,6 +289,12 @@ class LineContextFactoryTest {
         @Override public void updateStatus(ActivityExecution activityExecution) { }
         @Override public String createPending(String instanceId, String nodeId, String activityName, String inputData, LocalDateTime nextRetryDt) { return null; }
         @Override public String createForNode(String instanceId, String nodeId, String activityName, String statusSt, String inputData) { return null; }
+        @Override public String createForNodeItem(String instanceId, String nodeId, String activityName, String statusSt, String inputData, int itemIndex) { return null; }
+        @Override public String createPending(String instanceId, String nodeId, String activityName, String inputData, LocalDateTime nextRetryDt, int itemIndex) { return null; }
+        @Override public List<ActivityExecution> findAllByInstanceAndNode(String instanceId, String nodeId) {
+            ActivityExecution a = activitiesByNode.get(nodeId);
+            return a == null ? List.of() : List.of(a);
+        }
         @Override public ActivityExecution findById(String executionId) { return null; }
         @Override public void promoteToPending(String executionId) { }
         @Override public List<LineInstance> findAllInstances() { return List.of(); }

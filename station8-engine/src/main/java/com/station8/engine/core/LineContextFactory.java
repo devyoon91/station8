@@ -2,6 +2,7 @@ package com.station8.engine.core;
 
 import com.station8.engine.entity.ActivityExecution;
 import com.station8.engine.entity.LineInstance;
+import com.station8.engine.entity.LineStation;
 import com.station8.engine.entity.LineTrack;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
@@ -91,10 +92,82 @@ public class LineContextFactory {
         );
         context.attributes().put("executionId", activity.id());
         context.setRuntimeParams(options.runtimeParams());
-        // M22 — 실행 행의 레인 인덱스를 컨텍스트에 노출 ($itemIndex). $item/$items는 fan-out
-        // materialize(#369)에서 채워지며, 그 전까지 비-fan-out 실행은 0/null로 안전하게 흐른다.
-        context.setItemContext(activity.itemIndex(), null, null);
+        // M22 (#369) — fan-out 레인 컨텍스트. NONE 노드는 (index, null, null)로 기존과 동일.
+        applyItemContext(context, activity);
         return new Bundle(context, options);
+    }
+
+    /**
+     * M22 — 노드 STREAM_MODE에 따라 $item / $items 를 채운다.
+     * <ul>
+     *   <li>FAN_OUT: 선행 출력 배열의 itemIndex번째 원소를 $item, 배열 전체를 $items로.</li>
+     *   <li>COLLECT: 선행 fan-out 레인의 모든 원소 출력을 모아 $items로 (item은 null).</li>
+     *   <li>그 외(NONE/legacy): index만 노출, $item/$items=null — 기존 동작.</li>
+     * </ul>
+     */
+    private void applyItemContext(DefaultLineContext context, ActivityExecution activity) {
+        int idx = activity.itemIndex();
+        if (activity.nodeId() == null) {
+            context.setItemContext(idx, null, null);
+            return;
+        }
+        LineStation node;
+        try {
+            node = definitionRepository.findStationById(activity.nodeId());
+        } catch (Exception ex) {
+            context.setItemContext(idx, null, null);
+            return;
+        }
+        String mode = node == null ? LineStation.STREAM_NONE : node.streamModeOrDefault();
+        try {
+            if (LineStation.STREAM_FAN_OUT.equals(mode)) {
+                List<?> items = loadPredecessorArray(activity);
+                Object item = (items != null && idx >= 0 && idx < items.size()) ? items.get(idx) : null;
+                context.setItemContext(idx, item, items);
+            } else if (LineStation.STREAM_COLLECT.equals(mode)) {
+                context.setItemContext(idx, null, collectPredecessorOutputs(activity));
+            } else {
+                context.setItemContext(idx, null, null);
+            }
+        } catch (Exception ex) {
+            log.warn("item context 조립 실패 — activityId={}, nodeId={}: {}", activity.id(), activity.nodeId(), ex.getMessage());
+            context.setItemContext(idx, null, null);
+        }
+    }
+
+    /** FAN_OUT — 단일 선행의 출력을 배열로 파싱. */
+    private List<?> loadPredecessorArray(ActivityExecution activity) {
+        List<LineTrack> incoming = definitionRepository.findIncomingEdges(activity.nodeId());
+        if (incoming.size() != 1) return null;
+        ActivityExecution prev = activityRepository.findByInstanceAndNode(activity.instanceId(), incoming.get(0).fromNodeId());
+        String json = prev == null ? null : prev.outputData();
+        if (json == null || json.isBlank()) return null;
+        Object parsed = jsonUtil.fromJson(json, Object.class);
+        return (parsed instanceof List<?> list) ? list : null;
+    }
+
+    /** COLLECT — 단일 선행 fan-out 레인의 모든 item 행 출력을 itemIndex 순으로 모은다. */
+    private List<Object> collectPredecessorOutputs(ActivityExecution activity) {
+        List<LineTrack> incoming = definitionRepository.findIncomingEdges(activity.nodeId());
+        if (incoming.size() != 1) return List.of();
+        List<ActivityExecution> rows = activityRepository.findAllByInstanceAndNode(
+                activity.instanceId(), incoming.get(0).fromNodeId());
+        List<Object> out = new java.util.ArrayList<>();
+        for (ActivityExecution r : rows) {
+            if (!"COMPLETED".equals(r.statusSt())) continue;
+            String json = r.outputData();
+            out.add(json == null ? null : safeParse(json));
+        }
+        return out;
+    }
+
+    /** 출력 JSON을 객체로 파싱, 실패 시 raw 문자열 그대로. */
+    private Object safeParse(String json) {
+        try {
+            return jsonUtil.fromJson(json, Object.class);
+        } catch (Exception ex) {
+            return json;
+        }
     }
 
     /**

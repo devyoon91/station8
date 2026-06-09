@@ -117,8 +117,9 @@ public class JdbcTaskExecutor implements TaskExecutor {
             Object input = context.input();
             String inputJson = (input instanceof String s) ? s : jsonUtil.toJson(input);
             // #278 — DAG 모드 활동의 retry는 nodeId 보존. legacy/linear 모드는 nodeId=null 그대로.
+            // M22 (#369) — fan-out 레인 인덱스도 보존해야 retry 행이 같은 레인으로 남는다.
             activityRepository.createPending(context.instanceId(), context.nodeId(),
-                    context.currentActivityName(), inputJson, nextRetry);
+                    context.currentActivityName(), inputJson, nextRetry, context.itemIndex());
         }
     }
 

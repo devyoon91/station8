@@ -256,6 +256,23 @@ class JdbcTaskExecutorTest {
         }
 
         @Override
+        public String createForNodeItem(String instanceId, String nodeId, String activityName, String statusSt, String inputData, int itemIndex) {
+            return "stub-node-item-id";
+        }
+
+        @Override
+        public String createPending(String instanceId, String nodeId, String activityName, String inputData, LocalDateTime nextRetryDt, int itemIndex) {
+            // M22 — retry는 이제 itemIndex 보존 6-arg 사용. 테스트 가시성 위해 동일하게 기록.
+            pendingCalls.add(new PendingCall(instanceId, nodeId, activityName, inputData, nextRetryDt));
+            return "stub-id-" + pendingCalls.size();
+        }
+
+        @Override
+        public List<ActivityExecution> findAllByInstanceAndNode(String instanceId, String nodeId) {
+            return java.util.List.of();
+        }
+
+        @Override
         public ActivityExecution findById(String executionId) {
             return null;
         }

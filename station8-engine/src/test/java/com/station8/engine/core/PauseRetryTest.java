@@ -82,7 +82,7 @@ class PauseRetryTest {
         };
         // 임시 placeholder executor로 interpreter 생성 후 진짜 executor 생성, 나중에 cycle 풀기
         executor = new JdbcLineExecutor(jdbcTemplate, activityRepo, jsonUtil);
-        interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry, evaluator, executor);
+        interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry, evaluator, executor, new JsonUtil());
         // 진짜 executor — DagInterpreter 주입
         executor = new JdbcLineExecutor(jdbcTemplate, activityRepo, jsonUtil, interpreter);
 

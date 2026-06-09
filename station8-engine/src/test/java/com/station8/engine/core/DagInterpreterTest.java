@@ -73,7 +73,7 @@ class DagInterpreterTest {
             @Override public void failLine(String instanceId, String reason) { /* no-op */ }
         };
         interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry,
-                conditionEvaluator, noOpExecutor);
+                conditionEvaluator, noOpExecutor, new JsonUtil());
     }
 
     @BeforeEach
@@ -216,6 +216,107 @@ class DagInterpreterTest {
         assertEquals("PENDING", statusOf(instanceId, "n-d"));
     }
 
+    // === M22 item-level streaming (#369) ===
+
+    @Test
+    void itemStreaming_fanOut_materializesItemRowsPerElement() {
+        // A → B(FAN_OUT) → C(COLLECT)
+        String defId = "def-fanout-items";
+        insertDefinition(defId, "FanOutItems");
+        insertNode(defId, "n-a", "A");
+        insertNodeWithMode(defId, "n-b", "B", "FAN_OUT");
+        insertNodeWithMode(defId, "n-c", "C", "COLLECT");
+        insertEdge(defId, "n-a", "n-b");
+        insertEdge(defId, "n-b", "n-c");
+
+        String instanceId = "inst-fanout-items";
+        insertInstance(instanceId);
+        interpreter.startInstance(defId, instanceId, null);
+
+        // A가 배열 출력으로 완료 → B가 원소당 3행으로 materialize
+        markCompletedWithOutput(instanceId, "n-a", "[10,20,30]");
+        interpreter.onNodeCompleted(instanceId, "n-a");
+
+        List<ActivityExecution> bRows = activityRepo.findAllByInstanceAndNode(instanceId, "n-b");
+        assertEquals(3, bRows.size(), "FAN_OUT은 원소당 1행을 만들어야 함");
+        assertEquals(Set.of(0, 1, 2), bRows.stream().map(ActivityExecution::itemIndex).collect(java.util.stream.Collectors.toSet()));
+        bRows.forEach(r -> assertEquals("PENDING", r.statusSt(), "모든 item 행은 PENDING(병렬)"));
+        // C는 아직 대기 (B 레인 미완)
+        assertEquals("WAITING_DEPENDENCIES", statusOf(instanceId, "n-c"));
+    }
+
+    @Test
+    void itemStreaming_collect_waitsForAllItemsThenPromotesOnce() {
+        String defId = "def-collect";
+        insertDefinition(defId, "Collect");
+        insertNode(defId, "n-a", "A");
+        insertNodeWithMode(defId, "n-b", "B", "FAN_OUT");
+        insertNodeWithMode(defId, "n-c", "C", "COLLECT");
+        insertEdge(defId, "n-a", "n-b");
+        insertEdge(defId, "n-b", "n-c");
+
+        String instanceId = "inst-collect";
+        insertInstance(instanceId);
+        interpreter.startInstance(defId, instanceId, null);
+
+        markCompletedWithOutput(instanceId, "n-a", "[1,2]");
+        interpreter.onNodeCompleted(instanceId, "n-a");
+        assertEquals(2, activityRepo.findAllByInstanceAndNode(instanceId, "n-b").size());
+
+        // B의 item 한 개만 완료 → C는 여전히 대기
+        completeOneItemRow(instanceId, "n-b", 0);
+        interpreter.onNodeCompleted(instanceId, "n-b");
+        assertEquals("WAITING_DEPENDENCIES", statusOf(instanceId, "n-c"));
+
+        // 나머지 item 완료 → 모든 레인 완료 → C 1회 promote
+        completeOneItemRow(instanceId, "n-b", 1);
+        interpreter.onNodeCompleted(instanceId, "n-b");
+        assertEquals("PENDING", statusOf(instanceId, "n-c"));
+        assertEquals(1, activityRepo.findAllByInstanceAndNode(instanceId, "n-c").size(), "COLLECT는 1회만 실행");
+    }
+
+    @Test
+    void itemStreaming_noneNode_doesNotFanOutOnArrayOutput() {
+        // opt-in 증명: B가 NONE이면 A의 배열 출력에도 fan-out 안 함 (기존 동작)
+        String defId = "def-none-array";
+        insertDefinition(defId, "NoneArray");
+        insertNode(defId, "n-a", "A");
+        insertNode(defId, "n-b", "B");   // STREAM_MODE 기본 NONE
+        insertEdge(defId, "n-a", "n-b");
+
+        String instanceId = "inst-none-array";
+        insertInstance(instanceId);
+        interpreter.startInstance(defId, instanceId, null);
+
+        markCompletedWithOutput(instanceId, "n-a", "[1,2,3]");
+        interpreter.onNodeCompleted(instanceId, "n-a");
+
+        List<ActivityExecution> bRows = activityRepo.findAllByInstanceAndNode(instanceId, "n-b");
+        assertEquals(1, bRows.size(), "NONE 노드는 배열이어도 단일 행 (fan-out 안 함)");
+        assertEquals("PENDING", bRows.get(0).statusSt());
+    }
+
+    @Test
+    void itemStreaming_fanOut_nonArrayOutput_degeneratesToSingle() {
+        String defId = "def-degenerate";
+        insertDefinition(defId, "Degenerate");
+        insertNode(defId, "n-a", "A");
+        insertNodeWithMode(defId, "n-b", "B", "FAN_OUT");
+        insertEdge(defId, "n-a", "n-b");
+
+        String instanceId = "inst-degenerate";
+        insertInstance(instanceId);
+        interpreter.startInstance(defId, instanceId, null);
+
+        // 단일 객체 출력 → length-1 degenerate
+        markCompletedWithOutput(instanceId, "n-a", "{\"id\":1}");
+        interpreter.onNodeCompleted(instanceId, "n-a");
+
+        List<ActivityExecution> bRows = activityRepo.findAllByInstanceAndNode(instanceId, "n-b");
+        assertEquals(1, bRows.size());
+        assertEquals("PENDING", bRows.get(0).statusSt());
+    }
+
     @Test
     void terminalNodeCompletion_isNoOp() {
         // 단일 역 정의: 종단 역 완료 시 후행 없음
@@ -275,5 +376,24 @@ class DagInterpreterTest {
         jdbcTemplate.update(
                 "UPDATE H_LINE_ACTIVITY_EXECUTION SET STATUS_ST = 'COMPLETED' WHERE INSTANCE_ID = ? AND NODE_ID = ?",
                 instanceId, nodeId);
+    }
+
+    private void insertNodeWithMode(String defId, String nodeId, String activityNm, String streamMode) {
+        jdbcTemplate.update("""
+                INSERT INTO U_LINE_STATION (ID, DEFINITION_ID, ACTIVITY_NM, STREAM_MODE, DEL_FL)
+                VALUES (?, ?, ?, ?, 'N')
+                """, nodeId, defId, activityNm, streamMode);
+    }
+
+    private void markCompletedWithOutput(String instanceId, String nodeId, String outputJson) {
+        jdbcTemplate.update(
+                "UPDATE H_LINE_ACTIVITY_EXECUTION SET STATUS_ST = 'COMPLETED', OUTPUT_DATA = ? WHERE INSTANCE_ID = ? AND NODE_ID = ?",
+                outputJson, instanceId, nodeId);
+    }
+
+    private void completeOneItemRow(String instanceId, String nodeId, int itemIndex) {
+        jdbcTemplate.update(
+                "UPDATE H_LINE_ACTIVITY_EXECUTION SET STATUS_ST = 'COMPLETED' WHERE INSTANCE_ID = ? AND NODE_ID = ? AND ITEM_INDEX = ?",
+                instanceId, nodeId, itemIndex);
     }
 }

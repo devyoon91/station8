@@ -85,7 +85,7 @@ class LineSchedulerTest {
             @Override public void failLine(String instanceId, String reason) { /* no-op */ }
         };
         interpreter = new DagInterpreter(defRepo, activityRepo, validator, stubRegistry,
-                conditionEvaluator, noOpExecutor);
+                conditionEvaluator, noOpExecutor, new JsonUtil());
         TriggerLauncher launcher = new TriggerLauncher(interpreter, jdbcTemplate);
         scheduler = new LineScheduler(scheduleRepo, launcher);
 
