@@ -388,6 +388,7 @@ public class JdbcActivityRepository implements ActivityRepository {
                 rs.getString("ID"),
                 rs.getString("INSTANCE_ID"),
                 rs.getString("NODE_ID"),
+                rs.getInt("ITEM_INDEX"),
                 rs.getString("ACTIVITY_NAME"),
                 rs.getString("STATUS_ST"),
                 rs.getString("INPUT_DATA"),

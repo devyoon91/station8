@@ -243,7 +243,7 @@ class DagInterpreterConditionTest {
     private void completeActivity(String instanceId, String nodeId, String outputJson) {
         ActivityExecution exec = activityRepo.findByInstanceAndNode(instanceId, nodeId);
         ActivityExecution updated = new ActivityExecution(
-                exec.id(), exec.instanceId(), exec.nodeId(), exec.activityName(),
+                exec.id(), exec.instanceId(), exec.nodeId(), exec.itemIndex(), exec.activityName(),
                 "COMPLETED", exec.inputData(), outputJson,
                 null, null, exec.retryCnt(), null,
                 exec.startDt(), java.time.LocalDateTime.now(),

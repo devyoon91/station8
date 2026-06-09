@@ -223,7 +223,7 @@ class LineContextFactoryTest {
 
     private static ActivityExecution simpleActivity(String id, String instanceId, String activityName, int retryCnt) {
         return new ActivityExecution(
-                id, instanceId, null, activityName,
+                id, instanceId, null, 0, activityName,
                 "PENDING", "input-data", null, null, null,
                 retryCnt, null,
                 null, null,
@@ -235,7 +235,7 @@ class LineContextFactoryTest {
     private static ActivityExecution simpleActivityWithNode(String id, String instanceId, String nodeId,
                                                             String activityName, int retryCnt) {
         return new ActivityExecution(
-                id, instanceId, nodeId, activityName,
+                id, instanceId, nodeId, 0, activityName,
                 "PENDING", "input-data", null, null, null,
                 retryCnt, null,
                 null, null,
@@ -247,7 +247,7 @@ class LineContextFactoryTest {
     private static ActivityExecution simpleActivityWithNodeAndOutput(String id, String instanceId, String nodeId,
                                                                      String activityName, String outputData) {
         return new ActivityExecution(
-                id, instanceId, nodeId, activityName,
+                id, instanceId, nodeId, 0, activityName,
                 "COMPLETED", "input-data", outputData, null, null,
                 0, null,
                 null, null,

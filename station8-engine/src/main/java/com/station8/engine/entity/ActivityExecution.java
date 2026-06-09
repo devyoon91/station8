@@ -12,6 +12,7 @@ public record ActivityExecution(
     String id,                // ID (PK)
     String instanceId,        // INSTANCE_ID (FK)
     String nodeId,            // NODE_ID (FK to U_LINE_STATION, nullable: 레거시 모드는 null)
+    int itemIndex,            // ITEM_INDEX (M22 fan-out 레인 인덱스, 비-fan-out/레거시는 0)
     String activityName,      // ACTIVITY_NAME
     String statusSt,          // STATUS_ST (WAITING_DEPENDENCIES, PENDING, RUNNING, COMPLETED, FAILED)
     String inputData,         // INPUT_DATA (CLOB/LONGTEXT - JSON)
@@ -33,7 +34,7 @@ public record ActivityExecution(
     /** 상태만 바꾼 새 인스턴스를 반환합니다 (record는 불변이므로 재구성). */
     public ActivityExecution withStatus(String newStatus) {
         return new ActivityExecution(
-            id, instanceId, nodeId, activityName, newStatus,
+            id, instanceId, nodeId, itemIndex, activityName, newStatus,
             inputData, outputData, errorMessage, stackTrace,
             retryCnt, nextRetryDt, startDt, endDt,
             delFl, regDt, regId, editDt, editId
