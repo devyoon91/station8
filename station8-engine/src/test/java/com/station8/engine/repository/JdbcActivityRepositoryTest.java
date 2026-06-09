@@ -38,6 +38,7 @@ public class JdbcActivityRepositoryTest {
 
         jdbcTemplate.execute("CREATE TABLE H_LINE_ACTIVITY_EXECUTION (" +
                 "ID VARCHAR(50), INSTANCE_ID VARCHAR(50), NODE_ID VARCHAR(50), " +
+                "ITEM_INDEX INT DEFAULT 0 NOT NULL, " +
                 "ACTIVITY_NAME VARCHAR(100), STATUS_ST VARCHAR(30), " +
                 "INPUT_DATA CLOB, OUTPUT_DATA CLOB, ERROR_MESSAGE CLOB, STACK_TRACE CLOB, " +
                 "RETRY_CNT INT, NEXT_RETRY_DT TIMESTAMP, START_DT TIMESTAMP, END_DT TIMESTAMP, " +
@@ -85,7 +86,7 @@ public class JdbcActivityRepositoryTest {
                 executionId, instanceId, "Activity1", "RUNNING", LocalDateTime.now());
 
         ActivityExecution update = new ActivityExecution(
-                executionId, instanceId, null, "Activity1", "COMPLETED",
+                executionId, instanceId, null, 0, "Activity1", "COMPLETED",
                 null, "{\"result\":\"ok\"}", null, null, 0, null, null, LocalDateTime.now(),
                 "N", LocalDateTime.now(), "system", LocalDateTime.now(), "engine"
         );

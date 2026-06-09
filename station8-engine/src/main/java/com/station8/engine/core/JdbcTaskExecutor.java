@@ -56,6 +56,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
             executionId,
             context.instanceId(),
             null, // nodeId: updateStatus는 NODE_ID를 변경하지 않음 (PK 기준 SET 항목만 갱신)
+            0, // itemIndex: updateStatus 미사용 (SET 항목 아님)
             context.currentActivityName(),
             "COMPLETED",
             null, // inputData
@@ -91,6 +92,7 @@ public class JdbcTaskExecutor implements TaskExecutor {
             executionId,
             context.instanceId(),
             null, // nodeId: updateStatus는 NODE_ID를 변경하지 않음
+            0, // itemIndex: updateStatus 미사용 (SET 항목 아님)
             context.currentActivityName(),
             "FAILED",
             null, // inputData

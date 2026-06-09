@@ -232,7 +232,7 @@ public class ActivityProcessor {
         LocalDateTime nextRetryDt = LocalDateTime.now().plus(METADATA_MISSING_RETRY_DELAY);
 
         ActivityExecution failed = new ActivityExecution(
-                activity.id(), activity.instanceId(), activity.nodeId(), activity.activityName(),
+                activity.id(), activity.instanceId(), activity.nodeId(), activity.itemIndex(), activity.activityName(),
                 "FAILED", activity.inputData(), null,
                 e.getMessage(), formatStackTrace(e), nextRetryCnt, nextRetryDt,
                 activity.startDt(), LocalDateTime.now(),
