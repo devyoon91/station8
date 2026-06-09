@@ -6,6 +6,7 @@ import com.station8.engine.entity.LineTrack;
 import com.station8.engine.entity.LineStation;
 import com.station8.engine.repository.ActivityRepository;
 import com.station8.engine.repository.LineDefinitionRepository;
+import com.station8.engine.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -46,19 +47,22 @@ public class DagInterpreter {
     private final LineRegistry workflowRegistry;
     private final EdgeConditionEvaluator conditionEvaluator;
     private final LineExecutor lineExecutor;
+    private final JsonUtil jsonUtil;
 
     public DagInterpreter(LineDefinitionRepository definitionRepository,
                           ActivityRepository activityRepository,
                           DagValidator dagValidator,
                           LineRegistry workflowRegistry,
                           EdgeConditionEvaluator conditionEvaluator,
-                          @Lazy LineExecutor lineExecutor) {
+                          @Lazy LineExecutor lineExecutor,
+                          JsonUtil jsonUtil) {
         this.definitionRepository = definitionRepository;
         this.activityRepository = activityRepository;
         this.dagValidator = dagValidator;
         this.workflowRegistry = workflowRegistry;
         this.conditionEvaluator = conditionEvaluator;
         this.lineExecutor = lineExecutor;
+        this.jsonUtil = jsonUtil;
     }
 
     /**
@@ -161,26 +165,132 @@ public class DagInterpreter {
         // 활성화된 엣지의 후행 노드 promote — fan-in 조건은 기존 그대로
         for (LineTrack edge : activatedEdges) {
             String successorId = edge.toNodeId();
-            if (allPredecessorsCompleted(instanceId, successorId)) {
-                ActivityExecution successorExec = activityRepository.findByInstanceAndNode(instanceId, successorId);
-                if (successorExec == null) {
-                    log.warn("Successor execution not found: instanceId={}, nodeId={}", instanceId, successorId);
-                    continue;
-                }
-                if (STATUS_WAITING.equals(successorExec.statusSt())) {
-                    activityRepository.promoteToPending(successorExec.id());
-                    log.info("Promoted to PENDING: instanceId={}, nodeId={}, executionId={}",
-                            instanceId, successorId, successorExec.id());
-                }
+            if (!allPredecessorsCompleted(instanceId, successorId)) {
+                continue;
             }
+            // M22 (#369) — 후행이 FAN_OUT이면 선행 배열을 item당 행으로 materialize.
+            // 그 외(NONE/COLLECT)는 기존 단일 행 promote 경로를 그대로 탄다.
+            LineStation successor = definitionRepository.findStationById(successorId);
+            String mode = (successor == null) ? LineStation.STREAM_NONE : successor.streamModeOrDefault();
+            if (LineStation.STREAM_FAN_OUT.equals(mode)) {
+                materializeFanOut(instanceId, successorId, edge.fromNodeId(), successor);
+            } else {
+                promoteSingle(instanceId, successorId);
+            }
+        }
+    }
+
+    /** 기존 단일 행 promote — NONE/COLLECT 후행. 동작은 M22 이전과 동일. */
+    private void promoteSingle(String instanceId, String successorId) {
+        ActivityExecution successorExec = activityRepository.findByInstanceAndNode(instanceId, successorId);
+        if (successorExec == null) {
+            log.warn("Successor execution not found: instanceId={}, nodeId={}", instanceId, successorId);
+            return;
+        }
+        if (STATUS_WAITING.equals(successorExec.statusSt())) {
+            activityRepository.promoteToPending(successorExec.id());
+            log.info("Promoted to PENDING: instanceId={}, nodeId={}, executionId={}",
+                    instanceId, successorId, successorExec.id());
+        }
+    }
+
+    /**
+     * M22 (#369) fan-out materialize — 선행 노드 출력 배열을 후행 FAN_OUT 노드의 item당 행으로 펼친다.
+     *
+     * <p>후행은 시작 시 단일 WAITING 행이 미리 생성돼 있다(item 0). 선행 출력이 길이 K 배열이면
+     * 그 행을 PENDING으로 promote(item 0)하고 item 1..K-1 행을 추가 생성한다. 모두 PENDING이라
+     * 워커가 병렬로 집어간다. 비-배열 출력은 length-1 degenerate로 단일 promote.</p>
+     *
+     * <p>idempotent — 단일 WAITING 행이 이미 사라졌으면(materialize 완료) 아무것도 안 한다.</p>
+     */
+    private void materializeFanOut(String instanceId, String successorId, String predNodeId, LineStation successor) {
+        List<ActivityExecution> existing = activityRepository.findAllByInstanceAndNode(instanceId, successorId);
+        ActivityExecution seed = existing.stream()
+                .filter(r -> STATUS_WAITING.equals(r.statusSt()) && r.itemIndex() == 0)
+                .findFirst().orElse(null);
+        if (seed == null) {
+            // 이미 materialize됨 — 중복 fan-out 방지
+            return;
+        }
+
+        List<?> items = parseArrayOutput(instanceId, predNodeId);
+        if (items == null) {
+            // 비-배열 출력(단일 객체) → length-1 degenerate. 기존처럼 단일 promote.
+            activityRepository.promoteToPending(seed.id());
+            return;
+        }
+        int k = items.size();
+        if (k == 0) {
+            // 빈 배열 — 실행할 item이 없다. 레인을 빈 채로 COMPLETED 처리 후 후행 cascade.
+            // (v1: 빈 fan-out은 no-op 통과. 부분실패/빈배열 정밀 정책은 후속.)
+            activityRepository.updateStatus(seed.withStatus(STATUS_COMPLETED));
+            log.info("Fan-out empty array — lane completed as no-op: instanceId={}, nodeId={}", instanceId, successorId);
+            onNodeCompleted(instanceId, successorId);
+            return;
+        }
+        // item 0 = seed 행, item 1..K-1 = 신규 행
+        activityRepository.promoteToPending(seed.id());
+        for (int i = 1; i < k; i++) {
+            activityRepository.createForNodeItem(instanceId, successorId, successor.activityNm(),
+                    STATUS_PENDING, successor.inputParams(), i);
+        }
+        log.info("Fan-out materialized: instanceId={}, nodeId={}, items={}", instanceId, successorId, k);
+    }
+
+    /** 선행 노드 출력을 배열로 파싱. 배열이 아니거나 파싱 실패면 null. */
+    private List<?> parseArrayOutput(String instanceId, String predNodeId) {
+        ActivityExecution predExec = activityRepository.findByInstanceAndNode(instanceId, predNodeId);
+        String json = predExec != null ? predExec.outputData() : null;
+        if (json == null || json.isBlank()) return null;
+        try {
+            Object parsed = jsonUtil.fromJson(json, Object.class);
+            return (parsed instanceof List<?> list) ? list : null;
+        } catch (Exception ex) {
+            log.warn("Fan-out 선행 출력 배열 파싱 실패 — predNodeId={}: {}", predNodeId, ex.getMessage());
+            return null;
         }
     }
 
     private boolean allPredecessorsCompleted(String instanceId, String nodeId) {
         List<LineTrack> incoming = definitionRepository.findIncomingEdges(nodeId);
         for (LineTrack edge : incoming) {
-            ActivityExecution predExec = activityRepository.findByInstanceAndNode(instanceId, edge.fromNodeId());
-            if (predExec == null || !STATUS_COMPLETED.equals(predExec.statusSt())) {
+            String predId = edge.fromNodeId();
+            LineStation pred = definitionRepository.findStationById(predId);
+            boolean predIsFanOut = pred != null && LineStation.STREAM_FAN_OUT.equals(pred.streamModeOrDefault());
+            if (predIsFanOut) {
+                // M22 — fan-out 선행: 모든 item 레인이 완료돼야 한다 (레인별 최소 1개 COMPLETED + 미완 행 없음).
+                if (!fanOutLaneAllCompleted(instanceId, predId)) {
+                    return false;
+                }
+            } else {
+                // NONE/비-fan-out 선행: 기존 단일 행 판정 그대로.
+                ActivityExecution predExec = activityRepository.findByInstanceAndNode(instanceId, predId);
+                if (predExec == null || !STATUS_COMPLETED.equals(predExec.statusSt())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * fan-out 선행 노드의 모든 item 레인이 완료됐는지. 레인(itemIndex)별로 그룹핑해,
+     * 각 레인에 COMPLETED 행이 있고 미완(PENDING/RUNNING/WAITING) 행이 없어야 한다.
+     * retry로 한 레인에 FAILED+COMPLETED가 공존할 수 있어 레인 단위로 본다.
+     */
+    private boolean fanOutLaneAllCompleted(String instanceId, String predId) {
+        List<ActivityExecution> rows = activityRepository.findAllByInstanceAndNode(instanceId, predId);
+        if (rows.isEmpty()) return false;
+        java.util.Map<Integer, List<ActivityExecution>> byLane = new java.util.HashMap<>();
+        for (ActivityExecution r : rows) {
+            byLane.computeIfAbsent(r.itemIndex(), x -> new ArrayList<>()).add(r);
+        }
+        for (List<ActivityExecution> lane : byLane.values()) {
+            boolean anyCompleted = lane.stream().anyMatch(r -> STATUS_COMPLETED.equals(r.statusSt()));
+            boolean anyInFlight = lane.stream().anyMatch(r ->
+                    STATUS_PENDING.equals(r.statusSt()) || "RUNNING".equals(r.statusSt())
+                            || STATUS_WAITING.equals(r.statusSt()));
+            if (!anyCompleted || anyInFlight) {
                 return false;
             }
         }

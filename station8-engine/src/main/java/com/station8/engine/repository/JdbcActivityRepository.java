@@ -149,6 +149,49 @@ public class JdbcActivityRepository implements ActivityRepository {
     }
 
     @Override
+    @Transactional
+    public String createForNodeItem(String instanceId, String nodeId, String activityName, String statusSt,
+                                    String inputData, int itemIndex) {
+        String id = UUID.randomUUID().toString();
+        String sql = String.format("""
+            INSERT INTO H_LINE_ACTIVITY_EXECUTION (
+                ID, INSTANCE_ID, NODE_ID, ITEM_INDEX, ACTIVITY_NAME, STATUS_ST, INPUT_DATA,
+                RETRY_CNT, DEL_FL, REG_DT
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?,
+                0, 'N', %s
+            )
+            """, dbDialect.currentTimestamp());
+        jdbcTemplate.update(sql, id, instanceId, nodeId, itemIndex, activityName, statusSt, inputData);
+        return id;
+    }
+
+    @Override
+    @Transactional
+    public String createPending(String instanceId, String nodeId, String activityName, String inputData,
+                                LocalDateTime nextRetryDt, int itemIndex) {
+        String id = UUID.randomUUID().toString();
+        String sql = String.format("""
+            INSERT INTO H_LINE_ACTIVITY_EXECUTION (
+                ID, INSTANCE_ID, NODE_ID, ITEM_INDEX, ACTIVITY_NAME, STATUS_ST, INPUT_DATA,
+                RETRY_CNT, NEXT_RETRY_DT, DEL_FL, REG_DT
+            ) VALUES (
+                ?, ?, ?, ?, ?, 'PENDING', ?,
+                0, ?, 'N', %s
+            )
+            """, dbDialect.currentTimestamp());
+        jdbcTemplate.update(sql, id, instanceId, nodeId, itemIndex, activityName, inputData, nextRetryDt);
+        return id;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ActivityExecution> findAllByInstanceAndNode(String instanceId, String nodeId) {
+        String sql = "SELECT * FROM H_LINE_ACTIVITY_EXECUTION WHERE INSTANCE_ID = ? AND NODE_ID = ? ORDER BY ITEM_INDEX ASC";
+        return jdbcTemplate.query(sql, new ActivityExecutionRowMapper(), instanceId, nodeId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public ActivityExecution findById(String executionId) {
         String sql = "SELECT * FROM H_LINE_ACTIVITY_EXECUTION WHERE ID = ?";
