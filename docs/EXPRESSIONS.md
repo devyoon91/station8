@@ -115,6 +115,26 @@ $ctx = {
 
 ---
 
+### `$item` / `$items` / `$itemIndex` — fan-out 원소 (M22)
+
+선행 노드 출력이 배열이면 다음 노드가 원소마다 한 번씩 실행된다(item-level streaming). 그 실행 안에서 현재 원소를 가리키는 변수다.
+
+```js
+{{ $item.email }}      // 현재 원소의 필드
+{{ $itemIndex }}       // 레인 인덱스 (0부터)
+{{ $items.length }}    // 이 레인이 비롯된 전체 배열 길이
+{{ $items[0].id }}     // 전체 배열의 다른 원소
+```
+
+규칙:
+- fan-out이 아닌 일반 실행에서는 `$item`/`$items`는 `null`, `$itemIndex`는 `0`. 단일 객체 출력은 length-1 배열처럼 다뤄져 기존 라인 동작이 바뀌지 않는다.
+- `$item`은 `$prev.json`이 배열일 때 그 원소 하나다. 배열 전체가 필요하면 `$items`.
+- 문자열 원소가 JSON(`{`/`[`로 시작)이면 객체로 파싱돼 `.field` 접근 가능, 아니면 raw 문자열.
+
+> fan-out으로 원소를 실제로 채우는 동작은 후속(#369)에서 연결된다. 본 변수 자체는 그 전에도 노출되며, fan-out 전에는 위 default 값으로 동작한다.
+
+---
+
 ## 4. JavaScript 표준 함수 — 사용 가능한 것 / 차단된 것
 
 표현식은 GraalVM JavaScript (ECMAScript 2022)로 평가된다. 사용 가능 / 차단의 대원칙:

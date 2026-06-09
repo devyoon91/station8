@@ -18,6 +18,8 @@ import java.util.Map;
  *   <li>{@code $prev} — {@code { json, binary }} — 직전 노드 출력 (n8n 호환 shape)</li>
  *   <li>{@code $ctx} — {@code { input, run, line, runtime }} — station8 고유 컨텍스트</li>
  *   <li>{@code $credentials} — placeholder (빈 객체). M17 (#248) 머지 후 vault에서 풀이</li>
+ *   <li>{@code $item} / {@code $items} / {@code $itemIndex} — M22 fan-out 레인. 비-fan-out 실행은
+ *       {@code $item}/{@code $items}=null, {@code $itemIndex}=0</li>
  * </ul>
  *
  * <h3>Sandbox 안전성</h3>
@@ -36,6 +38,9 @@ public class LineContextBindings {
     public static final String PREV = "$prev";
     public static final String CTX = "$ctx";
     public static final String CREDENTIALS = "$credentials";
+    public static final String ITEM = "$item";
+    public static final String ITEMS = "$items";
+    public static final String ITEM_INDEX = "$itemIndex";
 
     private final JsonUtil jsonUtil;
     private final CredentialResolver credentialResolver;
@@ -78,6 +83,10 @@ public class LineContextBindings {
         bindings.put(PREV, prevBinding(context));
         bindings.put(CTX, ctxBinding(context));
         bindings.put(CREDENTIALS, credentialsBinding());
+        // M22 item-level streaming — fan-out 레인. 비-fan-out 실행은 $item/$items=null, $itemIndex=0.
+        bindings.put(ITEM, toJsExposable(context.item().orElse(null)));
+        bindings.put(ITEMS, toJsExposable(context.items().orElse(null)));
+        bindings.put(ITEM_INDEX, (long) context.itemIndex());
         return bindings;
     }
 

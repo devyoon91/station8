@@ -35,6 +35,9 @@ public final class LineContextBuilder {
     Map<String, Object> attributes = new HashMap<>();
     Map<String, String> runtimeParams = new HashMap<>();
     Instant now = Instant.now();
+    int itemIndex = 0;
+    Object item = null;
+    Object items = null;
 
     private LineContextBuilder() {}
 
@@ -181,6 +184,21 @@ public final class LineContextBuilder {
      */
     public LineContextBuilder now(Instant value) {
         this.now = value;
+        return this;
+    }
+
+    /**
+     * M22 fan-out 레인 정보 — {@code $item} / {@code $items} / {@code $itemIndex} 표현식 테스트용.
+     *
+     * @param index 레인 인덱스 (≥ 0)
+     * @param item 현재 원소
+     * @param items 레인이 비롯된 전체 배열
+     * @return 본 빌더
+     */
+    public LineContextBuilder itemContext(int index, Object item, Object items) {
+        this.itemIndex = index;
+        this.item = item;
+        this.items = items;
         return this;
     }
 

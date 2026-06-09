@@ -23,6 +23,11 @@ public class DefaultLineContext implements LineContext {
     /** 인스턴스 단위 runtime params (#134). 변경 가능 — null safe. */
     private Map<String, String> runtimeParams = Map.of();
 
+    /** M22 item-level streaming — fan-out 레인 인덱스/원소/전체 배열. 비-fan-out은 0/null/null. */
+    private int itemIndex = 0;
+    private Object item;
+    private Object items;
+
     private String nextActivityName;
     private Object nextActivityInput;
     private String stateSnapshotJson;
@@ -104,6 +109,31 @@ public class DefaultLineContext implements LineContext {
     /** #134 — 인스턴스 RUN_OPTIONS에서 파싱한 runtime params를 주입한다. */
     public void setRuntimeParams(Map<String, String> params) {
         this.runtimeParams = params == null ? Map.of() : Map.copyOf(params);
+    }
+
+    @Override
+    public int itemIndex() {
+        return itemIndex;
+    }
+
+    @Override
+    public Optional<Object> item() {
+        return Optional.ofNullable(item);
+    }
+
+    @Override
+    public Optional<Object> items() {
+        return Optional.ofNullable(items);
+    }
+
+    /**
+     * M22 — fan-out 레인 정보를 주입한다. {@code index}는 레인 인덱스, {@code item}은 현재 원소,
+     * {@code items}는 레인이 비롯된 전체 배열. 호스트의 fan-out materialize(#369)가 호출한다.
+     */
+    public void setItemContext(int index, Object item, Object items) {
+        this.itemIndex = index;
+        this.item = item;
+        this.items = items;
     }
 
     @Override
