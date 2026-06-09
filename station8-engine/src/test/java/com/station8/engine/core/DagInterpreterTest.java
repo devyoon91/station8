@@ -318,6 +318,59 @@ class DagInterpreterTest {
     }
 
     @Test
+    void itemStreaming_partialFailure_retryCompletesLane_collectProceeds() {
+        // B(FAN_OUT) 2 items. lane 0 = FAILED 후 retry COMPLETED, lane 1 = COMPLETED → C promote.
+        String defId = "def-partial-retry";
+        insertDefinition(defId, "PartialRetry");
+        insertNode(defId, "n-a", "A");
+        insertNodeWithMode(defId, "n-b", "B", "FAN_OUT");
+        insertNodeWithMode(defId, "n-c", "C", "COLLECT");
+        insertEdge(defId, "n-a", "n-b");
+        insertEdge(defId, "n-b", "n-c");
+
+        String instanceId = "inst-partial-retry";
+        insertInstance(instanceId);
+        interpreter.startInstance(defId, instanceId, null);
+        markCompletedWithOutput(instanceId, "n-a", "[1,2]");
+        interpreter.onNodeCompleted(instanceId, "n-a");
+
+        // lane 0: 원래 행 FAILED + retry 행 COMPLETED (같은 itemIndex 0)
+        failItemRow(instanceId, "n-b", 0);
+        insertItemRow(instanceId, "n-b", "B", "COMPLETED", 0);
+        // lane 1: COMPLETED
+        completeOneItemRow(instanceId, "n-b", 1);
+
+        interpreter.onNodeCompleted(instanceId, "n-b");
+        // 레인별로 COMPLETED가 있고 in-flight 없음 → fan-in 만족
+        assertEquals("PENDING", statusOf(instanceId, "n-c"));
+    }
+
+    @Test
+    void itemStreaming_permanentItemFailure_blocksCollect() {
+        // lane 1이 영구 실패(FAILED만, COMPLETED 없음) → C는 promote 안 됨.
+        String defId = "def-perm-fail";
+        insertDefinition(defId, "PermFail");
+        insertNode(defId, "n-a", "A");
+        insertNodeWithMode(defId, "n-b", "B", "FAN_OUT");
+        insertNodeWithMode(defId, "n-c", "C", "COLLECT");
+        insertEdge(defId, "n-a", "n-b");
+        insertEdge(defId, "n-b", "n-c");
+
+        String instanceId = "inst-perm-fail";
+        insertInstance(instanceId);
+        interpreter.startInstance(defId, instanceId, null);
+        markCompletedWithOutput(instanceId, "n-a", "[1,2]");
+        interpreter.onNodeCompleted(instanceId, "n-a");
+
+        completeOneItemRow(instanceId, "n-b", 0);  // lane 0 OK
+        failItemRow(instanceId, "n-b", 1);          // lane 1 영구 FAILED
+
+        interpreter.onNodeCompleted(instanceId, "n-b");
+        assertEquals("WAITING_DEPENDENCIES", statusOf(instanceId, "n-c"),
+                "영구 실패 레인이 있으면 collect는 대기 (부분 실패 정책 v1)");
+    }
+
+    @Test
     void terminalNodeCompletion_isNoOp() {
         // 단일 역 정의: 종단 역 완료 시 후행 없음
         String defId = "def-single";
@@ -395,5 +448,19 @@ class DagInterpreterTest {
         jdbcTemplate.update(
                 "UPDATE H_LINE_ACTIVITY_EXECUTION SET STATUS_ST = 'COMPLETED' WHERE INSTANCE_ID = ? AND NODE_ID = ? AND ITEM_INDEX = ?",
                 instanceId, nodeId, itemIndex);
+    }
+
+    private void failItemRow(String instanceId, String nodeId, int itemIndex) {
+        jdbcTemplate.update(
+                "UPDATE H_LINE_ACTIVITY_EXECUTION SET STATUS_ST = 'FAILED' WHERE INSTANCE_ID = ? AND NODE_ID = ? AND ITEM_INDEX = ?",
+                instanceId, nodeId, itemIndex);
+    }
+
+    /** retry/추가 item 행을 임의 상태로 삽입 (부분 실패 시나리오 구성용). */
+    private void insertItemRow(String instanceId, String nodeId, String activityNm, String status, int itemIndex) {
+        jdbcTemplate.update("""
+                INSERT INTO H_LINE_ACTIVITY_EXECUTION (ID, INSTANCE_ID, NODE_ID, ITEM_INDEX, ACTIVITY_NAME, STATUS_ST, DEL_FL, REG_DT)
+                VALUES (?, ?, ?, ?, ?, ?, 'N', CURRENT_TIMESTAMP)
+                """, java.util.UUID.randomUUID().toString(), instanceId, nodeId, itemIndex, activityNm, status);
     }
 }
