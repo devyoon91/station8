@@ -273,8 +273,15 @@ public record DagDefinitionRequest(
             String inputParams,
             Integer posX,
             Integer posY,
-            Map<String, String> datasourceBindings
+            Map<String, String> datasourceBindings,
+            /** M22 fan-out 모드 — NONE(기본)/FAN_OUT/COLLECT. null이면 NONE. */
+            String streamMode
     ) {
+        /** streamMode 없는 기존 호출용 — NONE(null)으로 기본. */
+        public NodeDef(String nodeId, String nodeNm, String activityNm, String inputParams,
+                       Integer posX, Integer posY, Map<String, String> datasourceBindings) {
+            this(nodeId, nodeNm, activityNm, inputParams, posX, posY, datasourceBindings, null);
+        }
     }
 
     /**
