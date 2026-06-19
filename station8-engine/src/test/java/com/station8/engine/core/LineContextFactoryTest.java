@@ -211,7 +211,7 @@ class LineContextFactoryTest {
 
     private static LineInstance simpleInstance(String id, String workflowName, String runOptionsJson) {
         return new LineInstance(
-                id, workflowName, "RUNNING",
+                id, workflowName, "def-1", "RUNNING",  // #364 — definitionId (stub은 무시하지만 런타임 스레딩 경로 검증)
                 null, null, null,
                 runOptionsJson,
                 LocalDateTime.now(), null,
@@ -318,7 +318,7 @@ class LineContextFactoryTest {
         RuntimeException exceptionToThrow;
 
         @Override
-        public List<LineTrack> findIncomingEdges(String toNodeId) {
+        public List<LineTrack> findIncomingEdges(String definitionId, String toNodeId) {
             if (exceptionToThrow != null) throw exceptionToThrow;
             return incomingByNode.getOrDefault(toNodeId, new ArrayList<>());
         }
@@ -327,11 +327,10 @@ class LineContextFactoryTest {
         @Override public List<LineDefinition> findAllActiveDefinitions() { throw nope(); }
         @Override public List<LineDefinition> findActiveDefinitionsPage(int offset, int limit) { throw nope(); }
         @Override public long countActiveDefinitions() { throw nope(); }
-        @Override public String findDefinitionIdByNodeId(String nodeId) { throw nope(); }
-        @Override public LineStation findStationById(String stationId) { throw nope(); }
+        @Override public LineStation findStationById(String definitionId, String stationId) { throw nope(); }
         @Override public List<LineStation> findNodesByDefinition(String definitionId) { throw nope(); }
         @Override public List<LineTrack> findEdgesByDefinition(String definitionId) { throw nope(); }
-        @Override public List<LineTrack> findOutgoingEdges(String fromNodeId) { throw nope(); }
+        @Override public List<LineTrack> findOutgoingEdges(String definitionId, String fromNodeId) { throw nope(); }
         @Override public List<LineStation> findStartNodes(String definitionId) { throw nope(); }
         @Override public LineDefinition findActiveDefinitionByName(String workflowName) { throw nope(); }
         @Override public void insertDefinition(LineDefinition definition) { throw nope(); }

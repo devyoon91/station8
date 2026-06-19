@@ -210,7 +210,8 @@ public class ActivityProcessor {
         Map<String, String> bindings = Collections.emptyMap();
         if (activity.nodeId() != null) {
             try {
-                LineStation station = definitionRepository.findStationById(activity.nodeId());
+                // #364 — definitionId 스코프 조회. lineContext가 인스턴스에서 받은 definitionId를 보유.
+                LineStation station = definitionRepository.findStationById(lineContext.definitionId(), activity.nodeId());
                 if (station != null && station.datasourceBindings() != null
                         && !station.datasourceBindings().isBlank()) {
                     bindings = jsonUtil.fromJsonToStringMap(station.datasourceBindings());

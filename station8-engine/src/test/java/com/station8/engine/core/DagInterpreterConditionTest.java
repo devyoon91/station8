@@ -232,11 +232,15 @@ class DagInterpreterConditionTest {
     }
 
     private void startInstance(String instanceId, String workflowName) {
+        // #364 — onNodeCompleted가 instanceId→definitionId를 역참조하므로 DEFINITION_ID를 채운다.
+        // 각 테스트는 고유 workflowName으로 정의 1건을 시드하므로 이름으로 id를 역조회.
+        String defId = jdbcTemplate.queryForObject(
+                "SELECT ID FROM U_LINE_DEFINITION WHERE DEFINITION_NM = ?", String.class, workflowName);
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, 'RUNNING', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, instanceId, workflowName);
+              (ID, WORKFLOW_NAME, DEFINITION_ID, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, ?, 'RUNNING', 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, instanceId, workflowName, defId);
     }
 
     /** 활동의 STATUS_ST = COMPLETED, OUTPUT_DATA = outputJson */

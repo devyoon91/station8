@@ -97,9 +97,9 @@ public class LineRunner {
         String instanceId = UUID.randomUUID().toString();
         jdbcTemplate.update("""
                 INSERT INTO U_LINE_INSTANCE
-                  (ID, WORKFLOW_NAME, STATUS_ST, INPUT_DATA, RUN_OPTIONS, DEL_FL, START_DT, REG_DT)
-                VALUES (?, ?, 'RUNNING', ?, ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """, instanceId, def.definitionNm(), inputData, optionsJson);
+                  (ID, WORKFLOW_NAME, DEFINITION_ID, STATUS_ST, INPUT_DATA, RUN_OPTIONS, DEL_FL, START_DT, REG_DT)
+                VALUES (?, ?, ?, 'RUNNING', ?, ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, instanceId, def.definitionNm(), definitionId, inputData, optionsJson);  // #364 — 런타임 정의 스코프 조회용
 
         dagInterpreter.startInstance(definitionId, instanceId, inputData);
         log.info("DAG 즉시 실행: definitionId={}, instanceId={}, onFailure={}, concurrency={}",

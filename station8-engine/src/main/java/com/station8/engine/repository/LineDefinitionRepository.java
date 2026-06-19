@@ -28,31 +28,25 @@ public interface LineDefinitionRepository {
     long countActiveDefinitions();
 
     /**
-     * ``U_LINE_STATION.ID``로부터 소속 ``DEFINITION_ID``를 역조회한다.
-     * 인스턴스 → 액티비티 실행 → ``nodeId``를 거쳐 라인 정의를 찾을 때 사용 (#87 M2).
-     * 소프트 삭제된 역도 매칭한다 (인스턴스 실행 당시 정의로 거슬러 올라가야 하므로).
-     *
-     * @return ``DEFINITION_ID`` 또는 ``null``(노드 없음)
-     */
-    String findDefinitionIdByNodeId(String nodeId);
-
-    /**
-     * ``U_LINE_STATION.ID``로 단일 역 조회 — DataSource 바인딩(#113) 포함 모든 필드.
+     * ``(DEFINITION_ID, ID)``로 단일 역 조회 — DataSource 바인딩(#113) 포함 모든 필드.
      * 소프트 삭제된 역도 반환 (실행 당시 정의로 거슬러 올라가는 경우).
+     *
+     * <p>#364 — nodeId는 정의 내부에서만 unique하므로 반드시 ``definitionId`` 스코프가 필요하다.
+     * 호출자는 ``INSTANCE_ID → U_LINE_INSTANCE.DEFINITION_ID`` 로 definitionId를 얻는다.</p>
      *
      * @return 해당 역 또는 ``null``
      */
-    LineStation findStationById(String stationId);
+    LineStation findStationById(String definitionId, String stationId);
 
     List<LineStation> findNodesByDefinition(String definitionId);
 
     List<LineTrack> findEdgesByDefinition(String definitionId);
 
-    /** 후행 역 → 선행 역 조회 (fan-in 검사에 사용). */
-    List<LineTrack> findIncomingEdges(String toNodeId);
+    /** 후행 역 → 선행 역 조회 (fan-in 검사에 사용). #364 — definitionId 스코프 필수. */
+    List<LineTrack> findIncomingEdges(String definitionId, String toNodeId);
 
-    /** 선행 역 → 후행 역 조회 (fan-out 활성화에 사용). */
-    List<LineTrack> findOutgoingEdges(String fromNodeId);
+    /** 선행 역 → 후행 역 조회 (fan-out 활성화에 사용). #364 — definitionId 스코프 필수. */
+    List<LineTrack> findOutgoingEdges(String definitionId, String fromNodeId);
 
     /** 시작 역(들): incoming edge가 0개인 역. */
     List<LineStation> findStartNodes(String definitionId);

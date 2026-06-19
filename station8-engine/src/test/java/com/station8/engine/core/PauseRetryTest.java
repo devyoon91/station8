@@ -232,11 +232,16 @@ class PauseRetryTest {
 
     private String seedInstance(String workflowName, String status) {
         String id = "inst-" + UUID.randomUUID();
+        // #364 — fan-out 재평가(unpause→onNodeCompleted)가 instanceId→definitionId를 쓰므로,
+        // 같은 이름의 정의가 있으면 DEFINITION_ID를 채운다(없는 retry-only 테스트는 null 그대로).
+        java.util.List<String> defs = jdbcTemplate.queryForList(
+                "SELECT ID FROM U_LINE_DEFINITION WHERE DEFINITION_NM = ?", String.class, workflowName);
+        String defId = defs.isEmpty() ? null : defs.get(0);
         jdbcTemplate.update("""
             INSERT INTO U_LINE_INSTANCE
-              (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL, START_DT, REG_DT)
-            VALUES (?, ?, ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, id, workflowName, status);
+              (ID, WORKFLOW_NAME, DEFINITION_ID, STATUS_ST, DEL_FL, START_DT, REG_DT)
+            VALUES (?, ?, ?, ?, 'N', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, id, workflowName, defId, status);
         return id;
     }
 

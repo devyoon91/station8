@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public record LineInstance(
     String id,                // ID (PK)
     String workflowName,      // WORKFLOW_NAME
+    String definitionId,      // DEFINITION_ID (#364) — DAG 인스턴스의 소속 라인 정의. 레거시/선형(@Activity)은 null.
     String statusSt,          // STATUS_ST (RUNNING, COMPLETED, FAILED, TERMINATED)
     String inputData,         // INPUT_DATA (CLOB/LONGTEXT - JSON)
     String outputData,        // OUTPUT_DATA (CLOB/LONGTEXT - JSON)
@@ -30,6 +31,7 @@ public record LineInstance(
         return new LineInstance(
             id,
             workflowName,
+            null,             // definitionId — 이 팩토리는 레거시/선형 경로용. DAG는 INSERT 시 직접 채운다.
             "RUNNING",
             inputData,
             null,

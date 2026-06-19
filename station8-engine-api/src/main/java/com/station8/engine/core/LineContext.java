@@ -65,6 +65,16 @@ public interface LineContext {
     default String nodeId() { return null; }
 
     /**
+     * 현재 인스턴스가 속한 라인 정의 ID. legacy/linear 모드(DAG 외부)에서는 null.
+     *
+     * <p>#364 — nodeId가 정의 내부에서만 unique하므로, 역/엣지 같은 정의 테이블을 조회하려면
+     * definitionId 스코프가 필요하다. 런타임은 ``INSTANCE_ID → U_LINE_INSTANCE.DEFINITION_ID``로 얻는다.</p>
+     *
+     * @return 정의 ID, linear 모드에서는 null
+     */
+    default String definitionId() { return null; }
+
+    /**
      * 현재 활동의 시도 횟수. 최초 실행 = 1, 첫 재시도 = 2, ...
      *
      * @return 시도 횟수 (≥ 1)

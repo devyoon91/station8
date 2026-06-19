@@ -80,6 +80,9 @@ public class LineContextFactory {
                 ? instance.workflowName()
                 : UNKNOWN_WORKFLOW_NAME;
 
+        // #364 — 정의 테이블(역/엣지) 조회는 definitionId 스코프 필수. 인스턴스에서 읽는다(레거시/선형은 null).
+        String definitionId = instance != null ? instance.definitionId() : null;
+
         DefaultLineContext context = new DefaultLineContext(
                 activity.instanceId(),
                 workflowName,
@@ -87,13 +90,14 @@ public class LineContextFactory {
                 activity.nodeId(),                    // #278 — DAG 모드 retry가 nodeId 보존하도록 컨텍스트에 전달
                 activity.retryCnt() + 1,
                 activity.inputData(),
-                loadPreviousOutput(activity), // #267 — M16 $prev.json.* 활성
+                loadPreviousOutput(activity, definitionId), // #267 — M16 $prev.json.* 활성
                 jsonUtil
         );
         context.attributes().put("executionId", activity.id());
         context.setRuntimeParams(options.runtimeParams());
+        context.setDefinitionId(definitionId);  // #364 — ActivityProcessor가 station 바인딩 조회에 사용
         // M22 (#369) — fan-out 레인 컨텍스트. NONE 노드는 (index, null, null)로 기존과 동일.
-        applyItemContext(context, activity);
+        applyItemContext(context, activity, definitionId);
         return new Bundle(context, options);
     }
 
@@ -105,7 +109,7 @@ public class LineContextFactory {
      *   <li>그 외(NONE/legacy): index만 노출, $item/$items=null — 기존 동작.</li>
      * </ul>
      */
-    private void applyItemContext(DefaultLineContext context, ActivityExecution activity) {
+    private void applyItemContext(DefaultLineContext context, ActivityExecution activity, String definitionId) {
         int idx = activity.itemIndex();
         if (activity.nodeId() == null) {
             context.setItemContext(idx, null, null);
@@ -113,7 +117,7 @@ public class LineContextFactory {
         }
         LineStation node;
         try {
-            node = definitionRepository.findStationById(activity.nodeId());
+            node = definitionRepository.findStationById(definitionId, activity.nodeId());
         } catch (Exception ex) {
             context.setItemContext(idx, null, null);
             return;
@@ -121,11 +125,11 @@ public class LineContextFactory {
         String mode = node == null ? LineStation.STREAM_NONE : node.streamModeOrDefault();
         try {
             if (LineStation.STREAM_FAN_OUT.equals(mode)) {
-                List<?> items = loadPredecessorArray(activity);
+                List<?> items = loadPredecessorArray(activity, definitionId);
                 Object item = (items != null && idx >= 0 && idx < items.size()) ? items.get(idx) : null;
                 context.setItemContext(idx, item, items);
             } else if (LineStation.STREAM_COLLECT.equals(mode)) {
-                context.setItemContext(idx, null, collectPredecessorOutputs(activity));
+                context.setItemContext(idx, null, collectPredecessorOutputs(activity, definitionId));
             } else {
                 context.setItemContext(idx, null, null);
             }
@@ -136,8 +140,8 @@ public class LineContextFactory {
     }
 
     /** FAN_OUT — 단일 선행의 출력을 배열로 파싱. */
-    private List<?> loadPredecessorArray(ActivityExecution activity) {
-        List<LineTrack> incoming = definitionRepository.findIncomingEdges(activity.nodeId());
+    private List<?> loadPredecessorArray(ActivityExecution activity, String definitionId) {
+        List<LineTrack> incoming = definitionRepository.findIncomingEdges(definitionId, activity.nodeId());
         if (incoming.size() != 1) return null;
         ActivityExecution prev = activityRepository.findByInstanceAndNode(activity.instanceId(), incoming.get(0).fromNodeId());
         String json = prev == null ? null : prev.outputData();
@@ -147,8 +151,8 @@ public class LineContextFactory {
     }
 
     /** COLLECT — 단일 선행 fan-out 레인의 모든 item 행 출력을 itemIndex 순으로 모은다. */
-    private List<Object> collectPredecessorOutputs(ActivityExecution activity) {
-        List<LineTrack> incoming = definitionRepository.findIncomingEdges(activity.nodeId());
+    private List<Object> collectPredecessorOutputs(ActivityExecution activity, String definitionId) {
+        List<LineTrack> incoming = definitionRepository.findIncomingEdges(definitionId, activity.nodeId());
         if (incoming.size() != 1) return List.of();
         List<ActivityExecution> rows = activityRepository.findAllByInstanceAndNode(
                 activity.instanceId(), incoming.get(0).fromNodeId());
@@ -182,10 +186,10 @@ public class LineContextFactory {
      *   <li>조회 예외: null + WARN — 활동 실행 자체는 멈추지 않음</li>
      * </ul>
      */
-    private Object loadPreviousOutput(ActivityExecution activity) {
+    private Object loadPreviousOutput(ActivityExecution activity, String definitionId) {
         if (activity.nodeId() == null) return null;
         try {
-            List<LineTrack> incoming = definitionRepository.findIncomingEdges(activity.nodeId());
+            List<LineTrack> incoming = definitionRepository.findIncomingEdges(definitionId, activity.nodeId());
             if (incoming.size() != 1) return null;
             String prevNodeId = incoming.get(0).fromNodeId();
             ActivityExecution prev = activityRepository.findByInstanceAndNode(activity.instanceId(), prevNodeId);

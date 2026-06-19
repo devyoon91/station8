@@ -34,23 +34,12 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public String findDefinitionIdByNodeId(String nodeId) {
-        // 소프트 삭제된 노드도 매칭 — 인스턴스가 실행됐던 당시 정의로 역조회해야 하므로.
-        List<String> rows = jdbcTemplate.query(
-                "SELECT DEFINITION_ID FROM U_LINE_STATION WHERE ID = ?",
-                (rs, rowNum) -> rs.getString(1),
-                nodeId);
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public LineStation findStationById(String stationId) {
-        // findDefinitionIdByNodeId와 동일하게 DEL_FL 조건 무시 — 인스턴스 실행 중 station 메타에 접근.
+    public LineStation findStationById(String definitionId, String stationId) {
+        // #364 — (DEFINITION_ID, ID) 스코프. DEL_FL 조건 무시 — 인스턴스 실행 중 station 메타에 접근(소프트 삭제 후에도).
         List<LineStation> rows = jdbcTemplate.query(
-                "SELECT * FROM U_LINE_STATION WHERE ID = ?",
+                "SELECT * FROM U_LINE_STATION WHERE DEFINITION_ID = ? AND ID = ?",
                 new NodeMapper(),
-                stationId);
+                definitionId, stationId);
         return rows.isEmpty() ? null : rows.get(0);
     }
 
@@ -100,16 +89,18 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<LineTrack> findIncomingEdges(String toNodeId) {
-        String sql = "SELECT * FROM U_LINE_TRACK WHERE TO_NODE_ID = ? AND DEL_FL = 'N'";
-        return jdbcTemplate.query(sql, new EdgeMapper(), toNodeId);
+    public List<LineTrack> findIncomingEdges(String definitionId, String toNodeId) {
+        // #364 — definitionId 스코프. nodeId가 정의 간 충돌할 수 있으므로 정의로 한정.
+        String sql = "SELECT * FROM U_LINE_TRACK WHERE DEFINITION_ID = ? AND TO_NODE_ID = ? AND DEL_FL = 'N'";
+        return jdbcTemplate.query(sql, new EdgeMapper(), definitionId, toNodeId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<LineTrack> findOutgoingEdges(String fromNodeId) {
-        String sql = "SELECT * FROM U_LINE_TRACK WHERE FROM_NODE_ID = ? AND DEL_FL = 'N'";
-        return jdbcTemplate.query(sql, new EdgeMapper(), fromNodeId);
+    public List<LineTrack> findOutgoingEdges(String definitionId, String fromNodeId) {
+        // #364 — definitionId 스코프. nodeId가 정의 간 충돌할 수 있으므로 정의로 한정.
+        String sql = "SELECT * FROM U_LINE_TRACK WHERE DEFINITION_ID = ? AND FROM_NODE_ID = ? AND DEL_FL = 'N'";
+        return jdbcTemplate.query(sql, new EdgeMapper(), definitionId, fromNodeId);
     }
 
     @Override
@@ -120,7 +111,7 @@ public class JdbcLineDefinitionRepository implements LineDefinitionRepository {
                 WHERE n.DEFINITION_ID = ? AND n.DEL_FL = 'N'
                   AND NOT EXISTS (
                       SELECT 1 FROM U_LINE_TRACK e
-                      WHERE e.TO_NODE_ID = n.ID AND e.DEL_FL = 'N'
+                      WHERE e.DEFINITION_ID = n.DEFINITION_ID AND e.TO_NODE_ID = n.ID AND e.DEL_FL = 'N'
                   )
                 """;
         return jdbcTemplate.query(sql, new NodeMapper(), definitionId);
