@@ -23,6 +23,9 @@ public class DefaultLineContext implements LineContext {
     /** 인스턴스 단위 runtime params (#134). 변경 가능 — null safe. */
     private Map<String, String> runtimeParams = Map.of();
 
+    /** #364 — 소속 라인 정의 ID. Factory가 인스턴스에서 읽어 주입(DAG 모드). 레거시/선형은 null. */
+    private String definitionId;
+
     /** M22 item-level streaming — fan-out 레인 인덱스/원소/전체 배열. 비-fan-out은 0/null/null. */
     private int itemIndex = 0;
     private Object item;
@@ -109,6 +112,17 @@ public class DefaultLineContext implements LineContext {
     /** #134 — 인스턴스 RUN_OPTIONS에서 파싱한 runtime params를 주입한다. */
     public void setRuntimeParams(Map<String, String> params) {
         this.runtimeParams = params == null ? Map.of() : Map.copyOf(params);
+    }
+
+    /** #364 — 소속 라인 정의 ID (DAG 모드). 인터프리터/리졸버가 정의 스코프 조회에 사용. 레거시/선형은 null. */
+    @Override
+    public String definitionId() {
+        return definitionId;
+    }
+
+    /** #364 — Factory가 인스턴스에서 읽은 definitionId를 주입한다. */
+    public void setDefinitionId(String definitionId) {
+        this.definitionId = definitionId;
     }
 
     @Override

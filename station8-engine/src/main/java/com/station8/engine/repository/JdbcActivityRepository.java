@@ -408,6 +408,7 @@ public class JdbcActivityRepository implements ActivityRepository {
             return new LineInstance(
                 rs.getString("ID"),
                 rs.getString("WORKFLOW_NAME"),
+                rs.getString("DEFINITION_ID"),   // #364
                 rs.getString("STATUS_ST"),
                 rs.getString("INPUT_DATA"),
                 rs.getString("OUTPUT_DATA"),

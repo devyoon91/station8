@@ -158,7 +158,7 @@ public class LineMonitoringController {
         model.addAttribute("navDashboard", true);
 
         // #87 M2 — 인스턴스 진행 위치 오버레이용 노선도 페이로드
-        String subwayJson = buildSubwayPayload(instanceId, activities);
+        String subwayJson = buildSubwayPayload(instance, activities);
         if (subwayJson != null) {
             model.addAttribute("subwayJson", subwayJson);
             model.addAttribute("hasSubway", true);
@@ -170,10 +170,10 @@ public class LineMonitoringController {
     }
 
     /**
-     * 인스턴스의 액티비티 실행 이력에서 ``nodeId``를 통해 라인 정의를 역조회하고,
+     * 인스턴스의 소속 라인 정의(#364 — {@code instance.definitionId()})로부터
      * 노선도 SVG 렌더에 필요한 JSON({nodes, edges, statusByNode})을 만든다.
      *
-     * 레거시 모드(executions의 ``nodeId``가 모두 null)이면 ``null``을 반환하고,
+     * 레거시 모드(executions의 ``nodeId``가 모두 null, 또는 definitionId 미상)이면 ``null``을 반환하고,
      * view에서는 노선도 없이 timeline만 보여준다.
      *
      * 액티비티 상태 → 서브웨이 상태 매핑:
@@ -185,16 +185,16 @@ public class LineMonitoringController {
      *   <li>실행 기록 없음                  → ``untouched`` (기본 외곽선)</li>
      * </ul>
      */
-    private String buildSubwayPayload(String instanceId, List<ActivityExecution> activities) {
-        String anchorNodeId = activities.stream()
+    private String buildSubwayPayload(LineInstance instance, List<ActivityExecution> activities) {
+        boolean hasDagNode = activities.stream()
                 .map(ActivityExecution::nodeId)
-                .filter(id -> id != null && !id.isBlank())
-                .findFirst()
-                .orElse(null);
-        if (anchorNodeId == null) return null;
+                .anyMatch(id -> id != null && !id.isBlank());
+        if (!hasDagNode) return null;
 
-        String definitionId = definitionRepository.findDefinitionIdByNodeId(anchorNodeId);
+        // #364 — nodeId 역조회 대신 인스턴스가 보유한 definitionId를 직접 사용 (nodeId는 정의 간 충돌 가능).
+        String definitionId = instance.definitionId();
         if (definitionId == null) return null;
+        String instanceId = instance.id();
 
         List<LineStation> nodes = definitionRepository.findNodesByDefinition(definitionId);
         if (nodes.isEmpty()) return null;

@@ -79,8 +79,8 @@ class StationDataSourceBindingVerifyTest {
                 .containsExactlyInAnyOrderEntriesOf(
                         Map.of("source", "ops-oracle", "target", "mart-mariadb"));
 
-        // station record가 DB에서 직접 읽었을 때도 동일
-        var station = definitionRepository.findStationById("n-bind");
+        // station record가 DB에서 직접 읽었을 때도 동일 (#364 — definitionId 스코프)
+        var station = definitionRepository.findStationById(defId, "n-bind");
         assertThat(station).isNotNull();
         assertThat(station.datasourceBindings())
                 .contains("source").contains("ops-oracle")

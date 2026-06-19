@@ -97,7 +97,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-b", "n-c");
 
         String instanceId = "inst-linear";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
 
         assertEquals("PENDING", statusOf(instanceId, "n-a"));
@@ -128,7 +128,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-a", "n-c");
 
         String instanceId = "inst-fanout";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
 
         assertEquals("PENDING", statusOf(instanceId, "n-a"));
@@ -155,7 +155,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-b", "n-c");
 
         String instanceId = "inst-fanin";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
 
         // 시작 역 2개 (A, B), C는 대기
@@ -189,7 +189,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-c", "n-d");
 
         String instanceId = "inst-diamond";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
 
         // A만 PENDING
@@ -230,7 +230,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-b", "n-c");
 
         String instanceId = "inst-fanout-items";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
 
         // A가 배열 출력으로 완료 → B가 원소당 3행으로 materialize
@@ -256,7 +256,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-b", "n-c");
 
         String instanceId = "inst-collect";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
 
         markCompletedWithOutput(instanceId, "n-a", "[1,2]");
@@ -285,7 +285,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-a", "n-b");
 
         String instanceId = "inst-none-array";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
 
         markCompletedWithOutput(instanceId, "n-a", "[1,2,3]");
@@ -305,7 +305,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-a", "n-b");
 
         String instanceId = "inst-degenerate";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
 
         // 단일 객체 출력 → length-1 degenerate
@@ -329,7 +329,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-b", "n-c");
 
         String instanceId = "inst-partial-retry";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
         markCompletedWithOutput(instanceId, "n-a", "[1,2]");
         interpreter.onNodeCompleted(instanceId, "n-a");
@@ -357,7 +357,7 @@ class DagInterpreterTest {
         insertEdge(defId, "n-b", "n-c");
 
         String instanceId = "inst-perm-fail";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
         markCompletedWithOutput(instanceId, "n-a", "[1,2]");
         interpreter.onNodeCompleted(instanceId, "n-a");
@@ -378,7 +378,7 @@ class DagInterpreterTest {
         insertNode(defId, "n-only", "A");
 
         String instanceId = "inst-single";
-        insertInstance(instanceId);
+        insertInstance(instanceId, defId);
         interpreter.startInstance(defId, instanceId, null);
 
         assertEquals("PENDING", statusOf(instanceId, "n-only"));
@@ -412,11 +412,12 @@ class DagInterpreterTest {
                 """, "edge-" + fromNodeId + "-" + toNodeId, defId, fromNodeId, toNodeId);
     }
 
-    private void insertInstance(String instanceId) {
+    private void insertInstance(String instanceId, String defId) {
+        // #364 — onNodeCompleted가 instanceId로 definitionId를 역참조하므로 DEFINITION_ID 필수.
         jdbcTemplate.update("""
-                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, STATUS_ST, DEL_FL)
-                VALUES (?, 'TestDag', 'RUNNING', 'N')
-                """, instanceId);
+                INSERT INTO U_LINE_INSTANCE (ID, WORKFLOW_NAME, DEFINITION_ID, STATUS_ST, DEL_FL)
+                VALUES (?, 'TestDag', ?, 'RUNNING', 'N')
+                """, instanceId, defId);
     }
 
     private String statusOf(String instanceId, String nodeId) {

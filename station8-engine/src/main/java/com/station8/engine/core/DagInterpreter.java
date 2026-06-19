@@ -117,7 +117,16 @@ public class DagInterpreter {
             return;
         }
 
-        List<LineTrack> outgoing = definitionRepository.findOutgoingEdges(completedNodeId);
+        // #364 — nodeId가 정의 간 충돌할 수 있으므로 정의 테이블 조회는 definitionId 스코프 필수.
+        // 인스턴스에서 소속 정의를 얻는다(레거시/마이그레이션 전 in-flight 인스턴스는 null일 수 있음 → fan-out skip).
+        String definitionId = instance != null ? instance.definitionId() : null;
+        if (definitionId == null) {
+            log.warn("definitionId 미상 — fan-out 평가 skip: instanceId={}, completedNodeId={}",
+                    instanceId, completedNodeId);
+            return;
+        }
+
+        List<LineTrack> outgoing = definitionRepository.findOutgoingEdges(definitionId, completedNodeId);
         if (outgoing.isEmpty()) {
             log.debug("Terminal node completed: instanceId={}, nodeId={}", instanceId, completedNodeId);
             return;
@@ -165,12 +174,12 @@ public class DagInterpreter {
         // 활성화된 엣지의 후행 노드 promote — fan-in 조건은 기존 그대로
         for (LineTrack edge : activatedEdges) {
             String successorId = edge.toNodeId();
-            if (!allPredecessorsCompleted(instanceId, successorId)) {
+            if (!allPredecessorsCompleted(definitionId, instanceId, successorId)) {
                 continue;
             }
             // M22 (#369) — 후행이 FAN_OUT이면 선행 배열을 item당 행으로 materialize.
             // 그 외(NONE/COLLECT)는 기존 단일 행 promote 경로를 그대로 탄다.
-            LineStation successor = definitionRepository.findStationById(successorId);
+            LineStation successor = definitionRepository.findStationById(definitionId, successorId);
             String mode = (successor == null) ? LineStation.STREAM_NONE : successor.streamModeOrDefault();
             if (LineStation.STREAM_FAN_OUT.equals(mode)) {
                 materializeFanOut(instanceId, successorId, edge.fromNodeId(), successor);
@@ -251,11 +260,11 @@ public class DagInterpreter {
         }
     }
 
-    private boolean allPredecessorsCompleted(String instanceId, String nodeId) {
-        List<LineTrack> incoming = definitionRepository.findIncomingEdges(nodeId);
+    private boolean allPredecessorsCompleted(String definitionId, String instanceId, String nodeId) {
+        List<LineTrack> incoming = definitionRepository.findIncomingEdges(definitionId, nodeId);
         for (LineTrack edge : incoming) {
             String predId = edge.fromNodeId();
-            LineStation pred = definitionRepository.findStationById(predId);
+            LineStation pred = definitionRepository.findStationById(definitionId, predId);
             boolean predIsFanOut = pred != null && LineStation.STREAM_FAN_OUT.equals(pred.streamModeOrDefault());
             if (predIsFanOut) {
                 // M22 — fan-out 선행: 모든 item 레인이 완료돼야 한다 (레인별 최소 1개 COMPLETED + 미완 행 없음).
