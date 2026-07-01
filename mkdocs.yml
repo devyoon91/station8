@@ -1,0 +1,95 @@
+site_name: Station8 Docs
+site_description: DB 폴링 기반 경량 Durable Workflow 엔진 Station8 문서
+site_author: station8
+docs_dir: docs
+site_dir: site
+use_directory_urls: true
+
+theme:
+  name: material
+  language: ko
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: 다크 모드로 전환
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: 라이트 모드로 전환
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+# 기존 docs는 저장소 소스 파일로 상대링크를 건다(../station8-engine/... — GitHub UI용).
+# mkdocs 사이트에선 docs_dir 밖이라 "없는 링크"로 잡히므로 not_found는 무시하고,
+# 실제로 잡아야 할 문서 내부 anchor 깨짐만 경고(--strict에서 실패)로 둔다.
+validation:
+  omitted_files: warn
+  links:
+    not_found: ignore
+    anchors: warn
+
+nav:
+  - 홈: index.md
+  - 시작하기:
+      - Quickstart: QUICKSTART.md
+      - How-To: HOWTO.md
+  - 아키텍처:
+      - 개요: ARCHITECTURE.md
+      - Line Engine Spec: line-engine-spec.md
+  - 표현식 · 정책:
+      - 표현식 가이드: EXPRESSIONS.md
+      - HTTP 정책 (SSRF 방어): HTTP_POLICY.md
+      - 파일 정책 (Path Traversal): FILE_POLICY.md
+      - Credential Vault: SECRETS.md
+  - 플러그인:
+      - 운영 가이드: PLUGINS.md
+      - 개발 가이드: PLUGIN_DEVELOPMENT.md
+  - 운영:
+      - DB 명명 규칙: DATABASE_RULE.md
+      - 에러 코드: ERROR_CODES.md
+      - UI Layout 규칙: UI_LAYOUT.md
+  - 생성 문서:
+      - 개요: generated/index.md
+      - API 문서: generated/api/index.md
+      - 기능정의서: generated/features/index.md
+      - 테이블 정의서: generated/schema/index.md
+      - 화면정의서: generated/screens/index.md
+      - 운영 메뉴얼: generated/ops/index.md
+  - 의사결정 (ADR):
+      - Expression Engine (M16): decisions/m16-expression-engine.md
+      - Item Streaming (M22): decisions/m22-item-streaming.md
+      - LLM Provider (M23): decisions/m23-llm-provider-abstraction.md
+      - LineContext 0.1.0: decisions/line-context-pre-0_1_0.md
+      - 엔진 아티팩트 배포: decisions/engine-artifact-distribution.md
+  - 기여: CONTRIBUTING.md

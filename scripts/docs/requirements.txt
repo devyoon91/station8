@@ -1,0 +1,4 @@
+# Station8 문서 사이트 빌드 의존성 (MkDocs + Material)
+# 폐쇄망: 인터넷 되는 곳에서 `pip download -r requirements.txt -d wheels/` 로 받아
+# 사내로 옮긴 뒤 `pip install --no-index --find-links wheels/ -r requirements.txt`.
+mkdocs-material>=9.5,<10

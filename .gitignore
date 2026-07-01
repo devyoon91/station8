@@ -59,7 +59,9 @@ gradle-app.setting
 test_output.txt
 
 # Claude Code working dirs (worktrees + scheduled task logs)
-.claude/
+.claude/*
+# 단, 팀 공유용 문서 생성 서브에이전트는 커밋
+!.claude/agents/
 
 # 환경변수 — .env.example만 커밋, 실제 .env는 비커밋
 .env
@@ -69,3 +71,10 @@ docker/.env
 docker/.env.*
 !docker/.env.example
 
+
+# 문서 사이트 (MkDocs) 빌드 산출물
+/site/
+# 문서 툴링 (Python venv / Node)
+.venv/
+scripts/docs/wheels/
+tools/screenshots/node_modules/
