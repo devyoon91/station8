@@ -1,0 +1,15 @@
+{
+  "name": "station8-screenshots",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Station8 UI 스크린샷 자동 캡처 (puppeteer-core + 로컬 Chrome headless)",
+  "scripts": {
+    "capture": "node capture.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "14.4.1"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}

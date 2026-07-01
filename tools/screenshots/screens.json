@@ -1,0 +1,23 @@
+{
+  "$comment": "화면 인벤토리. capture.js가 이 목록을 읽어 각 화면을 캡처한다. path의 {id}는 resolve로 런타임 치환. viewports 미지정 시 desktop만.",
+  "screens": [
+    { "name": "landing",              "title": "랜딩",              "path": "/",                       "auth": false, "viewports": ["desktop", "mobile"] },
+    { "name": "login",                "title": "로그인",            "path": "/login",                  "auth": false },
+    { "name": "dashboard",            "title": "대시보드",          "path": "/line/dashboard",         "auth": true,  "viewports": ["desktop", "mobile"] },
+    { "name": "definitions",          "title": "라인 정의 목록",    "path": "/line/definitions",       "auth": true },
+    { "name": "builder",              "title": "DAG 빌더",          "path": "/line/builder",           "auth": true,  "viewports": ["desktop", "mobile"], "waitFor": "#drawflow", "waitMs": 800 },
+    { "name": "schedules",            "title": "스케줄",            "path": "/line/schedules",         "auth": true },
+    { "name": "activities",           "title": "액티비티 카탈로그", "path": "/line/activities",        "auth": true },
+    { "name": "dlq",                  "title": "DLQ",               "path": "/line/dlq",               "auth": true },
+    { "name": "triggers",             "title": "트리거",            "path": "/line/triggers",          "auth": true },
+    { "name": "admin-users",          "title": "관리자 · 사용자",   "path": "/admin/users",            "auth": true },
+    { "name": "admin-credentials",    "title": "관리자 · 크리덴셜", "path": "/admin/credentials",      "auth": true },
+    { "name": "admin-credential-form","title": "크리덴셜 등록",     "path": "/admin/credentials/new",  "auth": true },
+    { "name": "admin-datasources",    "title": "관리자 · 데이터소스","path": "/admin/datasources",     "auth": true },
+    { "name": "admin-datasource-form","title": "데이터소스 등록",   "path": "/admin/datasources/new",  "auth": true },
+    { "name": "admin-plugins",        "title": "관리자 · 플러그인", "path": "/admin/plugins",          "auth": true },
+    { "name": "me-password",          "title": "비밀번호 변경",     "path": "/me/password",            "auth": true },
+    { "name": "definition-preview",   "title": "라인 정의 미리보기","path": "/line/definitions/{id}",  "auth": true, "resolve": "definition" },
+    { "name": "timeline",             "title": "인스턴스 타임라인", "path": "/line/instance/{id}",     "auth": true, "resolve": "instance" }
+  ]
+}
